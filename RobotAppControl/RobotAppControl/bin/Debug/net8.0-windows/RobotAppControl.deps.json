@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "RobotAppControl/1.0.0": {
+        "runtime": {
+          "RobotAppControl.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "RobotAppControl/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
