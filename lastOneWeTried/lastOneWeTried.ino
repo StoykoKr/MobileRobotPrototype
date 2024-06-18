@@ -541,17 +541,17 @@ void smurfMovement(String signal) {
   }
 }
 void justLeftRight(int direction) {
-  // float lastThree[] = { 0, 0, 0 };
-  //float current = 0;
-  //lastThree[1] = MagneticSensorReading();
-  //lastThree[2] = MagneticSensorReading();
+   float lastThree[] = { 0, 0, 0 };
+  float current = 0;
+  lastThree[1] = MagneticSensorReading();
+  lastThree[2] = MagneticSensorReading();
   ResetPIDs();
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
     }
-    /* lastThree[0] = lastThree[1];
+     lastThree[0] = lastThree[1];
     lastThree[1] = lastThree[2];
     lastThree[2] = MagneticSensorReading();
     if (lastThree[2] < lastThree[1]) {
@@ -574,14 +574,14 @@ void justLeftRight(int direction) {
           current = lastThree[1];
         }
       }
-    }*/
-    AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    GetUltrasoundData(currentHeadingDegree, false);
-    //GetUltrasoundData(current, false);
+    }
+    //AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+    //GetUltrasoundData(currentHeadingDegree, false);
+    GetUltrasoundData(current, false);
     MoveRightMotor(200 * direction);
     MoveLeftMotor(200 * (-1) * direction);
   }
-  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+ // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
   ResetPIDs();
   MoveRightMotor(0);
   MoveLeftMotor(0);
@@ -592,20 +592,20 @@ void justLeftRight(int direction) {
 }
 void justForward() {
   ResetPIDs();
-  /* float targetDegree = MagneticSensorReading();
+  // float targetDegree = MagneticSensorReading();
   float lastThree[] = { 0, 0, 0 };
   lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading(); */
+  lastThree[2] = MagneticSensorReading(); 
   float speedadjustment = 0;
   float speedRight;
   float speedLeft;
-  //float current = 0;
+  float current = 0;
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
-    }
-    /* lastThree[0] = lastThree[1];
+    } 
+    lastThree[0] = lastThree[1];
     lastThree[1] = lastThree[2];
     lastThree[2] = MagneticSensorReading();
     if (lastThree[2] < lastThree[1]) {
@@ -628,10 +628,10 @@ void justForward() {
           current = lastThree[1];
         }
       }
-    }*/
-    speedadjustment = PidController_straightForward_adjust_alternative(&leftEncoderCounter, 7.2, 0.3, 0.2, &rightEncoderCounter);
-    speedRight = 230;
-    speedLeft = 230;
+    }
+    speedadjustment = PidController_straightForward_adjust_alternative(&leftEncoderCounter, 4.5, 0.2, 0.3, &rightEncoderCounter);
+    speedRight = 200;
+    speedLeft = 200;
     if (speedadjustment > 150) {
       speedadjustment = 150;
     } else if (speedadjustment < -150) {
@@ -639,9 +639,9 @@ void justForward() {
     }
     speedLeft -= speedadjustment;
     speedRight += speedadjustment;
-    AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    GetUltrasoundData(currentHeadingDegree, true);
-
+   // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+    GetUltrasoundData(current, true);
+    /*
     String str = "report|";
     str.concat(speedLeft);
     str.concat("|");
@@ -654,7 +654,7 @@ void justForward() {
     str.concat(rightEncoderCounter);
     str.concat("|");
     str.concat("Heading:");
-    str.concat(currentHeadingDegree);
+    str.concat(current);
     str.concat("|");
     str.concat("adjustmentLeft:");
     str.concat(adjustmentHeadingLeftChange);
@@ -663,7 +663,7 @@ void justForward() {
     str.concat(adjustmentHeadingLeftChange);
     str.concat('`');
     client.print(str);
-
+    */
 
 
     MoveRightMotor(speedRight);
@@ -671,7 +671,7 @@ void justForward() {
   }
   MoveRightMotor(0);
   MoveLeftMotor(0);
-  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+  //AdjustHeading(leftEncoderCounter, rightEncoderCounter);
   digitalWrite(input1Pin, LOW);
   digitalWrite(input2Pin, LOW);
   digitalWrite(input3Pin, LOW);

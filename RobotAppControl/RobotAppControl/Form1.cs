@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Drawing.Imaging;
@@ -6,11 +7,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml.Linq;
 
 namespace RobotAppControl
 {
     public partial class Form1 : Form
     {
+        private Grid _grid;
+        private Robot _robot;
 
         private PictureBox PictureBox;
         private int picture_offsetX = 0, picture_offsetY = 0;
@@ -40,10 +44,16 @@ namespace RobotAppControl
         TcpClient client;
         public delegate void RefreshTheImg();
         public RefreshTheImg myDelagate;
+        private bool settingStart = false;
+        private bool settingEnd = false;
+        private int startX = 0;
+        private int startY = 0;
+        private int endX = 0;
+        private int endY = 0;
         public Form1()
         {
             InitializeComponent();
-            stringsToBeInterpreted = new ConcurrentQueue<string>();           
+            stringsToBeInterpreted = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
             // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
             this.KeyPreview = true;
@@ -56,10 +66,49 @@ namespace RobotAppControl
         {
             if (listener == null)
             {
-                listener = new Listener(ref stringsToBeInterpreted,ref canHear);
+                listener = new Listener(ref stringsToBeInterpreted, ref canHear);
                 listenThread = new Thread(() => listener.BeginListening(stream));
                 listenThread.Start();
             }
+        }
+        private void SetObstaclesFromMap(CustomBitmap map)
+        {
+            _grid = new Grid(map.Width, map.Height);
+
+            for (int x = 0; x < map.Width; x++)
+            {
+                for (int y = 0; y < map.Height; y++)
+                {
+                    Color pixelColor = map.GetPixel(x, y);
+                    if (IsObstacle(pixelColor))
+                    {
+                        _grid.SetWalkable(x, y, false);
+                    }
+                }
+            }
+        }
+
+        private bool IsObstacle(Color color)
+        {
+            // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
+            return color.R < 50 && color.G < 50 && color.B < 50; // Example threshold for black
+        }
+        private void btn_RunAStar_Click(object sender, EventArgs e)
+        {
+            // Define start and goal positions
+            var start = new Node(startX, startY);
+            var goal = new Node(endX, endY);
+
+            // Find path using A* algorithm
+            var aStar = new AStar(_grid);
+            var path = aStar.FindPath(start, goal);
+
+            // Execute path with robot
+            _robot = new Robot(_grid, custom, start.X, start.Y, this);
+            _robot.ExecutePath(path);
+
+            // Refresh the picture box to show the path
+            RefreshPicture();
         }
         private void StopListening()
         {
@@ -129,6 +178,8 @@ namespace RobotAppControl
                     PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
 
                 }
+
+
             }
         }
         private void pBox_Area_MouseDown(object sender, MouseEventArgs e)
@@ -179,6 +230,20 @@ namespace RobotAppControl
             txtBox_TextOutput.AppendText($"Point x = {coordinates.X - picture_offsetX} \n");
             txtBox_TextOutput.AppendText($"Point y = {coordinates.Y - picture_offsetY} \n");
             txtBox_TextOutput.AppendText($"Key pressed = {currentlyPressedKey}");
+
+            if (settingStart)
+            {
+                startX = coordinates.X - picture_offsetX; 
+                startY = coordinates.Y - picture_offsetY; 
+                settingStart = false;
+            }
+            else if (settingEnd) 
+            {
+                endX = coordinates.X - picture_offsetX; 
+                endY = coordinates.Y - picture_offsetY; 
+                settingEnd = false;
+
+            }
         }
         private bool CheckConnection()
         {
@@ -190,14 +255,14 @@ namespace RobotAppControl
             }
             try
             {
-               // Socket socket = stream.Socket;
-              //  bool answ = socket.Connected && !socket.Poll(1000, SelectMode.SelectRead);
+                // Socket socket = stream.Socket;
+                //  bool answ = socket.Connected && !socket.Poll(1000, SelectMode.SelectRead);
                 return true;
             }
             catch (Exception)
             {
-              //  StopListening();
-              //  StopInterpreting();
+                //  StopListening();
+                //  StopInterpreting();
                 return false;
             }
         }
@@ -228,13 +293,13 @@ namespace RobotAppControl
 
                 fs.Close();
             }
-        
-    }
+
+        }
         private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics)
         {
             Color current = custom.GetPixel(iCentr, jCentr);
             // Color smallCurrent;
-            if (current.R >= 230 && current.B <= 200 && current.G <= 200)
+            if (current.R >= 200 && current.B >= 200 && current.G >= 200)
             {
                 int blackCount = 0;
                 for (int i = iCentr - spread; i <= iCentr + spread; i++)
@@ -347,7 +412,7 @@ namespace RobotAppControl
                 Byte[] data = System.Text.Encoding.ASCII.GetBytes($"smurf~{message}~");
                 if (CheckConnection())
                 {
-                    stream.Write(data, 0, data.Length);                
+                    stream.Write(data, 0, data.Length);
                 }
             }
             catch (ArgumentNullException e)
@@ -409,7 +474,7 @@ namespace RobotAppControl
             {
                 client = server.AcceptTcpClient();
                 stream = client.GetStream();
-                
+
 
                 MessageBox.Show("we got here");
             }
@@ -419,15 +484,15 @@ namespace RobotAppControl
         {
 
             custom = new CustomBitmap(5000, 5000);
-            for (int counter = 0; counter < custom.Width*custom.Height; counter++)
-           {
-                custom.WriteToBits(counter, Color.FromArgb(255, 0, 0,0));
+            for (int counter = 0; counter < custom.Width * custom.Height; counter++)
+            {
+                custom.WriteToBits(counter, Color.FromArgb(255, 0, 0, 0));
 
-           }
+            }
             _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
             PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
-            interpreter = new Interpreter(ref stringsToBeInterpreted,ref custom, ref currentX, ref currentY, ref currentRotation,this);
-           // RefreshPicture();
+            interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this);
+            // RefreshPicture();
 
 
         }
@@ -441,6 +506,49 @@ namespace RobotAppControl
         {
             StopListening();
             StopInterpreting();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            SetObstaclesFromMap(custom);
+        }
+
+        private void btn_ManualRotation_Click(object sender, EventArgs e)
+        {
+            // Define start and goal positions
+            var start = new Node(startX, startY);
+            var goal = new Node(endX, endY);
+
+            // Find path using A* algorithm
+            var aStar = new AStar(_grid);
+            var path = aStar.FindPath(start, goal);
+
+            // Execute path with robot
+            _robot = new Robot(_grid, custom, start.X, start.Y, this);
+            if(path != null)
+            {
+
+            _robot.ExecutePath(path);
+            }
+            else
+            {
+                MessageBox.Show("No path");
+            }
+
+            // Refresh the picture box to show the path
+            RefreshPicture();
+        }
+   
+        private void btn_SetStart_Click(object sender, EventArgs e)
+        {
+            settingStart = true;
+            settingEnd = false;
+        }
+
+        private void btn_SetEnd_Click(object sender, EventArgs e)
+        {
+            settingEnd = true;
+            settingStart = false;
         }
     }
 }

@@ -38,6 +38,9 @@
             btn_ConvertLoadedToOccupancyGrid = new Button();
             btn_ControlRobot = new Button();
             btn_ConnectionButton = new Button();
+            button1 = new Button();
+            btn_SetStart = new Button();
+            btn_SetEnd = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -75,7 +78,7 @@
             // 
             // btn_ManualPosition
             // 
-            btn_ManualPosition.Location = new Point(1035, 86);
+            btn_ManualPosition.Location = new Point(1151, 115);
             btn_ManualPosition.Name = "btn_ManualPosition";
             btn_ManualPosition.Size = new Size(154, 23);
             btn_ManualPosition.TabIndex = 3;
@@ -85,12 +88,13 @@
             // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1031, 115);
+            btn_ManualRotation.Location = new Point(1125, 86);
             btn_ManualRotation.Name = "btn_ManualRotation";
             btn_ManualRotation.Size = new Size(180, 23);
             btn_ManualRotation.TabIndex = 4;
             btn_ManualRotation.Text = "Assign rotation manually";
             btn_ManualRotation.UseVisualStyleBackColor = true;
+            btn_ManualRotation.Click += btn_ManualRotation_Click;
             // 
             // txtBox_TextOutput
             // 
@@ -122,7 +126,7 @@
             // 
             // btn_ControlRobot
             // 
-            btn_ControlRobot.Location = new Point(1057, 184);
+            btn_ControlRobot.Location = new Point(1019, 176);
             btn_ControlRobot.Name = "btn_ControlRobot";
             btn_ControlRobot.Size = new Size(120, 23);
             btn_ControlRobot.TabIndex = 12;
@@ -140,11 +144,44 @@
             btn_ConnectionButton.UseVisualStyleBackColor = true;
             btn_ConnectionButton.Click += btn_ConnectionButton_Click;
             // 
+            // button1
+            // 
+            button1.Location = new Point(1136, 198);
+            button1.Name = "button1";
+            button1.Size = new Size(75, 23);
+            button1.TabIndex = 14;
+            button1.Text = "button1";
+            button1.UseVisualStyleBackColor = true;
+            button1.Click += button1_Click;
+            // 
+            // btn_SetStart
+            // 
+            btn_SetStart.Location = new Point(1019, 86);
+            btn_SetStart.Name = "btn_SetStart";
+            btn_SetStart.Size = new Size(75, 23);
+            btn_SetStart.TabIndex = 15;
+            btn_SetStart.Text = "SetStart";
+            btn_SetStart.UseVisualStyleBackColor = true;
+            btn_SetStart.Click += btn_SetStart_Click;
+            // 
+            // btn_SetEnd
+            // 
+            btn_SetEnd.Location = new Point(1024, 118);
+            btn_SetEnd.Name = "btn_SetEnd";
+            btn_SetEnd.Size = new Size(71, 22);
+            btn_SetEnd.TabIndex = 16;
+            btn_SetEnd.Text = "SetEnd";
+            btn_SetEnd.UseVisualStyleBackColor = true;
+            btn_SetEnd.Click += btn_SetEnd_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btn_SetEnd);
+            Controls.Add(btn_SetStart);
+            Controls.Add(button1);
             Controls.Add(btn_ConnectionButton);
             Controls.Add(btn_ControlRobot);
             Controls.Add(btn_ConvertLoadedToOccupancyGrid);
@@ -177,5 +214,8 @@
         private Button btn_ConvertLoadedToOccupancyGrid;
         private Button btn_ControlRobot;
         private Button btn_ConnectionButton;
+        private Button button1;
+        private Button btn_SetStart;
+        private Button btn_SetEnd;
     }
 }

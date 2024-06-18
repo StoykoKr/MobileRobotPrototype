@@ -48,19 +48,20 @@ namespace RobotAppControl
                    // if (whatWeKnow[2] != "225.0")
                   //  {
                         currentRotation = double.Parse(whatWeKnow[2]);
-                 //   }
-                    currentX += float.Parse(whatWeKnow[1]) * 0.5 * Math.Cos(currentRotation * Math.PI / 180);
-                    currentY += float.Parse(whatWeKnow[1]) * 0.5 * Math.Sin(currentRotation * Math.PI / 180);
+                    //   }
+                    double movementDistance = float.Parse(whatWeKnow[1]) * 0.5;
+                    currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
+                    currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
 
                     for (int j = 3; j < whatWeKnow.Length; j += 2)
                     {
-                        if (float.Parse(whatWeKnow[j + 1]) < 120)  // if too far ignore
+                        if (float.Parse(whatWeKnow[j + 1]) < 90)  // if too far ignore
                         {
                             int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Cos((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
                             int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Sin((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
-                              Color newColor = new Color();
+                             /* Color newColor = new Color();
                               if (j == 3)
                               {
                                   bitmap.SetPixel(
@@ -75,19 +76,17 @@ namespace RobotAppControl
                               else if (j == 7)
                               {
                                   newColor = Color.Red;
-                              } 
+                              } */
                                 for (int i = -1; i < 2; i++)
                                {
                                    for (int k = -1; k < 2; k++)
                                     {
                             bitmap.SetPixel(
                             centralPixelX + i,
-                            centralPixelY + k, newColor);
+                            centralPixelY + k, Color.White);
 
                                  }
                                 }
-
-
                         }
                     }
                 }
@@ -123,7 +122,7 @@ namespace RobotAppControl
                             else if (splitData[0] == "report") // mark the current readings as the specified position
                             {
                                 listOfArr.Add(splitData);
-                                if(listOfArr.Count > 100)
+                                if(listOfArr.Count > 500)
                                 {
                                     //???
                                 }
