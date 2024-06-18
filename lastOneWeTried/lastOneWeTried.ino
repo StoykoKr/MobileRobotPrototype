@@ -19,7 +19,7 @@
 //#define sdaMagneticPin 21
 
 #define WHEEL_DIAM 65
-#define distance_Wheels 127  // Distance between the wheels
+#define distance_Wheels 135  // Distance between the wheels
 #define TICKS_PER_REV 40
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((float)(A)) / MM_PER_TICK
@@ -74,10 +74,14 @@ unsigned long pid_previousTime = 0;
 float pid_ePrevious = 0;
 float pid_eintegral = 0;
 float currentHeadingDegree = 180;
-float adjustmentHeadingLeftLastRead = 0;
-float adjustmentHeadingRightLastRead = 0;
+int adjustmentHeadingLeftLastRead = 0;
+int adjustmentHeadingRightLastRead = 0;
+int adjustmentHeadingLeftChange = 0;
+int adjustmentHeadingRightChange = 0;
 String input = "";
 String keyInpt = "";
+const uint16_t port = 13000;
+const char* host = "192.168.43.144";
 
 void setup() {
   pinMode(input1Pin, OUTPUT);
@@ -122,6 +126,8 @@ void ResetPIDs() {
   lastLeftEncoderCounterUsedToCalculate = 0;
   adjustmentHeadingLeftLastRead = 0;
   adjustmentHeadingRightLastRead = 0;
+  adjustmentHeadingLeftChange = 0;
+  adjustmentHeadingRightChange = 0;
 }
 void IRS_MidSensor() {
   if (digitalRead(echoMidPin) == 0x0) {
@@ -310,23 +316,20 @@ void GetUltrasoundData(float dir, bool sendMove) {
   } else {
     str.concat(0);
   }
-  str.concat("|");
-  //str.concat(posX);
-  str.concat(0);
-  str.concat("|");
-  //str.concat(posY);
+  str.concat("|");  // keyword|(kolko sme se mrydnali)|useless|direction|
   str.concat(dir);
+  //str.concat(posY);
   str.concat("|");
-  str.concat(90);
+  str.concat(0);
   // str.concat(theta);
   str.concat("|");
   str.concat(_medianMid);
   str.concat("|");
-  str.concat(0);
+  str.concat(-90);
   str.concat("|");
   str.concat(_medianLeft);
   str.concat("|");
-  str.concat(180);
+  str.concat(90);
   str.concat("|");
   str.concat(_medianRight);
   str.concat('`');
@@ -344,9 +347,22 @@ float MagneticSensorReading() {
   return headingDegrees;
 }
 void AdjustHeading(int leftTicks, int rightTicks) {
-  adjustmentHeadingLeftLastRead = leftTicks - adjustmentHeadingLeftLastRead;
-  adjustmentHeadingRightLastRead = rightTicks - adjustmentHeadingRightLastRead;
-  currentHeadingDegree += turnDegr(adjustmentHeadingLeftLastRead) -  turnDegr(adjustmentHeadingRightLastRead);
+  // add PID to turn and check other things
+
+  adjustmentHeadingLeftChange = leftTicks - adjustmentHeadingLeftLastRead;
+  adjustmentHeadingRightChange = rightTicks - adjustmentHeadingRightLastRead;
+
+  adjustmentHeadingLeftLastRead = leftTicks;
+  adjustmentHeadingRightLastRead = rightTicks;
+
+  //((adjustmentHeadingRightLastRead - adjustmentHeadingLeftLastRead) / distance_Wheels) * (180.0 / PI)
+
+  currentHeadingDegree = currentHeadingDegree + ((((adjustmentHeadingRightChange - adjustmentHeadingLeftChange) * MM_PER_TICK) / distance_Wheels) * (180.0 / PI));
+  if (currentHeadingDegree < 0) {
+    currentHeadingDegree += 360;
+  } else if (currentHeadingDegree > 360) {
+    currentHeadingDegree -= 360;
+  }
 }
 void MoveRightMotor(float speedUnfiltered) {
   speedUnfiltered = speedUnfiltered * -1;
@@ -525,16 +541,17 @@ void smurfMovement(String signal) {
   }
 }
 void justLeftRight(int direction) {
-    float lastThree[] = { 0, 0, 0 };
-  float current = 0;
-  lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading();
+  // float lastThree[] = { 0, 0, 0 };
+  //float current = 0;
+  //lastThree[1] = MagneticSensorReading();
+  //lastThree[2] = MagneticSensorReading();
+  ResetPIDs();
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
-    } 
-    lastThree[0] = lastThree[1];
+    }
+    /* lastThree[0] = lastThree[1];
     lastThree[1] = lastThree[2];
     lastThree[2] = MagneticSensorReading();
     if (lastThree[2] < lastThree[1]) {
@@ -557,13 +574,14 @@ void justLeftRight(int direction) {
           current = lastThree[1];
         }
       }
-    }
-    //AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    //GetUltrasoundData(currentHeadingDegree, false);
-    GetUltrasoundData(current, false);
+    }*/
+    AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+    GetUltrasoundData(currentHeadingDegree, false);
+    //GetUltrasoundData(current, false);
     MoveRightMotor(200 * direction);
     MoveLeftMotor(200 * (-1) * direction);
   }
+  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
   ResetPIDs();
   MoveRightMotor(0);
   MoveLeftMotor(0);
@@ -574,20 +592,20 @@ void justLeftRight(int direction) {
 }
 void justForward() {
   ResetPIDs();
-  float targetDegree = MagneticSensorReading();
+  /* float targetDegree = MagneticSensorReading();
   float lastThree[] = { 0, 0, 0 };
   lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading();
+  lastThree[2] = MagneticSensorReading(); */
   float speedadjustment = 0;
   float speedRight;
   float speedLeft;
-  float current = 0;
+  //float current = 0;
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
     }
-     lastThree[0] = lastThree[1];
+    /* lastThree[0] = lastThree[1];
     lastThree[1] = lastThree[2];
     lastThree[2] = MagneticSensorReading();
     if (lastThree[2] < lastThree[1]) {
@@ -610,7 +628,7 @@ void justForward() {
           current = lastThree[1];
         }
       }
-    }
+    }*/
     speedadjustment = PidController_straightForward_adjust_alternative(&leftEncoderCounter, 7.2, 0.3, 0.2, &rightEncoderCounter);
     speedRight = 230;
     speedLeft = 230;
@@ -621,9 +639,9 @@ void justForward() {
     }
     speedLeft -= speedadjustment;
     speedRight += speedadjustment;
-   // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    GetUltrasoundData(current, true);
-    /*
+    AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+    GetUltrasoundData(currentHeadingDegree, true);
+
     String str = "report|";
     str.concat(speedLeft);
     str.concat("|");
@@ -634,12 +652,17 @@ void justForward() {
     str.concat(leftEncoderCounter);
     str.concat("|");
     str.concat(rightEncoderCounter);
+    str.concat("|");
+    str.concat("Heading:");
+    str.concat(currentHeadingDegree);
+    str.concat("|");
+    str.concat("adjustmentLeft:");
+    str.concat(adjustmentHeadingLeftChange);
+    str.concat("|");
+    str.concat("adjustmentLeft:");
+    str.concat(adjustmentHeadingLeftChange);
     str.concat('`');
     client.print(str);
-*/
-
-
-
 
 
 
@@ -648,6 +671,7 @@ void justForward() {
   }
   MoveRightMotor(0);
   MoveLeftMotor(0);
+  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
   digitalWrite(input1Pin, LOW);
   digitalWrite(input2Pin, LOW);
   digitalWrite(input3Pin, LOW);
@@ -729,8 +753,8 @@ void forward(int mm) {
     delayMicroseconds(50);
     //
     GetUltrasoundData(current, true);
-    speedLeft += speedadjustment;
-    speedRight -= speedadjustment;
+    speedLeft = speedLeft + speedadjustment;
+    speedRight = speedRight - speedadjustment;
     MoveRightMotor(speedRight * -1);
     MoveLeftMotor(speedLeft * -1);
   }
@@ -740,9 +764,6 @@ void forward(int mm) {
   digitalWrite(input4Pin, LOW);
   ResetPIDs();
 }
-
-const uint16_t port = 13000;
-const char* host = "192.168.43.144";
 
 void loop() {
   while (WiFi.status() != WL_CONNECTED) {
@@ -755,8 +776,8 @@ void loop() {
       delay(3000);
     }
   }
- 
-   int maxloops = 0;
+
+  int maxloops = 0;
   while (!client.available() && maxloops < 500) {
     maxloops++;
     delay(1);  //delay 1 msec
@@ -778,4 +799,18 @@ void loop() {
       }
     }
   }
+  //Serial.println(currentHeadingDegree);
+  /* delay(750);
+  MoveRightMotor(200);
+  MoveLeftMotor(-200);
+  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
+  Serial.print("adjustment degree left: ");
+  Serial.println(adjustmentHeadingLeftChange);
+  Serial.print("adjustment degree right: ");
+  Serial.println(adjustmentHeadingRightChange);
+  Serial.print("Encoder check left: ");
+  Serial.println(leftEncoderCounter);
+  Serial.print("Encoder check right: ");
+  Serial.println(rightEncoderCounter); 
+  Serial.println(MagneticSensorReading());*/
 }

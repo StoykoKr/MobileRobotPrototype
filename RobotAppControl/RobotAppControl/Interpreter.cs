@@ -43,37 +43,36 @@ namespace RobotAppControl
 
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
-                    // whatWeKnow[1]; //row
-                    // whatWeKnow[2]; //col
-                    //whatWeKnow[3];// direction
-                    if (whatWeKnow[3] != "225.0")
-                    {
-                        currentRotation = double.Parse(whatWeKnow[3]);
-                    }
+                    // whatWeKnow[1]; //how much we moved
+                    //whatWeKnow[2];// direction
+                   // if (whatWeKnow[2] != "225.0")
+                  //  {
+                        currentRotation = double.Parse(whatWeKnow[2]);
+                 //   }
                     currentX += float.Parse(whatWeKnow[1]) * 0.5 * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += float.Parse(whatWeKnow[1]) * 0.5 * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
 
-                    for (int j = 4; j < whatWeKnow.Length; j += 2)
+                    for (int j = 3; j < whatWeKnow.Length; j += 2)
                     {
                         if (float.Parse(whatWeKnow[j + 1]) < 120)  // if too far ignore
                         {
-                            int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Cos((float.Parse(whatWeKnow[j]) - 90 + currentRotation) * Math.PI / 180));
-                            int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Sin((float.Parse(whatWeKnow[j]) - 90 + currentRotation) * Math.PI / 180));
+                            int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Cos((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
+                            int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Sin((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
                               Color newColor = new Color();
-                              if (j == 4)
+                              if (j == 3)
                               {
                                   bitmap.SetPixel(
                                       x,
                                       y, Color.Yellow);
                                   newColor = Color.White;
                               }
-                              else if (j == 6)
+                              else if (j == 5)
                               {
                                   newColor = Color.Green;
                               }
-                              else if (j == 8)
+                              else if (j == 7)
                               {
                                   newColor = Color.Red;
                               } 
@@ -124,7 +123,7 @@ namespace RobotAppControl
                             else if (splitData[0] == "report") // mark the current readings as the specified position
                             {
                                 listOfArr.Add(splitData);
-                                if(listOfArr.Count > 10)
+                                if(listOfArr.Count > 100)
                                 {
                                     //???
                                 }
@@ -134,8 +133,7 @@ namespace RobotAppControl
                             else if (splitData[0] == "mapPoint")
                             {
                                 MakeMap(splitData);
-                                counter++;
-                                listOfArr.Add(splitData);
+                                counter++;                             
                                 if (counter > 2)
                                 {
                                     counter = 0;

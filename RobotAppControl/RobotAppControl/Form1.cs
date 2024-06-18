@@ -203,8 +203,33 @@ namespace RobotAppControl
         }
         private void btn_SaveImg_Click(object sender, EventArgs e)
         {
+            SaveFileDialog saveFileDialog1 = AskSaveFile();
+            if (saveFileDialog1.FileName != "")
+            {
+                System.IO.FileStream fs =
+                   (System.IO.FileStream)saveFileDialog1.OpenFile();
+                switch (saveFileDialog1.FilterIndex)
+                {
+                    case 1:
+                        custom.Bitmap.Save(fs,
+                          ImageFormat.Jpeg);
+                        break;
 
-        }
+                    case 2:
+                        custom.Bitmap.Save(fs,
+                           ImageFormat.Bmp);
+                        break;
+
+                    case 3:
+                        custom.Bitmap.Save(fs,
+                           ImageFormat.Gif);
+                        break;
+                }
+
+                fs.Close();
+            }
+        
+    }
         private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics)
         {
             Color current = custom.GetPixel(iCentr, jCentr);
