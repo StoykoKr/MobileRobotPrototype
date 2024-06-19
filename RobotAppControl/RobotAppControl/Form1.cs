@@ -50,6 +50,7 @@ namespace RobotAppControl
         private int startY = 0;
         private int endX = 0;
         private int endY = 0;
+        private List<Node> finalPath = null;
         public Form1()
         {
             InitializeComponent();
@@ -87,7 +88,37 @@ namespace RobotAppControl
                 }
             }
         }
+        public List<string> ConvertPathToCommands(List<Node> path)
+        {
+            var commands = new List<string>();
 
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                int dx = path[i + 1].X - path[i].X;
+                int dy = path[i + 1].Y - path[i].Y;
+
+                if (dx != 0)
+                {
+                    commands.Add(dx > 0 ? "turn~0~" : "turn~180~");
+                    commands.Add($"moveForward~{Math.Abs(dx)}~"); // assuming 1 unit is 10 cm
+                }
+                else if (dy != 0)
+                {
+                    commands.Add(dy > 0 ? "turn~90~" : "turn~-90~");
+                    commands.Add($"moveForward~{Math.Abs(dy)}~"); // assuming 1 unit is 10 cm
+                }
+            }
+
+            return commands;
+        }
+        public void ExecutePath(List<string> commannds)
+        {          
+
+            foreach (var command in commannds)
+            {
+                WriteData(command);
+            }
+        }
         private bool IsObstacle(Color color)
         {
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
@@ -233,14 +264,14 @@ namespace RobotAppControl
 
             if (settingStart)
             {
-                startX = coordinates.X - picture_offsetX; 
-                startY = coordinates.Y - picture_offsetY; 
+                startX = coordinates.X - picture_offsetX;
+                startY = coordinates.Y - picture_offsetY;
                 settingStart = false;
             }
-            else if (settingEnd) 
+            else if (settingEnd)
             {
-                endX = coordinates.X - picture_offsetX; 
-                endY = coordinates.Y - picture_offsetY; 
+                endX = coordinates.X - picture_offsetX;
+                endY = coordinates.Y - picture_offsetY;
                 settingEnd = false;
 
             }
@@ -405,11 +436,30 @@ namespace RobotAppControl
             Thread thread = new Thread(() => ConvertToOccMap());
             thread.Start();
         }
-        void WriteDataSingular(NetworkStream stream, String message)
+        void WriteDataSingular(String message)
         {
             try
             {
                 Byte[] data = System.Text.Encoding.ASCII.GetBytes($"smurf~{message}~");
+                if (CheckConnection())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
+            }
+            catch (ArgumentNullException e)
+            {
+                Console.WriteLine("ArgumentNullException: {0}", e);
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
+            }
+        }
+        void WriteData(String message)
+        {
+            try
+            {
+                Byte[] data = System.Text.Encoding.ASCII.GetBytes($"{message}~");
                 if (CheckConnection())
                 {
                     stream.Write(data, 0, data.Length);
@@ -429,7 +479,7 @@ namespace RobotAppControl
             if (currentlyControlling && currentlyPressedKey == Keys.None)
             {
                 currentlyPressedKey = e.KeyCode;
-                WriteDataSingular(stream, currentlyPressedKey.ToString());
+                WriteDataSingular(currentlyPressedKey.ToString());
                 if (currentlyPressedKey == Keys.S)
                 {
                     ///
@@ -444,7 +494,7 @@ namespace RobotAppControl
             {
                 currentlyPressedKey = Keys.None;
 
-                WriteDataSingular(stream, currentlyPressedKey.ToString());
+                WriteDataSingular(currentlyPressedKey.ToString());
             }
         }
 
@@ -525,10 +575,10 @@ namespace RobotAppControl
 
             // Execute path with robot
             _robot = new Robot(_grid, custom, start.X, start.Y, this);
-            if(path != null)
+            if (path != null)
             {
-
-            _robot.ExecutePath(path);
+                finalPath = path;
+                _robot.ExecutePath(path);
             }
             else
             {
@@ -538,7 +588,7 @@ namespace RobotAppControl
             // Refresh the picture box to show the path
             RefreshPicture();
         }
-   
+
         private void btn_SetStart_Click(object sender, EventArgs e)
         {
             settingStart = true;
@@ -550,5 +600,68 @@ namespace RobotAppControl
             settingEnd = true;
             settingStart = false;
         }
+        private List<string> CookedPath(List<Node> list)
+        {
+            List<string> result = new List<string>();
+            int movedx = 0;
+            int movedy = 0;
+
+            for (int i = 0; i < list.Count - 1; i++)
+            {
+                int dx = list[i + 1].X - list[i].X;
+                int dy = list[i + 1].Y - list[i].Y;
+
+              
+                if (dx != 0)
+                {
+                    if (movedy != 0)
+                    {
+                        result.Add("moveForward~" + (Math.Abs(movedy)*10).ToString() + "~");
+                        result.Add(dx > 0 ? "turn~90~" : "turn~-90~");
+                        movedx = 0;
+                        movedy = 0;
+                    }
+                    movedx += dx;
+                }
+                else if (dy != 0)
+                {
+                    if (movedx != 0)
+                    {
+                        result.Add("moveForward~" + (Math.Abs(movedx)*10).ToString() + "~");
+                        result.Add(dy > 0 ? "turn~90~" : "turn~-90~");
+                        movedx = 0;
+                        movedy = 0;
+                    }
+                    movedy += dy;
+                }
+            }
+            result.Add("moveForward~" + (Math.Abs(movedy + movedx)*10).ToString() + "~");
+            return result;
+        }
+        private void btn_ExecuteRoute_Click(object sender, EventArgs e)
+        {
+            ExecutePath(CookedPath(finalPath));
+        }
     }
 }
+/*
+  public List<string> ConvertPathToCommands(List<Node> path)
+        {
+            var commands = new List<string>();
+
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                int dx = path[i + 1].X - path[i].X;
+                int dy = path[i + 1].Y - path[i].Y;
+
+                if (dx != 0)
+                {
+                    commands.Add(dx > 0 ? "turn~0~" : "turn~180~");
+                    commands.Add($"moveForward~{Math.Abs(dx)}~"); // assuming 1 unit is 10 cm
+                }
+                else if (dy != 0)
+                {
+                    commands.Add(dy > 0 ? "turn~90~" : "turn~-90~");
+                    commands.Add($"moveForward~{Math.Abs(dy)}~"); // assuming 1 unit is 10 cm
+                }
+            }*/

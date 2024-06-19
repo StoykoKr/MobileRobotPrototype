@@ -61,12 +61,12 @@ namespace RobotAppControl
                         {
                             int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Cos((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
                             int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Sin((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
-                             /* Color newColor = new Color();
-                              if (j == 3)
+                              Color newColor =Color.White;
+                            /*  if (j == 3)
                               {
-                                  bitmap.SetPixel(
-                                      x,
-                                      y, Color.Yellow);
+                                 // bitmap.SetPixel(
+                                  //    x,
+                                 //     y, Color.Yellow);
                                   newColor = Color.White;
                               }
                               else if (j == 5)
@@ -83,7 +83,7 @@ namespace RobotAppControl
                                     {
                             bitmap.SetPixel(
                             centralPixelX + i,
-                            centralPixelY + k, Color.White);
+                            centralPixelY + k, newColor);
 
                                  }
                                 }

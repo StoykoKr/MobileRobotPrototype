@@ -41,6 +41,7 @@
             button1 = new Button();
             btn_SetStart = new Button();
             btn_SetEnd = new Button();
+            btn_ExecuteRoute = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -174,11 +175,22 @@
             btn_SetEnd.UseVisualStyleBackColor = true;
             btn_SetEnd.Click += btn_SetEnd_Click;
             // 
+            // btn_ExecuteRoute
+            // 
+            btn_ExecuteRoute.Location = new Point(1024, 205);
+            btn_ExecuteRoute.Name = "btn_ExecuteRoute";
+            btn_ExecuteRoute.Size = new Size(95, 23);
+            btn_ExecuteRoute.TabIndex = 17;
+            btn_ExecuteRoute.Text = "ExecuteRoute";
+            btn_ExecuteRoute.UseVisualStyleBackColor = true;
+            btn_ExecuteRoute.Click += btn_ExecuteRoute_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btn_ExecuteRoute);
             Controls.Add(btn_SetEnd);
             Controls.Add(btn_SetStart);
             Controls.Add(button1);
@@ -217,5 +229,6 @@
         private Button button1;
         private Button btn_SetStart;
         private Button btn_SetEnd;
+        private Button btn_ExecuteRoute;
     }
 }
