@@ -19,21 +19,21 @@
 //#define sdaMagneticPin 21
 
 #define WHEEL_DIAM 65
-#define distance_Wheels 135  // Distance between the wheels
-#define TICKS_PER_REV 40
+#define distance_Wheels 140  // Distance between the wheels
+#define TICKS_PER_REV 20
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((float)(A)) / MM_PER_TICK
-#define MM_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)
-#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f))
+//#define MM_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)
+//#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f))
 
-float midUSArr[] = { 0, 0, 0 };
-float leftUSArr[] = { 0, 0, 0 };
-float rightUSArr[] = { 0, 0, 0 };
-float _medianMid;
-float _medianLeft;
-float _medianRight;
+double midUSArr[] = { 0, 0, 0 };
+double leftUSArr[] = { 0, 0, 0 };
+double rightUSArr[] = { 0, 0, 0 };
+double _medianMid;
+double _medianLeft;
+double _medianRight;
 WiFiClient client;
-int bounce = 4;  //to avoid problems with optical encoders
+int bounce = 7;  //to avoid problems with optical encoders
 volatile unsigned long interruptTimeLeftEncoder;
 volatile unsigned long interruptTimeRightEncoder;
 volatile unsigned long lastInterruptTimeLeftEncoder = 0;
@@ -52,37 +52,33 @@ volatile unsigned long microSecRightEndDuration = 0;
 volatile bool canPingMid = true;
 volatile bool canPingRight = true;
 volatile bool canPingLeft = true;
-float distanceMid = 0;
-float distanceLeft = 0;
-float distanceRight = 0;
+double distanceMid = 0;
+double distanceLeft = 0;
+double distanceRight = 0;
 volatile bool canCollectDataMid = false;
 volatile bool canCollectDataLeft = false;
 volatile bool canCollectDataRight = false;
 unsigned long timeOfLastTrigger = millis();
-float weMoved = 0;  // to store how much we moved in mm
+double weMoved = 0;  // to store how much we moved in mm
 int lastRightEncoderCounterUsedToCalculate = 0;
 int lastLeftEncoderCounterUsedToCalculate = 0;
 Adafruit_HMC5883_Unified mag;
 sensors_event_t event;
 unsigned long pid_previousTimeAdj = 0;
-float pid_ePreviousAdj = 0;
-float pid_eintegralAdj = 0;
+double pid_ePreviousAdj = 0;
+double pid_eintegralAdj = 0;
 unsigned long pid_previousTimeAdjAlt = 0;
-float pid_ePreviousAdjAlt = 0;
-float pid_eintegralAdjAlt = 0;
+double pid_ePreviousAdjAlt = 0;
+double pid_eintegralAdjAlt = 0;
 unsigned long pid_previousTime = 0;
-float pid_ePrevious = 0;
-float pid_eintegral = 0;
-float currentHeadingDegree = 180;
-int adjustmentHeadingLeftLastRead = 0;
-int adjustmentHeadingRightLastRead = 0;
-int adjustmentHeadingLeftChange = 0;
-int adjustmentHeadingRightChange = 0;
-String input = "";
+double pid_ePrevious = 0;
+double pid_eintegral = 0;
 String keyInpt = "";
+bool leftGoingForward = false;
+bool rightGoingForward = false;
 const uint16_t port = 13000;
 const char* host = "192.168.43.144";
-const float hard_iron[3] = {
+const float hard_iron[3] = {  // this and soft_iron are the magnetic sensor calibration
   4.05, -50.48, -27.46
 };
 
@@ -106,7 +102,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
+  //attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
   attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
   mag = Adafruit_HMC5883_Unified();
   Serial.begin(115200);
@@ -117,8 +113,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
 }
-void moveForward() {
-}
+
 void ResetPIDs() {
   pid_previousTimeAdj = 0;
   pid_ePreviousAdj = 0;
@@ -133,10 +128,6 @@ void ResetPIDs() {
   leftEncoderCounter = 0;
   lastRightEncoderCounterUsedToCalculate = 0;
   lastLeftEncoderCounterUsedToCalculate = 0;
-  adjustmentHeadingLeftLastRead = 0;
-  adjustmentHeadingRightLastRead = 0;
-  adjustmentHeadingLeftChange = 0;
-  adjustmentHeadingRightChange = 0;
 }
 void IRS_MidSensor() {
   if (digitalRead(echoMidPin) == 0x0) {
@@ -187,7 +178,7 @@ void IRS_LeftEncoder() {
   interruptTimeLeftEncoder = millis();
   // If interrupts come faster than Xms, assume it's a bounce and ignore
   if (interruptTimeLeftEncoder - lastInterruptTimeLeftEncoder > bounce) {
-    if (digitalRead(input1Pin)) {
+    if (leftGoingForward) {
       leftEncoderCounter--;
     } else {
       leftEncoderCounter++;
@@ -200,28 +191,23 @@ void IRS_RightEncoder() {
   interruptTimeRightEncoder = millis();
   // If interrupts come faster than Xms, assume it's a bounce and ignore
   if (interruptTimeRightEncoder - lastInterruptTimeRightEncoder > bounce) {
-    if (digitalRead(input3Pin)) {
+    if (rightGoingForward) {
       rightEncoderCounter--;
     } else {
       rightEncoderCounter++;
     }
+    lastInterruptTimeRightEncoder = interruptTimeRightEncoder;
   }
-  // Keep track of when we were here last
-  lastInterruptTimeRightEncoder = interruptTimeRightEncoder;
 }
 void GetUltrasoundData(float dir, bool sendMove) {
   // Calculate the movement based on both encoder readings
-  float rightDistanceMoved = (rightEncoderCounter - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  float leftDistanceMoved = (leftEncoderCounter - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
-  lastRightEncoderCounterUsedToCalculate = rightEncoderCounter;
-  lastLeftEncoderCounterUsedToCalculate = leftEncoderCounter;
-
-  // Update the position and orientation based on the movement
-  //float deltaTheta = (rightDistanceMoved - leftDistanceMoved) / distance_Wheels;
-  //theta += deltaTheta;
-  //posX += weMoved * cos(theta);
-  //posY += weMoved * sin(theta);
+  int rigthCount = rightEncoderCounter;
+  int leftCount = leftEncoderCounter;
+  double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
+  double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
+  weMoved = rightDistanceMoved;  //(rightDistanceMoved + leftDistanceMoved) / 2.0;
+  lastRightEncoderCounterUsedToCalculate = rigthCount;
+  lastLeftEncoderCounterUsedToCalculate = leftCount;
 
   if (millis() - timeOfLastTrigger >= 50) {
     canPingLeft = true;
@@ -366,24 +352,6 @@ float MagneticSensorReading() {
   float headingDegrees = heading * 180 / M_PI;
   return headingDegrees;
 }
-void AdjustHeading(int leftTicks, int rightTicks) {
-  // add PID to turn and check other things
-
-  adjustmentHeadingLeftChange = leftTicks - adjustmentHeadingLeftLastRead;
-  adjustmentHeadingRightChange = rightTicks - adjustmentHeadingRightLastRead;
-
-  adjustmentHeadingLeftLastRead = leftTicks;
-  adjustmentHeadingRightLastRead = rightTicks;
-
-  //((adjustmentHeadingRightLastRead - adjustmentHeadingLeftLastRead) / distance_Wheels) * (180.0 / PI)
-
-  currentHeadingDegree = currentHeadingDegree + ((((adjustmentHeadingRightChange - adjustmentHeadingLeftChange) * MM_PER_TICK) / distance_Wheels) * (180.0 / PI));
-  if (currentHeadingDegree < 0) {
-    currentHeadingDegree += 360;
-  } else if (currentHeadingDegree > 360) {
-    currentHeadingDegree -= 360;
-  }
-}
 void MoveRightMotor(float speedUnfiltered) {
   speedUnfiltered = speedUnfiltered * -1;
   float speed = fabs(speedUnfiltered);
@@ -402,6 +370,7 @@ void MoveRightMotor(float speedUnfiltered) {
       digitalWrite(input3Pin, HIGH);
       digitalWrite(input4Pin, LOW);
     }
+    rightGoingForward = true;
   } else if (speedUnfiltered < 0) {
     if (digitalRead(input3Pin)) {
       digitalWrite(input3Pin, LOW);
@@ -414,9 +383,11 @@ void MoveRightMotor(float speedUnfiltered) {
       digitalWrite(input3Pin, LOW);
       digitalWrite(input4Pin, HIGH);
     }
+    rightGoingForward = false;
   } else {
     digitalWrite(input3Pin, LOW);
     digitalWrite(input4Pin, LOW);
+    rightGoingForward = false;
   }
   analogWrite(analogOutputRightPin, speed);
 }
@@ -441,6 +412,7 @@ void MoveLeftMotor(float speedUnfiltered) {
       digitalWrite(input1Pin, HIGH);
       digitalWrite(input2Pin, LOW);
     }
+    leftGoingForward = true;
   } else if (speedUnfiltered < 0) {
     if (digitalRead(input1Pin)) {
       digitalWrite(input1Pin, LOW);
@@ -453,27 +425,17 @@ void MoveLeftMotor(float speedUnfiltered) {
       digitalWrite(input1Pin, LOW);
       digitalWrite(input2Pin, HIGH);
     }
+    leftGoingForward = false;
   } else {
     digitalWrite(input1Pin, LOW);
     digitalWrite(input2Pin, LOW);
+    leftGoingForward = false;
   }
   analogWrite(analogOutputLeftPin, speed);
 }
 float PidController_straightForward_adjust(float targetDegree, float kp, float kd, float ki, float currentDegree) {
   unsigned long currentTime = micros();
   float deltaT = ((float)(currentTime - pid_previousTimeAdj)) / 1.0e6;
-  /*
-  if(lastDegree > targetDegree){
-    lastIsHigher = true;
-  }
-  else {
-    lastIsHigher = false;
-  }
-  float actualCurrent = currentDegree;
-  if(){
-
-  }*/
-
   float e = currentDegree - targetDegree;
   float eDerivative = (e - pid_ePreviousAdj) / deltaT;
   pid_eintegralAdj = pid_eintegralAdj + e * deltaT;
@@ -496,14 +458,14 @@ float PidController_straightForward_adjust_alternative(volatile int* countLeft, 
   pid_ePreviousAdjAlt = e;
   return u;
 }
-float PidController(int target, float kp, float kd, float ki, float moved) {
+float PidController(float target, float kp, float kd, float ki, float moved) {
   unsigned long currentTime = micros();
   float deltaT = ((float)(currentTime - pid_previousTime)) / 1.0e6;
   float e = moved - target;
   float eDerivative = (e - pid_ePrevious) / deltaT;
   pid_eintegral = pid_eintegral + e * deltaT;
 
-  float baseSpeed = 180;  //giving base engine speed
+  float baseSpeed = 120;  //giving base engine speed
 
   float u = (kp * e) + (kd * eDerivative) + (ki * pid_eintegral);
   if (u < 0) {
@@ -516,86 +478,7 @@ float PidController(int target, float kp, float kd, float ki, float moved) {
 
   return u;
 }
-void turn(float degree) {
-  ResetPIDs(); // Reset PID controllers and encoder counters
 
-  int dir = degree > 0 ? -1 : 1; // Determine direction of turn
-  float targetTicks = MM_TO_TICKS(MM_PER_DEGREES(fabs(degree))); // Convert degrees to encoder ticks
-
-  long initialRightTicks = rightEncoderCounter;
-  long initialLeftTicks = leftEncoderCounter;
-
-  while (true) {
-    // Calculate the average ticks moved
-    float ticksRight = fabs(rightEncoderCounter - initialRightTicks);
-    float ticksLeft = fabs(leftEncoderCounter - initialLeftTicks);
-    float ticksTotal = (ticksRight + ticksLeft) / 4.0;
-
-    // Check if the target ticks have been reached
-    if (ticksTotal >= targetTicks) break;
-
-    // Calculate speed using PID controller
-    //float speed = PidController(targetTicks, 2.3, 0.1, 0.0, ticksTotal);
-
-    // Constrain speed to valid range
-    float speed = 130;
-
-    // Set motor speeds based on direction
-    MoveRightMotor(speed * dir);
-    MoveLeftMotor(-speed * dir);
-
-    // Small delay to ensure motor commands are executed smoothly
-    delay(10);
-  }
-  delay(200);
-  // Stop motors
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
-  digitalWrite(input1Pin, LOW);
-  digitalWrite(input2Pin, LOW);
-  digitalWrite(input3Pin, LOW);
-  digitalWrite(input4Pin, LOW);
-  ResetPIDs(); // Reset PID controllers and encoder counters
-}
-
-/*void turn(float degree) {
-
-  double target = 0;
-  int dir = 1;
-  if (degree > 0) {
-    dir = -1;
-  }
-  ResetPIDs();
-  float speed = 0;
-  int targetTicks = MM_TO_TICKS(MM_PER_DEGREES(fabs(degree)));
-  float ticksTotal = (abs(rightEncoderCounter) + abs(leftEncoderCounter)) / 2;
-  speed = PidController(targetTicks, 2.3, 0.1, 0, ticksTotal);
-  while (targetTicks > ticksTotal) {
-    speed = PidController(targetTicks, 2.3, 0.1, 0, ticksTotal);
-
-    if (speed > 200) {
-      speed = 200;
-    } else if (speed < -200) {
-      speed = -200;
-    }
-    
-    if (speed > 0) {
-      MoveRightMotor(speed * dir);
-      MoveLeftMotor(speed * -dir);
-    } else {
-      MoveRightMotor(speed * -dir);
-      MoveLeftMotor(speed * dir);
-    }
-    //GetUltrasoundData(MagneticSensorReading(), false);
-  }
-  ResetPIDs();
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
-  digitalWrite(input1Pin, LOW);
-  digitalWrite(input2Pin, LOW);
-  digitalWrite(input3Pin, LOW);
-  digitalWrite(input4Pin, LOW);
-}*/
 void smurfMovement(String signal) {
   keyInpt = "";
   if (signal == "w" || signal == "W") {
@@ -614,239 +497,128 @@ void smurfMovement(String signal) {
   }
 }
 void justLeftRight(int direction) {
-  float lastThree[] = { 0, 0, 0 };
-  float current = 0; /*
-  lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading();*/
   ResetPIDs();
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
-    } /*
-    lastThree[0] = lastThree[1];
-    lastThree[1] = lastThree[2];
-    lastThree[2] = MagneticSensorReading();
-    if (lastThree[2] < lastThree[1]) {
-      if (lastThree[2] < lastThree[0]) {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[1];
-        } else {
-          current = lastThree[0];
-        }
-      } else {
-        current = lastThree[2];
-      }
-    } else {
-      if (lastThree[2] < lastThree[0]) {
-        current = lastThree[2];
-      } else {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[0];
-        } else {
-          current = lastThree[1];
-        }
-      }
-  }*/
-    // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    //GetUltrasoundData(currentHeadingDegree, false);
-    // GetUltrasoundData(current, false);
-    MoveRightMotor(200 * direction);
-    MoveLeftMotor(200 * (-1) * direction);
+    }
+    MoveRightMotor(130 * direction);
+    MoveLeftMotor(130 * (-1) * direction);
   }
-  // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-  ResetPIDs();
   MoveRightMotor(0);
   MoveLeftMotor(0);
-  digitalWrite(input1Pin, LOW);
-  digitalWrite(input2Pin, LOW);
-  digitalWrite(input3Pin, LOW);
-  digitalWrite(input4Pin, LOW);
+  ResetPIDs();
 }
-bool lastIsHigher = false;
-float lastDegree = 0;
+
 void justForward() {
   ResetPIDs();
-  float targetDegree = MagneticSensorReading();
-  lastDegree = targetDegree;
-  float lastThree[] = { 0, 0, 0 };
-  lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading();
+
+  float degreeChangeFromStart = 0;
+  float currentDeg = MagneticSensorReading();
+  float lastDeg = currentDeg;
+  float change = 0;
+
   float speedadjustment = 0;
   float speedRight;
   float speedLeft;
-  float current = 0;
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
     }
-    lastThree[0] = lastThree[1];
-    lastThree[1] = lastThree[2];
-    lastThree[2] = MagneticSensorReading();
-    if (lastThree[2] < lastThree[1]) {
-      if (lastThree[2] < lastThree[0]) {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[1];
-        } else {
-          current = lastThree[0];
-        }
-      } else {
-        current = lastThree[2];
-      }
-    } else {
-      if (lastThree[2] < lastThree[0]) {
-        current = lastThree[2];
-      } else {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[0];
-        } else {
-          current = lastThree[1];
-        }
-      }
+    currentDeg = MagneticSensorReading();
+    change = currentDeg - lastDeg;
+    if (change > 200) {
+      change -= 360;
+    } else if (change < -200) {
+      change += 360;
     }
-    speedadjustment = PidController_straightForward_adjust_alternative(&leftEncoderCounter, 6.5, 0.2, 0.01, &rightEncoderCounter);
-    PidController_straightForward_adjust(targetDegree, 4, 0.4, 0.9, current);
-    speedLeft = 200;
+    degreeChangeFromStart += change;
+    lastDeg = currentDeg;
+    speedadjustment = PidController_straightForward_adjust(0, 0.6, 0.21, 0.1, degreeChangeFromStart); //2.2, 0.3, 0.18
+    speedLeft = 120;
+    speedRight = 120;
     if (speedadjustment > 150) {
       speedadjustment = 150;
     } else if (speedadjustment < -150) {
       speedadjustment = -150;
     }
-    speedLeft -= speedadjustment;
-    speedRight += speedadjustment;
-    // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-    GetUltrasoundData(current, true);
+    speedLeft += speedadjustment;
+    speedRight -= speedadjustment;
+    GetUltrasoundData(currentDeg, true);
     /*
-    String str = "report|";
-    str.concat(speedLeft);
-    str.concat("|");
-    str.concat(speedRight);
-    str.concat("|");
-    str.concat(speedadjustment);
-    str.concat("|");
-    str.concat(leftEncoderCounter);
-    str.concat("|");
-    str.concat(rightEncoderCounter);
-    str.concat("|");
-    str.concat("Heading:");
-    str.concat(current);
-    str.concat("|");
-    str.concat("adjustmentLeft:");
-    str.concat(adjustmentHeadingLeftChange);
-    str.concat("|");
-    str.concat("adjustmentLeft:");
-    str.concat(adjustmentHeadingLeftChange);
-    str.concat('`');
-    client.print(str);
+     String str = "report|";
+     str.concat(speedLeft);
+     str.concat("|");
+     str.concat(speedRight);
+     str.concat("|");
+     str.concat(speedadjustment);
+     str.concat("|");
+     str.concat(leftEncoderCounter);
+      str.concat("|");
+     str.concat(rightEncoderCounter);
+      str.concat("|");
+      str.concat("Heading:");
+      str.concat(current);
+      str.concat("|");
+      str.concat("adjustmentLeft:");
+      str.concat(adjustmentHeadingLeftChange);
+      str.concat("|");
+      str.concat("adjustmentLeft:");
+     str.concat(adjustmentHeadingLeftChange);
+     str.concat('`');
+     client.print(str);
     */
-
-
     MoveRightMotor(speedRight);
     MoveLeftMotor(speedLeft);
   }
+  GetUltrasoundData(currentDeg, true);
   MoveRightMotor(0);
   MoveLeftMotor(0);
-  // AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-  digitalWrite(input1Pin, LOW);
-  digitalWrite(input2Pin, LOW);
-  digitalWrite(input3Pin, LOW);
-  digitalWrite(input4Pin, LOW);
   ResetPIDs();
 }
-/*void forward(int mm) {
-  ResetPIDs();
-  float targetDegree = MagneticSensorReading();
-  float speedRight = 200;
-  float current = 0;
-  float speedadjustment = 0;
-  float speedAdjustAlternative = 0;
-  float speedLeft;
-  float lastThree[] = { 0, 0, 0 };
-  lastThree[1] = MagneticSensorReading();
-  lastThree[2] = MagneticSensorReading();
-  while ( mm > fabs(weMoved)) {
-    float rightDistanceMoved = (rightEncoderCounter - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
-    float leftDistanceMoved = (leftEncoderCounter - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-    weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
-    lastRightEncoderCounterUsedToCalculate = rightEncoderCounter;
-    lastLeftEncoderCounterUsedToCalculate = leftEncoderCounter;
-    lastThree[0] = lastThree[1];
-    lastThree[1] = lastThree[2];
-    lastThree[2] = MagneticSensorReading();
-    if (lastThree[2] < lastThree[1]) {
-      if (lastThree[2] < lastThree[0]) {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[1];
-        } else {
-          current = lastThree[0];
-        }
-      } else {
-        current = lastThree[2];
-      }
-    } else {
-      if (lastThree[2] < lastThree[0]) {
-        current = lastThree[2];
-      } else {
-        if (lastThree[1] < lastThree[0]) {
-          current = lastThree[0];
-        } else {
-          current = lastThree[1];
-        }
-      }
-    }
-
-    speedRight = PidController(mm, 0.9, 0.2, 0.1, fabs(weMoved));
-    speedadjustment = PidController_straightForward_adjust(targetDegree, 6.2, 0.3, 0.2, current);  //pidControllertwo(rightcounthelper, 3, 1.6, 0.5, &leftcounthelper);
-    //speedAdjustAlternative = PidController(rightEncoderCounter, 1.4, 0.2, 0, &leftEncoderCounter);
-    if (speedRight > 255) {
-      speedRight = 255;
-    } else if (speedRight < -255) {
-      speedRight = -255;
-    }
-
-    speedLeft = speedRight;
-    if (speedadjustment > 120) {
-      speedadjustment = 120;
-    } else if (speedadjustment < -120) {
-      speedadjustment = -120;
-    }
-    if (speedAdjustAlternative > 120) {
-      speedAdjustAlternative = 120;
-    } else if (speedAdjustAlternative < -120) {
-      speedAdjustAlternative = -120;
-    }
-
-    // GetUltrasoundData(current, true);
-    speedLeft = speedLeft + speedadjustment;
-    speedRight = speedRight - speedadjustment;
-    MoveRightMotor(speedRight);
-    MoveLeftMotor(speedLeft);
-  }
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
-  digitalWrite(input1Pin, LOW);
-  digitalWrite(input2Pin, LOW);
-  digitalWrite(input3Pin, LOW);
-  digitalWrite(input4Pin, LOW);
-  ResetPIDs();
-}
-*/
 void forward(int mm) {
   ResetPIDs();
-  float targetDegree = MagneticSensorReading();
   long targetTicks = MM_TO_TICKS(mm);
 
-  while (abs(rightEncoderCounter) < targetTicks || abs(leftEncoderCounter) < targetTicks) {
-    float currentHeading = MagneticSensorReading();
-    float speedAdjustment = PidController_straightForward_adjust_alternative(&leftEncoderCounter, 6.5, 0.2, 0, &rightEncoderCounter);
-    float baseSpeed = 200;
-    float speedLeft = baseSpeed - speedAdjustment;
-    float speedRight = baseSpeed + speedAdjustment;
+  float degreeChangeFromStart = 0;
+  float currentDeg = MagneticSensorReading();
+  float lastDeg = currentDeg;
+  float change = 0;
+  float speedadjustment = 0;
+  float speedRight;
+  float speedLeft;
+  weMoved = 0;
 
-    speedLeft = constrain(speedLeft, -255, 255);
-    speedRight = constrain(speedRight, -255, 255);
+  while (weMoved < mm) {  //(abs(rightEncoderCounter) + abs(leftEncoderCounter)) / 2 < targetTicks) {
 
+    int rigthCount = rightEncoderCounter;
+    int leftCount = leftEncoderCounter;
+    double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
+    double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
+    weMoved += rightDistanceMoved;  //(rightDistanceMoved + leftDistanceMoved) / 2.0;
+    lastRightEncoderCounterUsedToCalculate = rigthCount;
+    lastLeftEncoderCounterUsedToCalculate = leftCount;
+    currentDeg = MagneticSensorReading();
+    change = currentDeg - lastDeg;
+    if (change > 200) {
+      change -= 360;
+    } else if (change < -200) {
+      change += 360;
+    }
+    degreeChangeFromStart += change;
+    lastDeg = currentDeg;
+    speedadjustment = PidController_straightForward_adjust(0,0.6, 0.22, 0.1, degreeChangeFromStart); // 0.6, 0.2, 0.1
+    speedLeft = 140;
+    speedRight = 140;
+    if (speedadjustment > 150) {
+      speedadjustment = 150;
+    } else if (speedadjustment < -150) {
+      speedadjustment = -150;
+    }
+    speedLeft += speedadjustment;
+    speedRight -= speedadjustment;
     MoveRightMotor(speedRight);
     MoveLeftMotor(speedLeft);
   }
@@ -855,9 +627,74 @@ void forward(int mm) {
   MoveLeftMotor(0);
   ResetPIDs();
 }
+void turn(float degree) {
+  ResetPIDs();
+  delay(500);
+  int dir = degree > 0 ? -1 : 1;
+  float degreeChangeFromStart = 0;
+  float currentDeg = MagneticSensorReading();
+  float lastDeg = currentDeg;
+  float change = 0;
+
+  while (fabs(degree) - fabs(degreeChangeFromStart) > 30) {
+
+    currentDeg = MagneticSensorReading();
+    change = currentDeg - lastDeg;
+    if (change > 200) {
+      change -= 360;
+    } else if (change < -200) {
+      change += 360;
+    }
+    degreeChangeFromStart += change;
+    lastDeg = currentDeg;
+    MoveRightMotor(130 * dir);
+    MoveLeftMotor(-130 * dir);
+  }
+  MoveRightMotor(0);
+  MoveLeftMotor(0);
+  ResetPIDs();
+}
+void turnOnCrack(float degree) {
+  ResetPIDs();
+  delay(400);
+  int dir = degree > 0 ? -1 : 1;
+  float degreeChangeFromStart = 0;
+  float currentDeg = MagneticSensorReading();
+  float lastDeg = currentDeg;
+  float change = 0;
+
+
+  float speed = 140;
+  while (fabs(degree) - fabs(degreeChangeFromStart) > 0) {
+
+    currentDeg = MagneticSensorReading();
+    change = currentDeg - lastDeg;
+    if (change > 200) {
+      change -= 360;
+    } else if (change < -200) {
+      change += 360;
+    }
+    degreeChangeFromStart += change;
+    lastDeg = currentDeg;
+
+    MoveRightMotor(speed * dir);
+    MoveLeftMotor(-speed * dir);
+  }
+  MoveRightMotor(0);
+  MoveLeftMotor(0);
+  ResetPIDs();
+  delay(300);
+}
+int tempMoved = 0;
 void loop() {
+
+
+
+/*
+  
   while (WiFi.status() != WL_CONNECTED) {
-    WiFi.begin("Miyagi", ";4r5#-8g");
+    WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
+    //WiFi.begin("Stoiko", "01122001");
     Serial.println(WiFi.RSSI());
     Serial.println("Trying to connect..");
     delay(3000);
@@ -866,7 +703,6 @@ void loop() {
       delay(3000);
     }
   }
-
   int maxloops = 0;
   while (!client.available() && maxloops < 500) {
     maxloops++;
@@ -884,23 +720,29 @@ void loop() {
       } else if (line == "turn") {
         String degreeStr = client.readStringUntil('~');
         float degreeToTurn = degreeStr.toFloat();
-        turn(degreeToTurn);
+        turnOnCrack(degreeToTurn / 2);
       } else if (line == "ready") {  // give data for current location and ask for a guess
       }
     }
-  }
-  //Serial.println(currentHeadingDegree);
-  /* delay(750);
-  MoveRightMotor(200);
-  MoveLeftMotor(-200);
-  AdjustHeading(leftEncoderCounter, rightEncoderCounter);
-  Serial.print("adjustment degree left: ");
-  Serial.println(adjustmentHeadingLeftChange);
-  Serial.print("adjustment degree right: ");
-  Serial.println(adjustmentHeadingRightChange);
-  Serial.print("Encoder check left: ");
-  Serial.println(leftEncoderCounter);
-  Serial.print("Encoder check right: ");
-  Serial.println(rightEncoderCounter); 
-  Serial.println(MagneticSensorReading());*/
+  }*/
+  delay(150);
+Serial.println(MagneticSensorReading());
+
+  /*int rigthCount = rightEncoderCounter;
+  int leftCount = leftEncoderCounter;
+  double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
+  double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
+  int rd = rigthCount - lastRightEncoderCounterUsedToCalculate;
+  int ld = leftCount - lastLeftEncoderCounterUsedToCalculate;
+  weMoved += rightDistanceMoved;
+  tempMoved += rd;
+  lastRightEncoderCounterUsedToCalculate = rigthCount;
+  lastLeftEncoderCounterUsedToCalculate = leftCount;
+
+  Serial.print("Right encoder:");
+  Serial.println(rightEncoderCounter);
+  Serial.print(",");
+  Serial.print("We moved:");
+  Serial.println(weMoved);
+  delay(250); */
 }

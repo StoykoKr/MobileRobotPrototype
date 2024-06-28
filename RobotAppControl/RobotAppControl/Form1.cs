@@ -330,7 +330,7 @@ namespace RobotAppControl
         {
             Color current = custom.GetPixel(iCentr, jCentr);
             // Color smallCurrent;
-            if (current.R >= 200 && current.B >= 200 && current.G >= 200)
+            if (current.R >= 200 || current.G >= 100)
             {
                 int blackCount = 0;
                 for (int i = iCentr - spread; i <= iCentr + spread; i++)
@@ -339,14 +339,14 @@ namespace RobotAppControl
                     {
                         if (i >= 0 && i < custom.Width && j >= 0 && j < custom.Height)
                         {
-                            if (custom.GetPixel(i, j).R > 20)
+                            if (custom.GetPixel(i, j).G > 20 || custom.GetPixel(i, j).R > 20)
                             {
                                 blackCount++;
                             }
                         }
                     }
                 }
-                if (blackCount >= spread)
+                if (true)
                 {
 
                     rectangle = new Rectangle(iCentr, jCentr, 1, 1);
@@ -400,7 +400,7 @@ namespace RobotAppControl
                 {
                     for (int j = 0; j < occupancyMap.Height; j++)
                     {
-                        HandleAdjacentPixels(i, j, 7, g); // the third one is the spread value aka how many "rings" around the middle
+                        HandleAdjacentPixels(i, j, 6, g); // the third one is the spread value aka how many "rings" around the middle
                     }
                 }
                 SaveFileDialog saveFileDialog1 = AskSaveFile();
@@ -493,8 +493,8 @@ namespace RobotAppControl
             if (currentlyControlling && currentlyPressedKey != Keys.None)
             {
                 currentlyPressedKey = Keys.None;
-
                 WriteDataSingular(currentlyPressedKey.ToString());
+               
             }
         }
 
@@ -549,7 +549,15 @@ namespace RobotAppControl
 
         private void btn_ManualPosition_Click(object sender, EventArgs e)
         {
-
+            string[] input = txtBox_TextOutput.Text.Split(' ');
+            if (input[0] == "m")
+            {
+                WriteData($"moveForward~{input[1]}~");
+            }
+            else if (input[0] == "t")
+            {
+                WriteData($"turn~{input[1]}~");
+            }
         }
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)

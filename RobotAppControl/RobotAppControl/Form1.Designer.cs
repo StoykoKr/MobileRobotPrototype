@@ -79,11 +79,11 @@
             // 
             // btn_ManualPosition
             // 
-            btn_ManualPosition.Location = new Point(1151, 115);
+            btn_ManualPosition.Location = new Point(1125, 115);
             btn_ManualPosition.Name = "btn_ManualPosition";
-            btn_ManualPosition.Size = new Size(154, 23);
+            btn_ManualPosition.Size = new Size(104, 23);
             btn_ManualPosition.TabIndex = 3;
-            btn_ManualPosition.Text = "Assign position manually";
+            btn_ManualPosition.Text = "send txtbox com";
             btn_ManualPosition.UseVisualStyleBackColor = true;
             btn_ManualPosition.Click += btn_ManualPosition_Click;
             // 

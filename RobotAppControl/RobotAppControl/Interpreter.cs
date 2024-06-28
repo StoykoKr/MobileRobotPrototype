@@ -19,20 +19,23 @@ namespace RobotAppControl
         private double currentRotation;
         private int counter = 0;
         private Form1 formControl;
-       
-        public Interpreter(ref ConcurrentQueue<string> strings,ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation,Form1 formReference) {
+        public double movedTotalRecieved = 0;
+
+        public Interpreter(ref ConcurrentQueue<string> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
+        {
             stringsToBeInterpreted = strings;
             bitmap = actualMap;
             currentX = curX;
             currentY = curY;
             currentRotation = curRotation;
             formControl = formReference;
-          
+
         }
         private void UpdateImg()
         {
             formControl.Invoke(formControl.myDelagate);
         }
+        private List<string[]> knownList = new List<string[]>();
         private void MakeMap(string[] whatWeKnow)
         {
             if (bitmap != null)
@@ -45,50 +48,64 @@ namespace RobotAppControl
                     int tempX = bitmap.Width / 2;
                     // whatWeKnow[1]; //how much we moved
                     //whatWeKnow[2];// direction
-                   // if (whatWeKnow[2] != "225.0")
-                  //  {
-                        currentRotation = double.Parse(whatWeKnow[2]);
+                    // if (whatWeKnow[2] != "225.0")
+                    //  {
+                    currentRotation = double.Parse(whatWeKnow[2]);
                     //   }
-                    double movementDistance = float.Parse(whatWeKnow[1]) * 0.5;
+                    movedTotalRecieved += double.Parse(whatWeKnow[1]);
+                    double movementDistance = float.Parse(whatWeKnow[1]) * 0.1;
                     currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
-
+                    //   knownList.Add(whatWeKnow);
+                    Color newColor = Color.White;
                     for (int j = 3; j < whatWeKnow.Length; j += 2)
                     {
-                        if (float.Parse(whatWeKnow[j + 1]) < 90)  // if too far ignore
+                        if (float.Parse(whatWeKnow[j + 1]) < 200)  // if too far ignore
                         {
-                            int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Cos((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
-                            int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * 5 * Math.Sin((float.Parse(whatWeKnow[j]) + currentRotation) * Math.PI / 180));
-                              Color newColor =Color.White;
-                            /*  if (j == 3)
-                              {
-                                 // bitmap.SetPixel(
-                                  //    x,
-                                 //     y, Color.Yellow);
-                                  newColor = Color.White;
-                              }
-                              else if (j == 5)
-                              {
-                                  newColor = Color.Green;
-                              }
-                              else if (j == 7)
-                              {
-                                  newColor = Color.Red;
-                              } */
-                                for (int i = -1; i < 2; i++)
-                               {
-                                   for (int k = -1; k < 2; k++)
-                                    {
-                            bitmap.SetPixel(
-                            centralPixelX + i,
-                            centralPixelY + k, newColor);
+                            int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Cos(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
+                            int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Sin(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
 
-                                 }
-                                }
+
+                            if (j == 3)
+                            {
+                                newColor = Color.Red;
+                                bitmap.SetPixel(
+                         x,
+                         y, Color.White);
+                            }
+                            else if ( j == 5)
+                            {
+                                newColor = Color.Green;
+
+                            }else
+                            {
+                                newColor = Color.Blue;
+                            }
+                            
+                            
+                            
+                            
+                            //    for (int i = -1; i < 2; i++)
+                            //     {
+                            //       for (int k = -1; k < 2; k++)
+                            //         {
+                            //   bitmap.SetPixel(
+                            //   centralPixelX + i,
+                            //   centralPixelY + k, Color.White);
+
+                            //     }
+                            //    }
+                            bitmap.SetPixel(
+                         centralPixelX,
+                         centralPixelY, newColor);
                         }
                     }
+                    //    if (knownList.Count > 200)
+                    //  {
+                    //breakpoint spot
+                    //}
                 }
 
                 catch (Exception ex)
@@ -98,41 +115,42 @@ namespace RobotAppControl
                 }
             }
         }
-        public void StopInterpreting() {
+        public void StopInterpreting()
+        {
             stopInterpreting = true;
         }
         List<string[]> listOfArr = new List<string[]>();
-       
+
         public void StartInterpreting()
         {
             stopInterpreting = false;
             while (!stopInterpreting)
             {
                 try
-                {                    
+                {
 
                     if (stringsToBeInterpreted.TryDequeue(out string entry))
                     {
-                        
+
                         if (entry != null)
                         {
                             string[] splitData = entry.Split('|');
                             if (splitData[0] == "scanRSSI") // update readings on the current position
-                            {}
+                            { }
                             else if (splitData[0] == "report") // mark the current readings as the specified position
                             {
                                 listOfArr.Add(splitData);
-                                if(listOfArr.Count > 500)
+                                if (listOfArr.Count > 500)
                                 {
                                     //???
                                 }
                             }
                             else if (splitData[0] == "guess") // get data on current position and make a guess 
-                            {}
+                            { }
                             else if (splitData[0] == "mapPoint")
                             {
                                 MakeMap(splitData);
-                                counter++;                             
+                                counter++;
                                 if (counter > 2)
                                 {
                                     counter = 0;
@@ -140,13 +158,13 @@ namespace RobotAppControl
                                 }
                             }
                             else if (splitData[0] == "ready")
-                            {}
+                            { }
                             else if (splitData[0] == "moved")
                             {
                                 // [1] -> how much  [2] -> currentRotation
-                              //  currentRotation = double.Parse(splitData[2]);
-                              //  currentX += double.Parse(splitData[1]) * Math.Cos(currentRotation * Math.PI / 180);
-                              //  currentY += double.Parse(splitData[1]) * Math.Sin(currentRotation * Math.PI / 180);
+                                //  currentRotation = double.Parse(splitData[2]);
+                                //  currentX += double.Parse(splitData[1]) * Math.Cos(currentRotation * Math.PI / 180);
+                                //  currentY += double.Parse(splitData[1]) * Math.Sin(currentRotation * Math.PI / 180);
                             }
                             else if (splitData[0] == "save")
                             {
