@@ -38,9 +38,15 @@ namespace RobotAppControl
                 if (_currentY < y) _currentY++;
                 else if (_currentY > y) _currentY--;
 
-                _bitmap.SetPixel(_currentX, _currentY, Color.Red); // Mark the path on the bitmap
-                _form.Invoke(_form.myDelagate);
+                if (!_form._grid.Walkable[_currentX,_currentY])
+                {
+                    // explode
+                }
+                _bitmap.SetPixel(_currentX, _currentY, Color.Red);
+                
+                // Mark the path on the bitmap
             }
+                _form.Invoke(_form.myDelagate);
         }
 
         public void ExecutePath(List<Node> path)

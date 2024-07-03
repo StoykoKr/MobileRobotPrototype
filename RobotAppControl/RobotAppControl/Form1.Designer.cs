@@ -42,6 +42,10 @@
             btn_SetStart = new Button();
             btn_SetEnd = new Button();
             btn_ExecuteRoute = new Button();
+            button2 = new Button();
+            btnReal = new Button();
+            btnWalkable = new Button();
+            button3 = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -99,10 +103,10 @@
             // 
             // txtBox_TextOutput
             // 
-            txtBox_TextOutput.Location = new Point(1037, 227);
+            txtBox_TextOutput.Location = new Point(1037, 348);
             txtBox_TextOutput.Multiline = true;
             txtBox_TextOutput.Name = "txtBox_TextOutput";
-            txtBox_TextOutput.Size = new Size(161, 299);
+            txtBox_TextOutput.Size = new Size(161, 178);
             txtBox_TextOutput.TabIndex = 5;
             // 
             // btn_SaveImg
@@ -185,11 +189,55 @@
             btn_ExecuteRoute.UseVisualStyleBackColor = true;
             btn_ExecuteRoute.Click += btn_ExecuteRoute_Click;
             // 
+            // button2
+            // 
+            button2.Location = new Point(1145, 176);
+            button2.Name = "button2";
+            button2.Size = new Size(75, 23);
+            button2.TabIndex = 18;
+            button2.Text = "breakBTN";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click;
+            // 
+            // btnReal
+            // 
+            btnReal.Location = new Point(1024, 281);
+            btnReal.Name = "btnReal";
+            btnReal.Size = new Size(75, 23);
+            btnReal.TabIndex = 19;
+            btnReal.Text = "realMap";
+            btnReal.UseVisualStyleBackColor = true;
+            btnReal.Click += btnReal_Click;
+            // 
+            // btnWalkable
+            // 
+            btnWalkable.Location = new Point(1105, 281);
+            btnWalkable.Name = "btnWalkable";
+            btnWalkable.Size = new Size(95, 23);
+            btnWalkable.TabIndex = 20;
+            btnWalkable.Text = "Walkable map";
+            btnWalkable.UseVisualStyleBackColor = true;
+            btnWalkable.Click += btnWalkable_Click;
+            // 
+            // button3
+            // 
+            button3.Location = new Point(1093, 234);
+            button3.Name = "button3";
+            button3.Size = new Size(118, 23);
+            button3.TabIndex = 21;
+            button3.Text = "btnTestingInput";
+            button3.UseVisualStyleBackColor = true;
+            button3.Click += button3_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(button3);
+            Controls.Add(btnWalkable);
+            Controls.Add(btnReal);
+            Controls.Add(button2);
             Controls.Add(btn_ExecuteRoute);
             Controls.Add(btn_SetEnd);
             Controls.Add(btn_SetStart);
@@ -230,5 +278,9 @@
         private Button btn_SetStart;
         private Button btn_SetEnd;
         private Button btn_ExecuteRoute;
+        private Button button2;
+        private Button btnReal;
+        private Button btnWalkable;
+        private Button button3;
     }
 }

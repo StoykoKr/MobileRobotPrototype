@@ -13,7 +13,7 @@ namespace RobotAppControl
 {
     public partial class Form1 : Form
     {
-        private Grid _grid;
+        public Grid _grid;
         private Robot _robot;
 
         private PictureBox PictureBox;
@@ -60,7 +60,7 @@ namespace RobotAppControl
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
             server = new TcpListener(localAddr, port);
-            server.Start();
+              server.Start();
 
         }
         private void StartListen()
@@ -112,7 +112,7 @@ namespace RobotAppControl
             return commands;
         }
         public void ExecutePath(List<string> commannds)
-        {          
+        {
 
             foreach (var command in commannds)
             {
@@ -124,6 +124,7 @@ namespace RobotAppControl
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
             return color.R < 50 && color.G < 50 && color.B < 50; // Example threshold for black
         }
+        /*
         private void btn_RunAStar_Click(object sender, EventArgs e)
         {
             // Define start and goal positions
@@ -140,7 +141,7 @@ namespace RobotAppControl
 
             // Refresh the picture box to show the path
             RefreshPicture();
-        }
+        } */
         private void StopListening()
         {
             if (listener != null)
@@ -494,7 +495,7 @@ namespace RobotAppControl
             {
                 currentlyPressedKey = Keys.None;
                 WriteDataSingular(currentlyPressedKey.ToString());
-               
+
             }
         }
 
@@ -574,13 +575,19 @@ namespace RobotAppControl
         private void btn_ManualRotation_Click(object sender, EventArgs e)
         {
             // Define start and goal positions
+         //   var start = new NewNode(startX, startY);
+         //   var goal = new NewNode(endX, endY);
             var start = new Node(startX, startY);
             var goal = new Node(endX, endY);
+            /*  // Find path using A* algorithm
+              var aStar = new AStar(_grid);
+              var path = aStar.FindPath(start, goal);
+            */
 
-            // Find path using A* algorithm
-            var aStar = new AStar(_grid);
-            var path = aStar.FindPath(start, goal);
-
+              var thetaStar = new ThetaStar(_grid);
+          //  var thetaStar = new NewThetaStar(_grid);
+            //var path = thetaStar.FindPath(start, goal);
+            var path = thetaStar.FindPath(start,goal);
             // Execute path with robot
             _robot = new Robot(_grid, custom, start.X, start.Y, this);
             if (path != null)
@@ -619,12 +626,12 @@ namespace RobotAppControl
                 int dx = list[i + 1].X - list[i].X;
                 int dy = list[i + 1].Y - list[i].Y;
 
-              
+
                 if (dx != 0)
                 {
                     if (movedy != 0)
                     {
-                        result.Add("moveForward~" + (Math.Abs(movedy)*10).ToString() + "~");
+                        result.Add("moveForward~" + (Math.Abs(movedy) * 10).ToString() + "~");
                         result.Add(dx > 0 ? "turn~90~" : "turn~-90~");
                         movedx = 0;
                         movedy = 0;
@@ -635,7 +642,7 @@ namespace RobotAppControl
                 {
                     if (movedx != 0)
                     {
-                        result.Add("moveForward~" + (Math.Abs(movedx)*10).ToString() + "~");
+                        result.Add("moveForward~" + (Math.Abs(movedx) * 10).ToString() + "~");
                         result.Add(dy > 0 ? "turn~90~" : "turn~-90~");
                         movedx = 0;
                         movedy = 0;
@@ -643,12 +650,66 @@ namespace RobotAppControl
                     movedy += dy;
                 }
             }
-            result.Add("moveForward~" + (Math.Abs(movedy + movedx)*10).ToString() + "~");
+            result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
-            ExecutePath(CookedPath(finalPath));
+           // ExecutePath(CookedPath(finalPath));
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (true)
+            {
+                // just breakpoint
+            }
+        }
+
+        private void btnReal_Click(object sender, EventArgs e)
+        {
+            PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+        }
+
+        private CustomBitmap walkable;
+        private void MakeWalkableBitmap()
+        {
+            walkable = new CustomBitmap(custom.Width, custom.Height);
+
+            for (int i = 0; i < walkable.Width; i++)
+            {
+                for (int j = 0; j < walkable.Height; j++)
+                {
+                    if (_grid.Walkable[i, j])
+                    {
+                        walkable.SetPixel(i, j, Color.Green);
+                    }
+                    else
+                    {
+                        walkable.SetPixel(i, j, Color.Red);
+                    }
+                }
+            }
+        }
+        private void btnWalkable_Click(object sender, EventArgs e)
+        {
+            if (walkable == null)
+            {
+                MakeWalkableBitmap();
+            }
+            PictureBox.CreateGraphics().DrawImage(walkable.Bitmap, _imgRect);
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+           
+
+            startX = 709;
+            startY = 386;
+            endX = 768;
+            endY = 414;
+           
         }
     }
 }

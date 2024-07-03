@@ -46,28 +46,19 @@ namespace RobotAppControl
 
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
-                    // whatWeKnow[1]; //how much we moved
-                    //whatWeKnow[2];// direction
-                    // if (whatWeKnow[2] != "225.0")
-                    //  {
-                    currentRotation = double.Parse(whatWeKnow[2]);
-                    //   }
-                    movedTotalRecieved += double.Parse(whatWeKnow[1]);
+                    currentRotation = double.Parse(whatWeKnow[2]) + 180;
                     double movementDistance = float.Parse(whatWeKnow[1]) * 0.1;
-                    currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
+                    currentX -= movementDistance * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
-                    //   knownList.Add(whatWeKnow);
                     Color newColor = Color.White;
                     for (int j = 3; j < whatWeKnow.Length; j += 2)
                     {
                         if (float.Parse(whatWeKnow[j + 1]) < 200)  // if too far ignore
                         {
-                            int centralPixelX = x + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Cos(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
+                            int centralPixelX = x - (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Cos(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
                             int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Sin(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
-
-
                             if (j == 3)
                             {
                                 newColor = Color.Red;
@@ -75,37 +66,20 @@ namespace RobotAppControl
                          x,
                          y, Color.White);
                             }
-                            else if ( j == 5)
+                            else if (j == 5)
                             {
                                 newColor = Color.Green;
 
-                            }else
+                            }
+                            else
                             {
                                 newColor = Color.Blue;
                             }
-                            
-                            
-                            
-                            
-                            //    for (int i = -1; i < 2; i++)
-                            //     {
-                            //       for (int k = -1; k < 2; k++)
-                            //         {
-                            //   bitmap.SetPixel(
-                            //   centralPixelX + i,
-                            //   centralPixelY + k, Color.White);
-
-                            //     }
-                            //    }
                             bitmap.SetPixel(
                          centralPixelX,
                          centralPixelY, newColor);
                         }
                     }
-                    //    if (knownList.Count > 200)
-                    //  {
-                    //breakpoint spot
-                    //}
                 }
 
                 catch (Exception ex)

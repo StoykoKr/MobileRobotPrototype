@@ -33,7 +33,7 @@ double _medianMid;
 double _medianLeft;
 double _medianRight;
 WiFiClient client;
-int bounce = 7;  //to avoid problems with optical encoders
+int bounce = 9;  //to avoid problems with optical encoders  used to be 7
 volatile unsigned long interruptTimeLeftEncoder;
 volatile unsigned long interruptTimeRightEncoder;
 volatile unsigned long lastInterruptTimeLeftEncoder = 0;
@@ -78,7 +78,29 @@ bool leftGoingForward = false;
 bool rightGoingForward = false;
 const uint16_t port = 13000;
 const char* host = "192.168.43.144";
+const float hard_iron[3] = {  // with magneto the values are new
+  211.01 * 1.47, -260.85 * 1.47, -641.62 * 1.47
+};
+
+const float soft_iron[3][3] = {
+  { 1.565 * 1.47, -0.039 * 1.47, -0.001 * 1.47 },
+  { -0.039 * 1.47, 1.510 * 1.47, -0.028 * 1.47 },
+  { -0.001 * 1.47, -0.028 * 1.47, 1.502 * 1.47 }
+};
+
+
+/*
 const float hard_iron[3] = {  // this and soft_iron are the magnetic sensor calibration
+  27.10, -27.45, -94.76
+};
+
+const float soft_iron[3][3] = {
+  { 1.103, 0.058, 0.100 },
+  { 0.058, 1.145, -0.017 },
+  { 0.100, -0.017, 0.804 }
+}; */
+
+/*const float hard_iron[3] = {  // this and soft_iron are the magnetic sensor calibration
   4.05, -50.48, -27.46
 };
 
@@ -86,7 +108,7 @@ const float soft_iron[3][3] = {
   { 1.067, 0.045, 0.040 },
   { 0.045, 0.939, 0.033 },
   { 0.040, -0.033, 1.002 }
-};
+};*/
 
 void setup() {
   pinMode(input1Pin, OUTPUT);
@@ -102,12 +124,11 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
-  //attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
   attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
+  // attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
   mag = Adafruit_HMC5883_Unified();
   Serial.begin(115200);
   if (!mag.begin()) {  //using the manually assigned sda and scl due to me doing things with the library on my pc
-    Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
     while (1) { delay(10); }
   }
   WiFi.mode(WIFI_STA);
@@ -175,6 +196,7 @@ void IRS_RightSensor() {
   }
 }
 void IRS_LeftEncoder() {
+
   interruptTimeLeftEncoder = millis();
   // If interrupts come faster than Xms, assume it's a bounce and ignore
   if (interruptTimeLeftEncoder - lastInterruptTimeLeftEncoder > bounce) {
@@ -183,11 +205,15 @@ void IRS_LeftEncoder() {
     } else {
       leftEncoderCounter++;
     }
+    lastInterruptTimeLeftEncoder = interruptTimeLeftEncoder;
   }
+
+  //leftEncoderCounter++;
   // Keep track of when we were here last
-  lastInterruptTimeLeftEncoder = interruptTimeLeftEncoder;
 }
 void IRS_RightEncoder() {
+
+
   interruptTimeRightEncoder = millis();
   // If interrupts come faster than Xms, assume it's a bounce and ignore
   if (interruptTimeRightEncoder - lastInterruptTimeRightEncoder > bounce) {
@@ -198,6 +224,8 @@ void IRS_RightEncoder() {
     }
     lastInterruptTimeRightEncoder = interruptTimeRightEncoder;
   }
+
+  // rightEncoderCounter++;
 }
 void GetUltrasoundData(float dir, bool sendMove) {
   // Calculate the movement based on both encoder readings
@@ -320,23 +348,23 @@ void GetUltrasoundData(float dir, bool sendMove) {
   str.concat("|");
   str.concat(_medianMid);
   str.concat("|");
-  str.concat(-90);
+  str.concat(90);
   str.concat("|");
   str.concat(_medianLeft);
   str.concat("|");
-  str.concat(90);
+  str.concat(-90);
   str.concat("|");
   str.concat(_medianRight);
   str.concat('`');
   client.print(str);
   //Serial.println(str);
 }
-float MagneticSensorReading() {
+float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
   float hi_cal[3];
-  float mag_data[] = { event.magnetic.x,
-                       event.magnetic.y,
-                       event.magnetic.z };
+  float mag_data[] = { event.magnetic.x * 11,
+                       event.magnetic.y * 11,
+                       event.magnetic.z * 11 };
   for (uint8_t i = 0; i < 3; i++) {
     hi_cal[i] = mag_data[i] - hard_iron[i];
   }
@@ -352,6 +380,24 @@ float MagneticSensorReading() {
   float headingDegrees = heading * 180 / M_PI;
   return headingDegrees;
 }
+float mag_datat[] = { event.magnetic.x,
+                      event.magnetic.y,
+                      event.magnetic.z };
+void MagneticSensorReadingFORPROCESSING() {  // NEEDS TO BE REVERTED LATER
+  mag.getEvent(&event);
+  float hi_cal[3];
+  mag_datat[0] = event.magnetic.x;
+  mag_datat[1] = event.magnetic.y;
+  mag_datat[2] = event.magnetic.z;
+
+  for (uint8_t i = 0; i < 3; i++) {
+    hi_cal[i] = mag_datat[i] - hard_iron[i];
+  }
+  for (uint8_t i = 0; i < 3; i++) {
+    mag_datat[i] = (soft_iron[i][0] * hi_cal[0]) + (soft_iron[i][1] * hi_cal[1]) + (soft_iron[i][2] * hi_cal[2]);
+  }
+}
+
 void MoveRightMotor(float speedUnfiltered) {
   speedUnfiltered = speedUnfiltered * -1;
   float speed = fabs(speedUnfiltered);
@@ -536,7 +582,7 @@ void justForward() {
     }
     degreeChangeFromStart += change;
     lastDeg = currentDeg;
-    speedadjustment = PidController_straightForward_adjust(0, 0.6, 0.21, 0.1, degreeChangeFromStart); //2.2, 0.3, 0.18
+    speedadjustment = PidController_straightForward_adjust(0, 0.9, 0.2, 0.07, degreeChangeFromStart);  //2.2, 0.3, 0.18    ||   0.6, 0.21, 0.1
     speedLeft = 120;
     speedRight = 120;
     if (speedadjustment > 150) {
@@ -609,7 +655,7 @@ void forward(int mm) {
     }
     degreeChangeFromStart += change;
     lastDeg = currentDeg;
-    speedadjustment = PidController_straightForward_adjust(0,0.6, 0.22, 0.1, degreeChangeFromStart); // 0.6, 0.2, 0.1
+    speedadjustment = PidController_straightForward_adjust(0, 0.6, 0.22, 0.1, degreeChangeFromStart);  // 0.6, 0.2, 0.1
     speedLeft = 140;
     speedRight = 140;
     if (speedadjustment > 150) {
@@ -685,18 +731,16 @@ void turnOnCrack(float degree) {
   ResetPIDs();
   delay(300);
 }
-int tempMoved = 0;
+int temp = 0;
 void loop() {
 
 
 
-/*
-  
+
+
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
     //WiFi.begin("Stoiko", "01122001");
-    Serial.println(WiFi.RSSI());
-    Serial.println("Trying to connect..");
     delay(3000);
     while (!client.connect(host, port)) {
       Serial.println("failed trying again");
@@ -724,25 +768,58 @@ void loop() {
       } else if (line == "ready") {  // give data for current location and ask for a guess
       }
     }
-  }*/
-  delay(150);
-Serial.println(MagneticSensorReading());
-
+  }
+  delay(100);
+  /*
+  mag.getEvent(&event);
+  Serial.print("X = ");
+  Serial.println(event.magnetic.x);
+  Serial.print("Y = ");
+  Serial.println(event.magnetic.y);
+  Serial.print("Z = ");
+  Serial.println(event.magnetic.z);
+  */
+  //Serial.println(MagneticSensorReading());
   /*int rigthCount = rightEncoderCounter;
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
   double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
   int rd = rigthCount - lastRightEncoderCounterUsedToCalculate;
   int ld = leftCount - lastLeftEncoderCounterUsedToCalculate;
-  weMoved += rightDistanceMoved;
+  weMoved += (rightDistanceMoved + leftDistanceMoved) / 2;
   tempMoved += rd;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
-  lastLeftEncoderCounterUsedToCalculate = leftCount;
-
+  lastLeftEncoderCounterUsedToCalculate = leftCount;  
   Serial.print("Right encoder:");
-  Serial.println(rightEncoderCounter);
+  Serial.println(rigthCount);
+  Serial.print("left encoder:");
+  Serial.println(leftCount); */
+  /*if (millis() >= 10000 && temp == 0) {
+    temp = 1;
+  } else if (temp == 0) {
+   */
+  /*
+    String str = "";
+    str.concat(mag_datat[0] * 10);
+    str.concat(" ");
+    str.concat(mag_datat[1] * 10);
+    str.concat(" ");
+    str.concat(mag_datat[2] * 10);
+    str.concat(" ");
+    Serial.println(str);
+  
+  MagneticSensorReadingFORPROCESSING();*/
+  /*  Serial.print("x:");
+  Serial.print(mag_datat[0]);
   Serial.print(",");
-  Serial.print("We moved:");
-  Serial.println(weMoved);
-  delay(250); */
+  Serial.print("y:");
+  Serial.print(mag_datat[1]);
+  Serial.print(",");
+  Serial.print("z:");
+  Serial.print(mag_datat[2]);*/
+  //Serial.print("heading:");
+  //Serial.println(MagneticSensorReading());
+  /*Serial.print(",");
+  Serial.print("mid:");
+  Serial.println(180); */
 }
