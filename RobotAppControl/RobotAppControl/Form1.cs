@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.IO;
@@ -60,7 +61,7 @@ namespace RobotAppControl
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
             server = new TcpListener(localAddr, port);
-              server.Start();
+            //  server.Start();
 
         }
         private void StartListen()
@@ -84,6 +85,29 @@ namespace RobotAppControl
                     if (IsObstacle(pixelColor))
                     {
                         _grid.SetWalkable(x, y, false);
+                    }
+                }
+            }
+            for (int x = 0; x < map.Width; x++)
+            {
+                for (int y = 0; y < map.Height; y++)
+                {
+                    if (_grid.IsWalkable(x,y) == false)
+                    {
+                        for (int i = -5; i <= 5; i++)
+                        {
+                            for (int j = -5; j <= 5; j++)
+                            {
+                                if(_grid.IsWalkable(x + i,y + j) == true)
+                                {
+                                    float tentativeCost = 1 + (12 - Math.Abs(i) - Math.Abs(j))/8;
+                                    if(_grid.GetCost(x,y) < tentativeCost)
+                                    {
+                                        _grid.SetCost(x,y,tentativeCost);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -122,7 +146,7 @@ namespace RobotAppControl
         private bool IsObstacle(Color color)
         {
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
-            return color.R < 50 && color.G < 50 && color.B < 50; // Example threshold for black
+            return color.R + color.G + color.B < 100; // Example threshold for black
         }
         /*
         private void btn_RunAStar_Click(object sender, EventArgs e)
@@ -327,22 +351,30 @@ namespace RobotAppControl
             }
 
         }
-        private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics)
+        private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics, Dictionary<Tuple<int,int>,int> affectedCells)
         {
             Color current = custom.GetPixel(iCentr, jCentr);
             // Color smallCurrent;
-            if (current.R >= 200 || current.G >= 100)
-            {
-                int blackCount = 0;
+            Color currentAdj;
+            if ((current.R + current.G + current.B) >= 10)
+            {            
                 for (int i = iCentr - spread; i <= iCentr + spread; i++)
                 {
                     for (int j = jCentr - spread; j <= jCentr + spread; j++)
                     {
                         if (i >= 0 && i < custom.Width && j >= 0 && j < custom.Height)
                         {
-                            if (custom.GetPixel(i, j).G > 20 || custom.GetPixel(i, j).R > 20)
+                            currentAdj = custom.GetPixel(i, j);
+                            if ((currentAdj.R + currentAdj.G + currentAdj.B) >= 10)
                             {
-                                blackCount++;
+                                if (affectedCells.ContainsKey(Tuple.Create(i, j)))
+                                {
+                                    affectedCells[Tuple.Create(i, j)] += 1;
+                                }
+                                else
+                                {
+                                    affectedCells.Add(Tuple.Create(i, j), 1);
+                                }
                             }
                         }
                     }
@@ -350,9 +382,9 @@ namespace RobotAppControl
                 if (true)
                 {
 
-                    rectangle = new Rectangle(iCentr, jCentr, 1, 1);
-                    rectangle.Inflate(spread, spread);
-                    graphics.FillRectangle(Brushes.Black, rectangle);
+                 //   rectangle = new Rectangle(iCentr, jCentr, 1, 1);
+                 //   rectangle.Inflate(spread, spread);
+                  //  graphics.FillRectangle(Brushes.Black, rectangle);
 
 
                     /*  for (int i = iCentr - spread * 3; i <= iCentr + spread * 3; i++)
@@ -391,17 +423,29 @@ namespace RobotAppControl
         }
         private void ConvertToOccMap()
         {
-            occupancyMap = new CustomBitmap(custom.Width, custom.Height);
-            pen.Width = 4;
+            occupancyMap = new CustomBitmap(custom.Width, custom.Height);          
             using (occupancyMap)
             {
                 Graphics g = Graphics.FromImage(occupancyMap.Bitmap);
                 g.Clear(Color.White);
+                Dictionary<Tuple<int, int>, int> AffectedCells = new Dictionary<Tuple<int, int>, int>(); 
                 for (int i = 0; i < occupancyMap.Width; i++)
                 {
                     for (int j = 0; j < occupancyMap.Height; j++)
                     {
-                        HandleAdjacentPixels(i, j, 6, g); // the third one is the spread value aka how many "rings" around the middle
+                        HandleAdjacentPixels(i, j, 4, g, AffectedCells); // the third one is the spread value aka how many "rings" around the middle
+                    }
+                }
+                foreach (var item in AffectedCells)
+                {
+                    if (item.Value > 20)
+                    {
+                        rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
+                        rectangle.Inflate(2, 2);
+                        g.FillRectangle(Brushes.Black, rectangle);
+
+
+                        // occupancyMap.SetPixel(item.Key.Item1, item.Key.Item2, Color.Black);
                     }
                 }
                 SaveFileDialog saveFileDialog1 = AskSaveFile();
@@ -579,15 +623,15 @@ namespace RobotAppControl
          //   var goal = new NewNode(endX, endY);
             var start = new Node(startX, startY);
             var goal = new Node(endX, endY);
-            /*  // Find path using A* algorithm
-              var aStar = new AStar(_grid);
-              var path = aStar.FindPath(start, goal);
-            */
+              // Find path using A* algorithm
+           //   var aStar = new AStar(_grid);
+           //   var path = aStar.FindPath(start, goal);
+            
 
               var thetaStar = new ThetaStar(_grid);
           //  var thetaStar = new NewThetaStar(_grid);
-            //var path = thetaStar.FindPath(start, goal);
-            var path = thetaStar.FindPath(start,goal);
+            var path = thetaStar.FindPath(start, goal);
+          //  var path = thetaStar.FindPath(start,goal);
             // Execute path with robot
             _robot = new Robot(_grid, custom, start.X, start.Y, this);
             if (path != null)

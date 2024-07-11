@@ -582,7 +582,7 @@ void justForward() {
     }
     degreeChangeFromStart += change;
     lastDeg = currentDeg;
-    speedadjustment = PidController_straightForward_adjust(0, 0.9, 0.2, 0.07, degreeChangeFromStart);  //2.2, 0.3, 0.18    ||   0.6, 0.21, 0.1
+    speedadjustment = PidController_straightForward_adjust(0, 0.9, 0.2, 0.07, degreeChangeFromStart);  //2.2, 0.3, 0.18    ||   0.6, 0.21, 0.1 || 0.9, 0.2, 0.07
     speedLeft = 120;
     speedRight = 120;
     if (speedadjustment > 150) {
@@ -733,11 +733,6 @@ void turnOnCrack(float degree) {
 }
 int temp = 0;
 void loop() {
-
-
-
-
-
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
     //WiFi.begin("Stoiko", "01122001");
@@ -768,7 +763,7 @@ void loop() {
       } else if (line == "ready") {  // give data for current location and ask for a guess
       }
     }
-  }
+  } 
   delay(100);
   /*
   mag.getEvent(&event);

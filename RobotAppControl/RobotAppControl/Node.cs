@@ -52,7 +52,9 @@ namespace RobotAppControl
 
         private static float Heuristic(Node a, Node b)
         {
-            return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+            float euclidean = (float)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2) - 10);
+           // return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+           return euclidean;
         }
 
         private IEnumerable<Node> GetNeighbors(Node node)
