@@ -14,20 +14,18 @@ namespace RobotAppControl
         private int i;
         private Byte[] bytes = new Byte[1024];
         private bool stopListening = false;
-        private bool canHear;
         char character;
         Queue<char> rawCharsToWorkWith;
         ConcurrentQueue<string> stringsToBeInterpreted;
         StringBuilder helperStringBuilder;
         string lastQueued = "";
-        public Listener(ref ConcurrentQueue<string> strings,ref bool listening)
-        {
-            canHear = listening;
+        public Listener(ref ConcurrentQueue<string> strings)
+        {          
             rawCharsToWorkWith = new Queue<char>();
             stringsToBeInterpreted = strings;
             helperStringBuilder = new StringBuilder();
         }
-        private void MergeInStrings()  // #vulnerability as it is right now
+        private void MergeInStrings() // Looks at the data in the char queue and makes complete strings using a StringBuilder until a chosen char appears as a delimiter. The complete strings are enqueued to another queue that is consumed by the InterpreterThread
         {
 
             while (rawCharsToWorkWith.Count > 0)
@@ -58,7 +56,7 @@ namespace RobotAppControl
         {
             stopListening = true;
         }
-        public void BeginListening(NetworkStream stream)
+        public void BeginListening(NetworkStream stream)  // Starts listening to the NetworkStream. Saves the incoming chars in a queue.
         {
             while (!stopListening)
             {

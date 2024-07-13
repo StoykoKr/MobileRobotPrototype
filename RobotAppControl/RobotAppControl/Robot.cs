@@ -24,12 +24,8 @@ namespace RobotAppControl
           
         }
 
-        public void MoveTo(int x, int y)
+        public void MoveTo(int x, int y)  // This for now just marks the path we are planning to take.
         {
-            // Convert grid coordinates to robot movement commands
-            // Update _currentX and _currentY accordingly
-
-            // For simplicity, let's assume each move is one grid cell
             while (_currentX != x || _currentY != y)
             {
                 if (_currentX < x) _currentX++;
@@ -38,14 +34,14 @@ namespace RobotAppControl
                 if (_currentY < y) _currentY++;
                 else if (_currentY > y) _currentY--;
 
-                if (!_form._grid.Walkable[_currentX,_currentY])
-                {
-                    // explode
-                }
                 _bitmap.SetPixel(_currentX, _currentY, Color.Red);
                 
-                // Mark the path on the bitmap
             }
+
+            {
+                // Here we can probably so some magic
+            }
+
                 _form.Invoke(_form.myDelagate);
         }
 

@@ -16,7 +16,7 @@ namespace RobotAppControl
             _grid = grid;
         }
 
-        public List<Node> FindPath(Node start, Node goal)
+        public List<Node> FindPath(Node start, Node goal) /// This method is supposed to find a good path between two given Nodes and more or less it does indeed work.
         {
             var openSet = new SortedSet<Node>(Comparer<Node>.Create((a, b) =>
             {
@@ -53,10 +53,10 @@ namespace RobotAppControl
                 {
                     if (closedSet.Contains(neighbor) || !_grid.Walkable[neighbor.X, neighbor.Y])
                         continue;
-
+                    // About the tentativeG. During the calculation using the _grid.GetCost leads to faster results but I fear we are not using the real distance.
                     float tentativeG = current.Parent != null && LineOfSight(current.Parent, neighbor) ?
-                                       current.Parent.G + _grid.GetCost(current.Parent.X, current.Parent.Y) :// + _grid.GetCost(current.Parent.X, current.Parent.Y) :         //Heuristic(current.Parent, neighbor) :
-                                       current.G + _grid.GetCost(current.X, current.Y);// Heuristic(current, neighbor);
+                                       current.Parent.G + (_grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)) :// + _grid.GetCost(current.Parent.X, current.Parent.Y) :         //Heuristic(current.Parent, neighbor) :
+                                       current.G + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y);//_grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);// Heuristic(current, neighbor);
 
                     if (!openSet.Contains(neighbor) || tentativeG < neighbor.G)
                     {
@@ -112,18 +112,11 @@ namespace RobotAppControl
             return neighbors;
         }
 
-        private bool IsPassable(Node node)
-        {
-            return _grid.Walkable[node.X, node.Y];
-        }
-
         private bool LineOfSight(Node from, Node to)
         {
             int x0 = from.X, y0 = from.Y, x1 = to.X, y1 = to.Y;
             int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-            //int dx =(x1 - x0), dy =(y1 - y0);
             int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-            //int err = dx - dy;
 
             while (true)
             {
@@ -140,18 +133,6 @@ namespace RobotAppControl
 
                     throw;
                 }
-
-                //int e2 = err * 2;
-              /*  if (err > -dy)
-                {
-                    err -= dy;
-                    x0 += sx;
-                }
-                if (err < dx)
-                {
-                    err += dx;
-                    y0 += sy;
-                }*/
 
                 if(dx > 0)
                 {
@@ -171,7 +152,7 @@ namespace RobotAppControl
             float euclidean = (float)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
             // float manhattan = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
             // return (float)Math.Round(euclidean * 0.4f + manhattan * 0.6f);
-            return euclidean;
+            return euclidean + _grid.GetCost(a.X,a.Y);
         }
     }
 

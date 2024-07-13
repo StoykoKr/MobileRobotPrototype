@@ -31,12 +31,11 @@ namespace RobotAppControl
             formControl = formReference;
 
         }
-        private void UpdateImg()
+        private void UpdateImg()  // Invokes the UI thread to show the results of the newly painted map.
         {
             formControl.Invoke(formControl.myDelagate);
         }
-        private List<string[]> knownList = new List<string[]>();
-        private void MakeMap(string[] whatWeKnow)
+        private void MakeMap(string[] whatWeKnow) // Paints the map with the information we got. 
         {
             if (bitmap != null)
             {
@@ -92,13 +91,11 @@ namespace RobotAppControl
         public void StopInterpreting()
         {
             stopInterpreting = true;
-        }
-        List<string[]> listOfArr = new List<string[]>();
-
+        }      
         public void StartInterpreting()
         {
             stopInterpreting = false;
-            while (!stopInterpreting)
+            while (!stopInterpreting)   // A loop where we take the messages from a string queue (stringsToBeInterpreted) and do actions depending on the first keyword of the message.
             {
                 try
                 {
@@ -109,19 +106,7 @@ namespace RobotAppControl
                         if (entry != null)
                         {
                             string[] splitData = entry.Split('|');
-                            if (splitData[0] == "scanRSSI") // update readings on the current position
-                            { }
-                            else if (splitData[0] == "report") // mark the current readings as the specified position
-                            {
-                                listOfArr.Add(splitData);
-                                if (listOfArr.Count > 500)
-                                {
-                                    //???
-                                }
-                            }
-                            else if (splitData[0] == "guess") // get data on current position and make a guess 
-                            { }
-                            else if (splitData[0] == "mapPoint")
+                            if (splitData[0] == "mapPoint")
                             {
                                 MakeMap(splitData);
                                 counter++;
@@ -130,15 +115,6 @@ namespace RobotAppControl
                                     counter = 0;
                                     UpdateImg();
                                 }
-                            }
-                            else if (splitData[0] == "ready")
-                            { }
-                            else if (splitData[0] == "moved")
-                            {
-                                // [1] -> how much  [2] -> currentRotation
-                                //  currentRotation = double.Parse(splitData[2]);
-                                //  currentX += double.Parse(splitData[1]) * Math.Cos(currentRotation * Math.PI / 180);
-                                //  currentY += double.Parse(splitData[1]) * Math.Sin(currentRotation * Math.PI / 180);
                             }
                             else if (splitData[0] == "save")
                             {

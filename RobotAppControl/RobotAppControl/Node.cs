@@ -40,8 +40,9 @@ namespace RobotAppControl
             return F.CompareTo(other.F);
         }
     }
-
-    public class AStar
+}
+    /*
+    public class AStar   // No idea why but AStar is here.. in the node class. This is just how life is.
     {
         private readonly Grid _grid;
 
@@ -136,3 +137,4 @@ namespace RobotAppControl
         }
     }
 }
+    */

@@ -18,7 +18,7 @@ namespace RobotAppControl
 
         protected GCHandle BitsHandle { get; private set; }
 
-        public CustomBitmap(int width, int height)
+        public CustomBitmap(int width, int height)  // This class implements a faster way to read and write pixels with Bitmap while keeping the good parts
         {
             Width = width;
             Height = height;

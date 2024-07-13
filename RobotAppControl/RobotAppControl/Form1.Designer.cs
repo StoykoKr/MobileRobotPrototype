@@ -31,7 +31,6 @@
             pBox_Area = new PictureBox();
             btn_CreateNewImage = new Button();
             btn_LoadImageAsMap = new Button();
-            btn_ManualPosition = new Button();
             btn_ManualRotation = new Button();
             txtBox_TextOutput = new TextBox();
             btn_SaveImg = new Button();
@@ -42,10 +41,6 @@
             btn_SetStart = new Button();
             btn_SetEnd = new Button();
             btn_ExecuteRoute = new Button();
-            button2 = new Button();
-            btnReal = new Button();
-            btnWalkable = new Button();
-            button3 = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -81,23 +76,13 @@
             btn_LoadImageAsMap.UseVisualStyleBackColor = true;
             btn_LoadImageAsMap.Click += btn_LoadImageAsMap_Click;
             // 
-            // btn_ManualPosition
-            // 
-            btn_ManualPosition.Location = new Point(1125, 115);
-            btn_ManualPosition.Name = "btn_ManualPosition";
-            btn_ManualPosition.Size = new Size(104, 23);
-            btn_ManualPosition.TabIndex = 3;
-            btn_ManualPosition.Text = "send txtbox com";
-            btn_ManualPosition.UseVisualStyleBackColor = true;
-            btn_ManualPosition.Click += btn_ManualPosition_Click;
-            // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1125, 86);
+            btn_ManualRotation.Location = new Point(1057, 274);
             btn_ManualRotation.Name = "btn_ManualRotation";
-            btn_ManualRotation.Size = new Size(180, 23);
+            btn_ManualRotation.Size = new Size(118, 23);
             btn_ManualRotation.TabIndex = 4;
-            btn_ManualRotation.Text = "Assign rotation manually";
+            btn_ManualRotation.Text = "Calculate route";
             btn_ManualRotation.UseVisualStyleBackColor = true;
             btn_ManualRotation.Click += btn_ManualRotation_Click;
             // 
@@ -131,17 +116,17 @@
             // 
             // btn_ControlRobot
             // 
-            btn_ControlRobot.Location = new Point(1019, 176);
+            btn_ControlRobot.Location = new Point(1037, 115);
             btn_ControlRobot.Name = "btn_ControlRobot";
-            btn_ControlRobot.Size = new Size(120, 23);
+            btn_ControlRobot.Size = new Size(164, 23);
             btn_ControlRobot.TabIndex = 12;
-            btn_ControlRobot.Text = "Control robot";
+            btn_ControlRobot.Text = "Manual robot control";
             btn_ControlRobot.UseVisualStyleBackColor = true;
             btn_ControlRobot.Click += btn_ControlRobot_Click;
             // 
             // btn_ConnectionButton
             // 
-            btn_ConnectionButton.Location = new Point(1050, 147);
+            btn_ConnectionButton.Location = new Point(1044, 86);
             btn_ConnectionButton.Name = "btn_ConnectionButton";
             btn_ConnectionButton.Size = new Size(139, 23);
             btn_ConnectionButton.TabIndex = 13;
@@ -151,17 +136,17 @@
             // 
             // button1
             // 
-            button1.Location = new Point(1136, 198);
+            button1.Location = new Point(1044, 217);
             button1.Name = "button1";
-            button1.Size = new Size(75, 23);
+            button1.Size = new Size(139, 23);
             button1.TabIndex = 14;
-            button1.Text = "button1";
+            button1.Text = "Assign grid to map";
             button1.UseVisualStyleBackColor = true;
             button1.Click += button1_Click;
             // 
             // btn_SetStart
             // 
-            btn_SetStart.Location = new Point(1019, 86);
+            btn_SetStart.Location = new Point(1019, 246);
             btn_SetStart.Name = "btn_SetStart";
             btn_SetStart.Size = new Size(75, 23);
             btn_SetStart.TabIndex = 15;
@@ -171,7 +156,7 @@
             // 
             // btn_SetEnd
             // 
-            btn_SetEnd.Location = new Point(1024, 118);
+            btn_SetEnd.Location = new Point(1125, 247);
             btn_SetEnd.Name = "btn_SetEnd";
             btn_SetEnd.Size = new Size(71, 22);
             btn_SetEnd.TabIndex = 16;
@@ -181,7 +166,7 @@
             // 
             // btn_ExecuteRoute
             // 
-            btn_ExecuteRoute.Location = new Point(1024, 205);
+            btn_ExecuteRoute.Location = new Point(1070, 305);
             btn_ExecuteRoute.Name = "btn_ExecuteRoute";
             btn_ExecuteRoute.Size = new Size(95, 23);
             btn_ExecuteRoute.TabIndex = 17;
@@ -189,55 +174,11 @@
             btn_ExecuteRoute.UseVisualStyleBackColor = true;
             btn_ExecuteRoute.Click += btn_ExecuteRoute_Click;
             // 
-            // button2
-            // 
-            button2.Location = new Point(1145, 176);
-            button2.Name = "button2";
-            button2.Size = new Size(75, 23);
-            button2.TabIndex = 18;
-            button2.Text = "breakBTN";
-            button2.UseVisualStyleBackColor = true;
-            button2.Click += button2_Click;
-            // 
-            // btnReal
-            // 
-            btnReal.Location = new Point(1024, 281);
-            btnReal.Name = "btnReal";
-            btnReal.Size = new Size(75, 23);
-            btnReal.TabIndex = 19;
-            btnReal.Text = "realMap";
-            btnReal.UseVisualStyleBackColor = true;
-            btnReal.Click += btnReal_Click;
-            // 
-            // btnWalkable
-            // 
-            btnWalkable.Location = new Point(1105, 281);
-            btnWalkable.Name = "btnWalkable";
-            btnWalkable.Size = new Size(95, 23);
-            btnWalkable.TabIndex = 20;
-            btnWalkable.Text = "Walkable map";
-            btnWalkable.UseVisualStyleBackColor = true;
-            btnWalkable.Click += btnWalkable_Click;
-            // 
-            // button3
-            // 
-            button3.Location = new Point(1093, 234);
-            button3.Name = "button3";
-            button3.Size = new Size(118, 23);
-            button3.TabIndex = 21;
-            button3.Text = "btnTestingInput";
-            button3.UseVisualStyleBackColor = true;
-            button3.Click += button3_Click;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
-            Controls.Add(button3);
-            Controls.Add(btnWalkable);
-            Controls.Add(btnReal);
-            Controls.Add(button2);
             Controls.Add(btn_ExecuteRoute);
             Controls.Add(btn_SetEnd);
             Controls.Add(btn_SetStart);
@@ -248,7 +189,6 @@
             Controls.Add(btn_SaveImg);
             Controls.Add(txtBox_TextOutput);
             Controls.Add(btn_ManualRotation);
-            Controls.Add(btn_ManualPosition);
             Controls.Add(btn_LoadImageAsMap);
             Controls.Add(btn_CreateNewImage);
             Controls.Add(pBox_Area);
@@ -267,7 +207,6 @@
         private PictureBox pBox_Area;
         private Button btn_CreateNewImage;
         private Button btn_LoadImageAsMap;
-        private Button btn_ManualPosition;
         private Button btn_ManualRotation;
         private TextBox txtBox_TextOutput;
         private Button btn_SaveImg;
@@ -278,9 +217,5 @@
         private Button btn_SetStart;
         private Button btn_SetEnd;
         private Button btn_ExecuteRoute;
-        private Button button2;
-        private Button btnReal;
-        private Button btnWalkable;
-        private Button button3;
     }
 }

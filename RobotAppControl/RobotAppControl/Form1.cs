@@ -25,7 +25,6 @@ namespace RobotAppControl
         private Rectangle _imgRect = new Rectangle(0, 0, 0, 0);
         private CustomBitmap custom;
         private CustomBitmap occupancyMap;
-        private bool canHear = false;
         ConcurrentQueue<string> stringsToBeInterpreted;
         TcpListener? server = null;
         Listener? listener;
@@ -68,7 +67,7 @@ namespace RobotAppControl
         {
             if (listener == null)
             {
-                listener = new Listener(ref stringsToBeInterpreted, ref canHear);
+                listener = new Listener(ref stringsToBeInterpreted);
                 listenThread = new Thread(() => listener.BeginListening(stream));
                 listenThread.Start();
             }
@@ -94,16 +93,16 @@ namespace RobotAppControl
                 {
                     if (_grid.IsWalkable(x,y) == false)
                     {
-                        for (int i = -5; i <= 5; i++)
+                        for (int i = -8; i <= 8; i++)
                         {
-                            for (int j = -5; j <= 5; j++)
+                            for (int j = -8; j <= 8; j++)
                             {
                                 if(_grid.IsWalkable(x + i,y + j) == true)
                                 {
-                                    float tentativeCost = 1 + (12 - Math.Abs(i) - Math.Abs(j))/8;
-                                    if(_grid.GetCost(x,y) < tentativeCost)
+                                    float tentativeCost = 1 + (20 - Math.Abs(i) - Math.Abs(j))/2;
+                                    if(_grid.GetCost(x + i, y + j) < tentativeCost)
                                     {
-                                        _grid.SetCost(x,y,tentativeCost);
+                                        _grid.SetCost(x + i, y + j, tentativeCost);
                                     }
                                 }
                             }
@@ -124,20 +123,79 @@ namespace RobotAppControl
                 if (dx != 0)
                 {
                     commands.Add(dx > 0 ? "turn~0~" : "turn~180~");
-                    commands.Add($"moveForward~{Math.Abs(dx)}~"); // assuming 1 unit is 10 cm
+                    commands.Add($"moveForward~{Math.Abs(dx)}~"); 
                 }
                 else if (dy != 0)
                 {
                     commands.Add(dy > 0 ? "turn~90~" : "turn~-90~");
-                    commands.Add($"moveForward~{Math.Abs(dy)}~"); // assuming 1 unit is 10 cm
+                    commands.Add($"moveForward~{Math.Abs(dy)}~");
                 }
             }
 
             return commands;
         }
+        private CustomBitmap foolingAround;
+        private void someTomefoolery()
+        {
+            foolingAround = new CustomBitmap(custom.Width,custom.Height);
+
+            List<bool> trues = new List<bool>();
+            List<bool> falses= new List<bool>();
+            List<bool> truesAndHasRed = new List<bool>();
+
+            for (int i = 0; i < foolingAround.Width; i++)
+            {
+                for (int j = 0; j < foolingAround.Height; j++)
+                {
+                    Color c = Color.FromArgb(_grid.GetCost(i, j) > 1 ? ((_grid.GetCost(i, j) * 20) > 255 ? 255 : (int)Math.Round(_grid.GetCost(i, j) * 20)) : 0, 0,0);
+                    foolingAround.SetPixel(i, j, c);
+                    if (_grid.IsWalkable(i, j) == true)
+                    {
+                        trues.Add(true);
+                        if(_grid.GetCost(i, j) > 1)
+                        {
+                            truesAndHasRed.Add(true);
+                        }
+                        foolingAround.SetPixel(i, j, c);
+                    }
+                    else
+                    {
+                        falses.Add(false);
+                        foolingAround.SetPixel(i, j, Color.Blue);
+                    }
+                }
+            }
+
+
+            SaveFileDialog saveFileDialog1 = AskSaveFile();
+            if (saveFileDialog1.FileName != "")
+            {
+                System.IO.FileStream fs =
+                   (System.IO.FileStream)saveFileDialog1.OpenFile();
+                switch (saveFileDialog1.FilterIndex)
+                {
+                    case 1:
+                        foolingAround.Bitmap.Save(fs,
+                          ImageFormat.Jpeg);
+                        break;
+
+                    case 2:
+                        foolingAround.Bitmap.Save(fs,
+                           ImageFormat.Bmp);
+                        break;
+
+                    case 3:
+                        foolingAround.Bitmap.Save(fs,
+                           ImageFormat.Gif);
+                        break;
+                }
+
+                fs.Close();
+            }
+
+        }
         public void ExecutePath(List<string> commannds)
         {
-
             foreach (var command in commannds)
             {
                 WriteData(command);
@@ -148,24 +206,7 @@ namespace RobotAppControl
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
             return color.R + color.G + color.B < 100; // Example threshold for black
         }
-        /*
-        private void btn_RunAStar_Click(object sender, EventArgs e)
-        {
-            // Define start and goal positions
-            var start = new Node(startX, startY);
-            var goal = new Node(endX, endY);
-
-            // Find path using A* algorithm
-            var aStar = new AStar(_grid);
-            var path = aStar.FindPath(start, goal);
-
-            // Execute path with robot
-            _robot = new Robot(_grid, custom, start.X, start.Y, this);
-            _robot.ExecutePath(path);
-
-            // Refresh the picture box to show the path
-            RefreshPicture();
-        } */
+       
         private void StopListening()
         {
             if (listener != null)
@@ -354,7 +395,6 @@ namespace RobotAppControl
         private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics, Dictionary<Tuple<int,int>,int> affectedCells)
         {
             Color current = custom.GetPixel(iCentr, jCentr);
-            // Color smallCurrent;
             Color currentAdj;
             if ((current.R + current.G + current.B) >= 10)
             {            
@@ -378,30 +418,6 @@ namespace RobotAppControl
                             }
                         }
                     }
-                }
-                if (true)
-                {
-
-                 //   rectangle = new Rectangle(iCentr, jCentr, 1, 1);
-                 //   rectangle.Inflate(spread, spread);
-                  //  graphics.FillRectangle(Brushes.Black, rectangle);
-
-
-                    /*  for (int i = iCentr - spread * 3; i <= iCentr + spread * 3; i++)
-                      {
-                          for (int j = jCentr - spread * 3; j <= jCentr + spread * 3; j++)
-                          {
-                              if (i >= 0 && i < custom.Width && j >= 0 && j < custom.Height)
-                              {
-                                  smallCurrent = custom.GetPixel(i, j);
-                                  if (smallCurrent.R > 230)
-                                  {
-                                      graphics.DrawLine(pen, iCentr, jCentr, i, j);   // feels very unoptimised.. because it is but the result is cool. Acceptable if we do this only once
-                                  }
-
-                              }
-                          }
-                      } */
                 }
             }
 
@@ -592,19 +608,6 @@ namespace RobotAppControl
 
         }
 
-        private void btn_ManualPosition_Click(object sender, EventArgs e)
-        {
-            string[] input = txtBox_TextOutput.Text.Split(' ');
-            if (input[0] == "m")
-            {
-                WriteData($"moveForward~{input[1]}~");
-            }
-            else if (input[0] == "t")
-            {
-                WriteData($"turn~{input[1]}~");
-            }
-        }
-
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
             StopListening();
@@ -614,6 +617,7 @@ namespace RobotAppControl
         private void button1_Click(object sender, EventArgs e)
         {
             SetObstaclesFromMap(custom);
+           // someTomefoolery();
         }
 
         private void btn_ManualRotation_Click(object sender, EventArgs e)
@@ -699,82 +703,7 @@ namespace RobotAppControl
         }
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
-           // ExecutePath(CookedPath(finalPath));
-        }
-
-        private void button2_Click(object sender, EventArgs e)
-        {
-            if (true)
-            {
-                // just breakpoint
-            }
-        }
-
-        private void btnReal_Click(object sender, EventArgs e)
-        {
-            PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
-        }
-
-        private CustomBitmap walkable;
-        private void MakeWalkableBitmap()
-        {
-            walkable = new CustomBitmap(custom.Width, custom.Height);
-
-            for (int i = 0; i < walkable.Width; i++)
-            {
-                for (int j = 0; j < walkable.Height; j++)
-                {
-                    if (_grid.Walkable[i, j])
-                    {
-                        walkable.SetPixel(i, j, Color.Green);
-                    }
-                    else
-                    {
-                        walkable.SetPixel(i, j, Color.Red);
-                    }
-                }
-            }
-        }
-        private void btnWalkable_Click(object sender, EventArgs e)
-        {
-            if (walkable == null)
-            {
-                MakeWalkableBitmap();
-            }
-            PictureBox.CreateGraphics().DrawImage(walkable.Bitmap, _imgRect);
-
-        }
-
-        private void button3_Click(object sender, EventArgs e)
-        {
-           
-
-            startX = 709;
-            startY = 386;
-            endX = 768;
-            endY = 414;
-           
+            ExecutePath(CookedPath(finalPath));
         }
     }
 }
-/*
-  public List<string> ConvertPathToCommands(List<Node> path)
-        {
-            var commands = new List<string>();
-
-            for (int i = 0; i < path.Count - 1; i++)
-            {
-                int dx = path[i + 1].X - path[i].X;
-                int dy = path[i + 1].Y - path[i].Y;
-
-                if (dx != 0)
-                {
-                    commands.Add(dx > 0 ? "turn~0~" : "turn~180~");
-                    commands.Add($"moveForward~{Math.Abs(dx)}~"); // assuming 1 unit is 10 cm
-                }
-                else if (dy != 0)
-                {
-                    commands.Add(dy > 0 ? "turn~90~" : "turn~-90~");
-                    commands.Add($"moveForward~{Math.Abs(dy)}~"); // assuming 1 unit is 10 cm
-                }
-            }*/

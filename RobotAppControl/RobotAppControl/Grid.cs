@@ -61,6 +61,8 @@ namespace RobotAppControl
         public void SetWalkable(int x, int y, bool walkable)
         {
             Walkable[x, y] = walkable;
+            var oldTuple = GridInfo[x, y];
+            GridInfo[x, y] = Tuple.Create(walkable, oldTuple.Item2);
         }
     }
 }
