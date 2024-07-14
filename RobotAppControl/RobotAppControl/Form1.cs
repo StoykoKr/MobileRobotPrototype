@@ -642,6 +642,15 @@ namespace RobotAppControl
             {
                 finalPath = path;
                 _robot.ExecutePath(path);
+                Node previous = null;//start;
+                txtBox_TextOutput.Clear();
+                foreach (var item in path)
+                {
+                    if(previous != null) 
+                    txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({item.X},{item.Y}) : {Math.Truncate(FindTurnDegree(previous, item) * 10) / 10}degrees | {Math.Truncate(thetaStar.Heuristic(previous, item) * 10) / 10}cm \n ");  // which is {FindTurnDegree(previous, item)} \n ");
+                    previous = item;
+                }
+             //   txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({goal.X},{goal.Y}) which is {FindTurnDegree(previous, goal)} \n ");
             }
             else
             {
@@ -650,6 +659,61 @@ namespace RobotAppControl
 
             // Refresh the picture box to show the path
             RefreshPicture();
+        }
+        private double FindTurnDegree(Node start, Node next)
+        {
+            double baseDegree = 0;
+            double sideOne = Math.Abs(start.X - next.X);
+            double sideTwo = Math.Abs(start.Y - next.Y);
+            if(start.X > next.X)
+            {
+                if(start.Y < next.Y)
+                {
+                    baseDegree = 180;
+                    return baseDegree + (90 - (Math.Atan(sideTwo / sideOne) * (180 / Math.PI)));
+                }else if(start.Y > next.Y)
+                {
+                    baseDegree = 270;
+                    return baseDegree + (Math.Atan(sideTwo / sideOne) * (180 / Math.PI));
+                }
+                else
+                {
+                    baseDegree = 270;
+                }
+            } else if(start.X < next.X)
+            {
+                if (start.Y < next.Y)
+                {
+                    baseDegree = 90;
+                    return baseDegree + (Math.Atan(sideTwo / sideOne) * (180 / Math.PI));
+                }
+                else if (start.Y > next.Y)
+                {
+                    baseDegree = 0;
+                    return baseDegree + (90 - (Math.Atan(sideTwo / sideOne) * (180 / Math.PI)));
+                }
+                else
+                {
+                    baseDegree = 90;
+                }
+            }
+            else
+            {
+                if (start.Y < next.Y)
+                {
+                    baseDegree = 180;
+                }
+                else if (start.Y > next.Y)
+                {
+                    baseDegree = 0;
+                }
+                else
+                {
+                    baseDegree = -1;
+                }
+            }
+           
+            return baseDegree;
         }
 
         private void btn_SetStart_Click(object sender, EventArgs e)

@@ -48,15 +48,16 @@ namespace RobotAppControl
                     return ReconstructPath(current);
 
                 closedSet.Add(current);
-
+                try
+                {
                 foreach (var neighbor in GetNeighbors(current))
                 {
                     if (closedSet.Contains(neighbor) || !_grid.Walkable[neighbor.X, neighbor.Y])
                         continue;
                     // About the tentativeG. During the calculation using the _grid.GetCost leads to faster results but I fear we are not using the real distance.
                     float tentativeG = current.Parent != null && LineOfSight(current.Parent, neighbor) ?
-                                       current.Parent.G + (_grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)) :// + _grid.GetCost(current.Parent.X, current.Parent.Y) :         //Heuristic(current.Parent, neighbor) :
-                                       current.G + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y);//_grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);// Heuristic(current, neighbor);
+                                       current.Parent.G + Heuristic(current.Parent, neighbor) + _grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)://(_grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)) :// + _grid.GetCost(current.Parent.X, current.Parent.Y) :         //Heuristic(current.Parent, neighbor) :
+                                       current.G +Heuristic(current, neighbor)  + _grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);//_grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y);//_grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);// Heuristic(current, neighbor);
 
                     if (!openSet.Contains(neighbor) || tentativeG < neighbor.G)
                     {
@@ -70,6 +71,13 @@ namespace RobotAppControl
                         }
                         openSet.Add(neighbor);
                     }
+                }
+
+                }
+                catch (Exception)
+                {
+
+                    throw;
                 }
             }
 
@@ -114,17 +122,24 @@ namespace RobotAppControl
 
         private bool LineOfSight(Node from, Node to)
         {
-            int x0 = from.X, y0 = from.Y, x1 = to.X, y1 = to.Y;
-            int dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-
+            float x0 = from.X, y0 = from.Y, x1 = to.X, y1 = to.Y;
+            float dx = Math.Abs(x1 - x0), dy = Math.Abs(y1 - y0);
+            float higher = dx > dy ? dx : dy;
+            float stepX = dx/higher, stepY = dy/higher;
+            float sx = x0 < x1 ? stepX : -stepX, sy = y0 < y1 ? stepY : -stepY;
+            float lastDX = -1,lastDY = -1;
             while (true)
             {
                 try
                 {
-                    if (!_grid.Walkable[x0, y0])
+                     if (CheckNearbyAndSelf(x0, y0))
+                    {
+                         return false;
+                    }
+                     if(AlmostEquals(lastDX,dx) && AlmostEquals(lastDY, dy)) 
                         return false;
-                    if (x0 == x1 && y0 == y1)
+
+                    if (AlmostEquals(x0, x1) && AlmostEquals(y0, y1))
                         return true;
 
                 }
@@ -134,25 +149,55 @@ namespace RobotAppControl
                     throw;
                 }
 
+                    lastDX = dx;
+                    lastDY = dy;
                 if(dx > 0)
                 {
                     x0 += sx;
-                    dx--;
+                    dx -= stepX;
                 }
                 if(dy > 0)
                 {
                     y0 += sy;
-                    dy--;
+                    dy -= stepY;
                 }
             }
         }
+        private bool CheckNearbyAndSelf(float rawX, float rawY)
+        {
+            int x = (int)Math.Round(rawX);
+            int y = (int)Math.Round(rawY);
+           
 
-        private float Heuristic(Node a, Node b)
+             for (int i = -1; i <= 1; i++)
+             {
+                 for (int j = -1; j <= 1; j++)
+                 {
+                     if (_grid.IsWalkable(x + i,y + j) != true)
+                     {
+                         return true;
+                     }
+
+                 }
+             }
+
+            return false;
+        }
+        private bool AlmostEquals(float x, float y)
+        {
+            if (Math.Abs(x - y) < 0.01)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public float Heuristic(Node a, Node b)
         {
             float euclidean = (float)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
             // float manhattan = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
             // return (float)Math.Round(euclidean * 0.4f + manhattan * 0.6f);
-            return euclidean + _grid.GetCost(a.X,a.Y);
+            return euclidean;
         }
     }
 

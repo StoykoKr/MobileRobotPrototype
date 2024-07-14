@@ -26,7 +26,7 @@ namespace RobotAppControl
 
         public void MoveTo(int x, int y)  // This for now just marks the path we are planning to take.
         {
-            while (_currentX != x || _currentY != y)
+            /*while (_currentX != x || _currentY != y)
             {
                 if (_currentX < x) _currentX++;
                 else if (_currentX > x) _currentX--;
@@ -37,9 +37,15 @@ namespace RobotAppControl
                 _bitmap.SetPixel(_currentX, _currentY, Color.Red);
                 
             }
-
+            */
             {
-                // Here we can probably so some magic
+                Graphics g = Graphics.FromImage(_bitmap.Bitmap);
+                g.DrawLine(new Pen(Brushes.Red),_currentX,_currentY,x,y);
+              //  g.DrawLine(new Pen(Brushes.Blue), _currentX, _currentY, x, _currentY);;
+             //   g.DrawLine(new Pen(Brushes.Green), x, _currentY, x, y);
+                _currentX = x;
+               _currentY = y; 
+
             }
 
                 _form.Invoke(_form.myDelagate);
@@ -50,6 +56,7 @@ namespace RobotAppControl
             foreach (var node in path)
             {
                 MoveTo(node.X, node.Y);
+
             }
         }
     }
