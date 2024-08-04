@@ -64,6 +64,9 @@ int lastRightEncoderCounterUsedToCalculate = 0;
 int lastLeftEncoderCounterUsedToCalculate = 0;
 Adafruit_HMC5883_Unified mag;
 sensors_event_t event;
+unsigned long pid_previousTimeTurn = 0;
+double pid_ePreviousTurn = 0;
+double pid_eintegralTurn = 0;
 unsigned long pid_previousTimeAdj = 0;
 double pid_ePreviousAdj = 0;
 double pid_eintegralAdj = 0;
@@ -121,16 +124,16 @@ void setup() {
   pinMode(echoMidPin, INPUT);
   pinMode(echoLeftPin, INPUT);
   pinMode(echoRightPin, INPUT);
-  attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
+  // attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
   // attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
   mag = Adafruit_HMC5883_Unified();
   Serial.begin(115200);
-  if (!mag.begin()) {  //using the manually assigned sda and scl due to me doing things with the library on my pc
+  /* if (!mag.begin()) {  //using the manually assigned sda and scl due to me doing things with the library on my pc
     while (1) { delay(10); }
-  }
+  } */
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
 }
@@ -149,6 +152,9 @@ void ResetPIDs() {
   leftEncoderCounter = 0;
   lastRightEncoderCounterUsedToCalculate = 0;
   lastLeftEncoderCounterUsedToCalculate = 0;
+  pid_previousTimeTurn = 0;
+  pid_ePreviousTurn = 0;
+  pid_eintegralTurn = 0;
 }
 void IRS_MidSensor() {
   if (digitalRead(echoMidPin) == 0x0) {
@@ -525,6 +531,25 @@ float PidController(float target, float kp, float kd, float ki, float moved) {
   return u;
 }
 
+float PidController_turning(float targetDegree, float kp, float kd, float ki, float currentDegree) {   // get a pid value u  then turn the front servo by u degrees or something while also reducing the left or right wheel by u pwm down to some value or 0 if below
+  unsigned long currentTime = micros();
+  float deltaT = ((float)(currentTime - pid_previousTimeTurn)) / 1.0e6;
+  float e = currentDegree - targetDegree;
+  float eDerivative = (e - pid_ePreviousTurn) / deltaT;
+  pid_eintegralTurn = pid_eintegralTurn + e * deltaT;
+
+  float u = (kp * e) + (kd * eDerivative) + (ki * pid_eintegralTurn);
+  pid_previousTimeTurn = currentTime;
+  pid_ePreviousTurn = e;
+  return u;
+}
+float findOppositeSide(float adjacent, float theta) {
+    // Convert angle from degrees to radians
+    float thetaRad = theta * PI / 180.0;
+    // Calculate the opposite side
+    float opposite = adjacent * tan(thetaRad);
+    return opposite;
+}
 void smurfMovement(String signal) {
   keyInpt = "";
   if (signal == "w" || signal == "W") {
@@ -732,6 +757,14 @@ void turnOnCrack(float degree) {
   delay(300);
 }
 int temp = 0;
+
+void setPWM(int pwmValue) {
+  analogWrite(analogOutputRightPin, pwmValue);  //Write recieved PWM to a pin
+                                                // Serial.print("Recieved ");
+                                                // Serial.println(pwmValue);
+}
+bool switchDir = false;
+bool switchBreak = false;
 void loop() {
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
@@ -760,10 +793,29 @@ void loop() {
         String degreeStr = client.readStringUntil('~');
         float degreeToTurn = degreeStr.toFloat();
         turnOnCrack(degreeToTurn / 2);
-      } else if (line == "ready") {  // give data for current location and ask for a guess
+      } else if (line == "break") {
+        if (switchBreak) {
+          digitalWrite(input1Pin, LOW);
+          switchBreak = false;
+        } else {
+          digitalWrite(input1Pin, HIGH);
+          switchBreak = true;
+        }
+      } else if (line == "dir") {
+        if (switchDir) {
+          digitalWrite(input2Pin, LOW);
+          switchDir = false;
+        } else {
+          digitalWrite(input2Pin, HIGH);
+          switchDir = true;
+        }
+      } else if (line == "pwm") {
+        String pwmValue = client.readStringUntil('~');
+        int pwmValueInt = pwmValue.toInt();
+        setPWM(pwmValueInt);
       }
     }
-  } 
+  }
   delay(100);
   /*
   mag.getEvent(&event);

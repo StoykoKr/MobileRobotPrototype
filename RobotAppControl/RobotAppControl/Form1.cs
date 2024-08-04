@@ -2,13 +2,17 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Windows.Forms;
 using System.Xml.Linq;
+using MQTTnet;
+using MQTTnet.Client;
 
 namespace RobotAppControl
 {
@@ -51,6 +55,8 @@ namespace RobotAppControl
         private int endX = 0;
         private int endY = 0;
         private List<Node> finalPath = null;
+        private MqttFactory mqttFactory = new MqttFactory();
+        private IMqttClient mqttClient = null;
         public Form1()
         {
             InitializeComponent();
@@ -60,7 +66,7 @@ namespace RobotAppControl
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
             server = new TcpListener(localAddr, port);
-            //  server.Start();
+            server.Start();
 
         }
         private void StartListen()
@@ -91,16 +97,16 @@ namespace RobotAppControl
             {
                 for (int y = 0; y < map.Height; y++)
                 {
-                    if (_grid.IsWalkable(x,y) == false)
+                    if (_grid.IsWalkable(x, y) == false)
                     {
                         for (int i = -8; i <= 8; i++)
                         {
                             for (int j = -8; j <= 8; j++)
                             {
-                                if(_grid.IsWalkable(x + i,y + j) == true)
+                                if (_grid.IsWalkable(x + i, y + j) == true)
                                 {
-                                    float tentativeCost = 1 + (20 - Math.Abs(i) - Math.Abs(j))/2;
-                                    if(_grid.GetCost(x + i, y + j) < tentativeCost)
+                                    float tentativeCost = 1 + (20 - Math.Abs(i) - Math.Abs(j)) / 2;
+                                    if (_grid.GetCost(x + i, y + j) < tentativeCost)
                                     {
                                         _grid.SetCost(x + i, y + j, tentativeCost);
                                     }
@@ -123,7 +129,7 @@ namespace RobotAppControl
                 if (dx != 0)
                 {
                     commands.Add(dx > 0 ? "turn~0~" : "turn~180~");
-                    commands.Add($"moveForward~{Math.Abs(dx)}~"); 
+                    commands.Add($"moveForward~{Math.Abs(dx)}~");
                 }
                 else if (dy != 0)
                 {
@@ -137,22 +143,22 @@ namespace RobotAppControl
         private CustomBitmap foolingAround;
         private void someTomefoolery()
         {
-            foolingAround = new CustomBitmap(custom.Width,custom.Height);
+            foolingAround = new CustomBitmap(custom.Width, custom.Height);
 
             List<bool> trues = new List<bool>();
-            List<bool> falses= new List<bool>();
+            List<bool> falses = new List<bool>();
             List<bool> truesAndHasRed = new List<bool>();
 
             for (int i = 0; i < foolingAround.Width; i++)
             {
                 for (int j = 0; j < foolingAround.Height; j++)
                 {
-                    Color c = Color.FromArgb(_grid.GetCost(i, j) > 1 ? ((_grid.GetCost(i, j) * 20) > 255 ? 255 : (int)Math.Round(_grid.GetCost(i, j) * 20)) : 0, 0,0);
+                    Color c = Color.FromArgb(_grid.GetCost(i, j) > 1 ? ((_grid.GetCost(i, j) * 20) > 255 ? 255 : (int)Math.Round(_grid.GetCost(i, j) * 20)) : 0, 0, 0);
                     foolingAround.SetPixel(i, j, c);
                     if (_grid.IsWalkable(i, j) == true)
                     {
                         trues.Add(true);
-                        if(_grid.GetCost(i, j) > 1)
+                        if (_grid.GetCost(i, j) > 1)
                         {
                             truesAndHasRed.Add(true);
                         }
@@ -206,7 +212,7 @@ namespace RobotAppControl
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
             return color.R + color.G + color.B < 100; // Example threshold for black
         }
-       
+
         private void StopListening()
         {
             if (listener != null)
@@ -392,12 +398,12 @@ namespace RobotAppControl
             }
 
         }
-        private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics, Dictionary<Tuple<int,int>,int> affectedCells)
+        private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics, Dictionary<Tuple<int, int>, int> affectedCells)
         {
             Color current = custom.GetPixel(iCentr, jCentr);
             Color currentAdj;
             if ((current.R + current.G + current.B) >= 10)
-            {            
+            {
                 for (int i = iCentr - spread; i <= iCentr + spread; i++)
                 {
                     for (int j = jCentr - spread; j <= jCentr + spread; j++)
@@ -439,12 +445,12 @@ namespace RobotAppControl
         }
         private void ConvertToOccMap()
         {
-            occupancyMap = new CustomBitmap(custom.Width, custom.Height);          
+            occupancyMap = new CustomBitmap(custom.Width, custom.Height);
             using (occupancyMap)
             {
                 Graphics g = Graphics.FromImage(occupancyMap.Bitmap);
                 g.Clear(Color.White);
-                Dictionary<Tuple<int, int>, int> AffectedCells = new Dictionary<Tuple<int, int>, int>(); 
+                Dictionary<Tuple<int, int>, int> AffectedCells = new Dictionary<Tuple<int, int>, int>();
                 for (int i = 0; i < occupancyMap.Width; i++)
                 {
                     for (int j = 0; j < occupancyMap.Height; j++)
@@ -548,7 +554,6 @@ namespace RobotAppControl
             }
 
         }
-
         private void Form1_KeyUp(object sender, KeyEventArgs e)
         {
             if (currentlyControlling && currentlyPressedKey != Keys.None)
@@ -558,7 +563,6 @@ namespace RobotAppControl
 
             }
         }
-
         private void btn_ControlRobot_Click(object sender, EventArgs e)
         {
             if (currentlyControlling)
@@ -574,7 +578,6 @@ namespace RobotAppControl
                 StartInterpreting();
             }
         }
-
         private void btn_ConnectionButton_Click(object sender, EventArgs e)
         {
             if (CheckConnection())
@@ -590,7 +593,6 @@ namespace RobotAppControl
                 MessageBox.Show("we got here");
             }
         }
-
         private void btn_CreateNewImage_Click(object sender, EventArgs e)
         {
 
@@ -607,35 +609,32 @@ namespace RobotAppControl
 
 
         }
-
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
             StopListening();
             StopInterpreting();
         }
-
         private void button1_Click(object sender, EventArgs e)
         {
             SetObstaclesFromMap(custom);
-           // someTomefoolery();
+            // someTomefoolery();
         }
-
         private void btn_ManualRotation_Click(object sender, EventArgs e)
         {
             // Define start and goal positions
-         //   var start = new NewNode(startX, startY);
-         //   var goal = new NewNode(endX, endY);
+            //   var start = new NewNode(startX, startY);
+            //   var goal = new NewNode(endX, endY);
             var start = new Node(startX, startY);
             var goal = new Node(endX, endY);
-              // Find path using A* algorithm
-           //   var aStar = new AStar(_grid);
-           //   var path = aStar.FindPath(start, goal);
-            
+            // Find path using A* algorithm
+            //   var aStar = new AStar(_grid);
+            //   var path = aStar.FindPath(start, goal);
 
-              var thetaStar = new ThetaStar(_grid);
-          //  var thetaStar = new NewThetaStar(_grid);
+
+            var thetaStar = new ThetaStar(_grid);
+            //  var thetaStar = new NewThetaStar(_grid);
             var path = thetaStar.FindPath(start, goal);
-          //  var path = thetaStar.FindPath(start,goal);
+            //  var path = thetaStar.FindPath(start,goal);
             // Execute path with robot
             _robot = new Robot(_grid, custom, start.X, start.Y, this);
             if (path != null)
@@ -646,11 +645,11 @@ namespace RobotAppControl
                 txtBox_TextOutput.Clear();
                 foreach (var item in path)
                 {
-                    if(previous != null) 
-                    txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({item.X},{item.Y}) : {Math.Truncate(FindTurnDegree(previous, item) * 10) / 10}degrees | {Math.Truncate(thetaStar.Heuristic(previous, item) * 10) / 10}cm \n ");  // which is {FindTurnDegree(previous, item)} \n ");
+                    if (previous != null)
+                        txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({item.X},{item.Y}) : {Math.Truncate(FindTurnDegree(previous, item) * 10) / 10}degrees | {Math.Truncate(thetaStar.Heuristic(previous, item) * 10) / 10}cm \n ");  // which is {FindTurnDegree(previous, item)} \n ");
                     previous = item;
                 }
-             //   txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({goal.X},{goal.Y}) which is {FindTurnDegree(previous, goal)} \n ");
+                //   txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({goal.X},{goal.Y}) which is {FindTurnDegree(previous, goal)} \n ");
             }
             else
             {
@@ -665,13 +664,14 @@ namespace RobotAppControl
             double baseDegree = 0;
             double sideOne = Math.Abs(start.X - next.X);
             double sideTwo = Math.Abs(start.Y - next.Y);
-            if(start.X > next.X)
+            if (start.X > next.X)
             {
-                if(start.Y < next.Y)
+                if (start.Y < next.Y)
                 {
                     baseDegree = 180;
                     return baseDegree + (90 - (Math.Atan(sideTwo / sideOne) * (180 / Math.PI)));
-                }else if(start.Y > next.Y)
+                }
+                else if (start.Y > next.Y)
                 {
                     baseDegree = 270;
                     return baseDegree + (Math.Atan(sideTwo / sideOne) * (180 / Math.PI));
@@ -680,7 +680,8 @@ namespace RobotAppControl
                 {
                     baseDegree = 270;
                 }
-            } else if(start.X < next.X)
+            }
+            else if (start.X < next.X)
             {
                 if (start.Y < next.Y)
                 {
@@ -712,16 +713,14 @@ namespace RobotAppControl
                     baseDegree = -1;
                 }
             }
-           
+
             return baseDegree;
         }
-
         private void btn_SetStart_Click(object sender, EventArgs e)
         {
             settingStart = true;
             settingEnd = false;
         }
-
         private void btn_SetEnd_Click(object sender, EventArgs e)
         {
             settingEnd = true;
@@ -768,6 +767,119 @@ namespace RobotAppControl
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
             ExecutePath(CookedPath(finalPath));
+        }
+        private int PWMSignalStrenght = 0;
+        private void WritePWMTOScreen()
+        {
+            txtBox_TextOutput.Clear();
+            txtBox_TextOutput.AppendText($"PWM = {PWMSignalStrenght}");
+        }
+        private void SendPWMdata()
+        {
+            WriteData($"pwm~{PWMSignalStrenght}~");
+        }
+        private void btnLessPWM_Click(object sender, EventArgs e)
+        {
+            if (PWMSignalStrenght > 0)
+            {
+                PWMSignalStrenght -= 25;
+            }
+
+            if (PWMSignalStrenght < 0)
+            {
+                PWMSignalStrenght = 0;
+            }
+            WritePWMTOScreen();
+            SendPWMdata();
+        }
+        private void btnCheckCurrentPWM_Click(object sender, EventArgs e)
+        {
+            WritePWMTOScreen();
+        }
+        private void btnMorePWM_Click(object sender, EventArgs e)
+        {
+            if (PWMSignalStrenght < 250)
+            {
+                PWMSignalStrenght += 25;
+            }
+
+            if (PWMSignalStrenght > 250)
+            {
+                PWMSignalStrenght = 250;
+            }
+            WritePWMTOScreen();
+            SendPWMdata();
+        }
+        private void btnDir_Click(object sender, EventArgs e)
+        {
+            WriteData("dir~");
+        }
+        private void btnStop_Click(object sender, EventArgs e)
+        {
+
+            WriteData("break~");
+        }
+        private async void btnMQTT_Click(object sender, EventArgs e)
+        {
+            using (mqttClient = mqttFactory.CreateMqttClient())
+            {
+                var mqttClientOptions = new MqttClientOptionsBuilder()
+                    .WithClientId("Client1")
+                    .WithTcpServer("-broker here-", 1883) // Use a public broker for demo purposes
+                    .WithCleanSession()
+                    .Build();
+
+                mqttClient.ApplicationMessageReceivedAsync += e =>
+                {
+                    Console.WriteLine("Received application message.");
+                    Console.WriteLine($"Topic: {e.ApplicationMessage.Topic}");
+                    Console.WriteLine($"Payload: {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
+                    Console.WriteLine($"QoS: {e.ApplicationMessage.QualityOfServiceLevel}");
+                    Console.WriteLine($"Retain: {e.ApplicationMessage.Retain}");
+                    Console.WriteLine();
+                    return Task.CompletedTask;
+                };
+
+                mqttClient.ConnectedAsync += async e =>
+                {
+                    Console.WriteLine("Connected successfully with MQTT Brokers.");
+
+                    // Subscribe to a topic
+                    await mqttClient.SubscribeAsync(new MQTTnet.Client.Subscribing.MqttClientSubscribeOptionsBuilder()
+                        .WithTopicFilter("testinTopic")
+                        .Build());
+
+                    Console.WriteLine("Subscribed to topic 'testinTopic'");
+                };
+
+                mqttClient.DisconnectedAsync += async e =>
+                {
+                    Console.WriteLine("Disconnected from MQTT Brokers.");
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    try
+                    {
+                        await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None); // Since 3.0.5 with CancellationToken
+                    }
+                    catch
+                    {
+                        Console.WriteLine("Reconnecting failed.");
+                    }
+                };
+
+
+                try
+                {
+                    await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None); // Since 3.0.5 with CancellationToken
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Connecting to MQTT Brokers failed: {ex.Message}");
+                }
+
+                Console.WriteLine("Press key to exit.");
+                Console.ReadLine();
+            }
         }
     }
 }

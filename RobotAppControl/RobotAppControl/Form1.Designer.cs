@@ -41,6 +41,12 @@
             btn_SetStart = new Button();
             btn_SetEnd = new Button();
             btn_ExecuteRoute = new Button();
+            btnLessPWM = new Button();
+            btnMorePWM = new Button();
+            btnCheckCurrentPWM = new Button();
+            btnStop = new Button();
+            btnDir = new Button();
+            btnMQTT = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -78,7 +84,7 @@
             // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1057, 274);
+            btn_ManualRotation.Location = new Point(1057, 290);
             btn_ManualRotation.Name = "btn_ManualRotation";
             btn_ManualRotation.Size = new Size(118, 23);
             btn_ManualRotation.TabIndex = 4;
@@ -96,7 +102,7 @@
             // 
             // btn_SaveImg
             // 
-            btn_SaveImg.Location = new Point(1057, 541);
+            btn_SaveImg.Location = new Point(1019, 545);
             btn_SaveImg.Name = "btn_SaveImg";
             btn_SaveImg.Size = new Size(118, 23);
             btn_SaveImg.TabIndex = 6;
@@ -136,7 +142,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(1044, 217);
+            button1.Location = new Point(1044, 233);
             button1.Name = "button1";
             button1.Size = new Size(139, 23);
             button1.TabIndex = 14;
@@ -146,7 +152,7 @@
             // 
             // btn_SetStart
             // 
-            btn_SetStart.Location = new Point(1019, 246);
+            btn_SetStart.Location = new Point(1019, 261);
             btn_SetStart.Name = "btn_SetStart";
             btn_SetStart.Size = new Size(75, 23);
             btn_SetStart.TabIndex = 15;
@@ -156,7 +162,7 @@
             // 
             // btn_SetEnd
             // 
-            btn_SetEnd.Location = new Point(1125, 247);
+            btn_SetEnd.Location = new Point(1147, 262);
             btn_SetEnd.Name = "btn_SetEnd";
             btn_SetEnd.Size = new Size(71, 22);
             btn_SetEnd.TabIndex = 16;
@@ -166,7 +172,7 @@
             // 
             // btn_ExecuteRoute
             // 
-            btn_ExecuteRoute.Location = new Point(1070, 305);
+            btn_ExecuteRoute.Location = new Point(1068, 319);
             btn_ExecuteRoute.Name = "btn_ExecuteRoute";
             btn_ExecuteRoute.Size = new Size(95, 23);
             btn_ExecuteRoute.TabIndex = 17;
@@ -174,11 +180,77 @@
             btn_ExecuteRoute.UseVisualStyleBackColor = true;
             btn_ExecuteRoute.Click += btn_ExecuteRoute_Click;
             // 
+            // btnLessPWM
+            // 
+            btnLessPWM.Location = new Point(1019, 144);
+            btnLessPWM.Name = "btnLessPWM";
+            btnLessPWM.Size = new Size(75, 23);
+            btnLessPWM.TabIndex = 18;
+            btnLessPWM.Text = "LessPWM";
+            btnLessPWM.UseVisualStyleBackColor = true;
+            btnLessPWM.Click += btnLessPWM_Click;
+            // 
+            // btnMorePWM
+            // 
+            btnMorePWM.Location = new Point(1147, 144);
+            btnMorePWM.Name = "btnMorePWM";
+            btnMorePWM.Size = new Size(75, 23);
+            btnMorePWM.TabIndex = 19;
+            btnMorePWM.Text = "MorePWM";
+            btnMorePWM.UseVisualStyleBackColor = true;
+            btnMorePWM.Click += btnMorePWM_Click;
+            // 
+            // btnCheckCurrentPWM
+            // 
+            btnCheckCurrentPWM.Location = new Point(1068, 173);
+            btnCheckCurrentPWM.Name = "btnCheckCurrentPWM";
+            btnCheckCurrentPWM.Size = new Size(115, 23);
+            btnCheckCurrentPWM.TabIndex = 20;
+            btnCheckCurrentPWM.Text = "Current PWM";
+            btnCheckCurrentPWM.UseVisualStyleBackColor = true;
+            btnCheckCurrentPWM.Click += btnCheckCurrentPWM_Click;
+            // 
+            // btnStop
+            // 
+            btnStop.Location = new Point(1019, 202);
+            btnStop.Name = "btnStop";
+            btnStop.Size = new Size(75, 23);
+            btnStop.TabIndex = 21;
+            btnStop.Text = "stop";
+            btnStop.UseVisualStyleBackColor = true;
+            btnStop.Click += btnStop_Click;
+            // 
+            // btnDir
+            // 
+            btnDir.Location = new Point(1147, 202);
+            btnDir.Name = "btnDir";
+            btnDir.Size = new Size(75, 23);
+            btnDir.TabIndex = 22;
+            btnDir.Text = "Dirction";
+            btnDir.UseVisualStyleBackColor = true;
+            btnDir.Click += btnDir_Click;
+            // 
+            // btnMQTT
+            // 
+            btnMQTT.Location = new Point(1147, 545);
+            btnMQTT.Name = "btnMQTT";
+            btnMQTT.Size = new Size(75, 23);
+            btnMQTT.TabIndex = 23;
+            btnMQTT.Text = "MQTT";
+            btnMQTT.UseVisualStyleBackColor = true;
+            btnMQTT.Click += btnMQTT_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnMQTT);
+            Controls.Add(btnDir);
+            Controls.Add(btnStop);
+            Controls.Add(btnCheckCurrentPWM);
+            Controls.Add(btnMorePWM);
+            Controls.Add(btnLessPWM);
             Controls.Add(btn_ExecuteRoute);
             Controls.Add(btn_SetEnd);
             Controls.Add(btn_SetStart);
@@ -217,5 +289,11 @@
         private Button btn_SetStart;
         private Button btn_SetEnd;
         private Button btn_ExecuteRoute;
+        private Button btnLessPWM;
+        private Button btnMorePWM;
+        private Button btnCheckCurrentPWM;
+        private Button btnStop;
+        private Button btnDir;
+        private Button btnMQTT;
     }
 }
