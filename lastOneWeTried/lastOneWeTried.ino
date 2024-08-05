@@ -2,15 +2,16 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
+#include <ESP32Servo.h>
 
 #define input1Pin 27
 #define input2Pin 26
 #define input3Pin 25
 #define input4Pin 33
-#define analogOutputLeftPin 14  // pwm analog values for speed TODO
-#define analogOutputRightPin 32
-#define trigPin 16
-#define echoMidPin 4
+#define analogOutputLeftPin 18  // pwm analog values for speed TODO
+#define analogOutputRightPin 5
+#define trigPin 2
+#define echoMidPin 15
 #define echoLeftPin 18
 #define echoRightPin 2
 #define encoderLeftPin 35  // encoder has 20 holes
@@ -81,6 +82,10 @@ bool leftGoingForward = false;
 bool rightGoingForward = false;
 const uint16_t port = 13000;
 const char* host = "192.168.43.144";
+int pwmValueInt = 0;
+Servo myservo;
+int pos = 0;
+
 const float hard_iron[3] = {  // with magneto the values are new
   211.01 * 1.47, -260.85 * 1.47, -641.62 * 1.47
 };
@@ -114,22 +119,23 @@ const float soft_iron[3][3] = {
 };*/
 
 void setup() {
-  pinMode(input1Pin, OUTPUT);
-  pinMode(input2Pin, OUTPUT);
-  pinMode(input3Pin, OUTPUT);
-  pinMode(input4Pin, OUTPUT);
+  //pinMode(input1Pin, OUTPUT);
+  //pinMode(input2Pin, OUTPUT);
+  //pinMode(input3Pin, OUTPUT);
+  //pinMode(input4Pin, OUTPUT);
   pinMode(analogOutputLeftPin, OUTPUT);
   pinMode(analogOutputRightPin, OUTPUT);
   pinMode(trigPin, OUTPUT);
   pinMode(echoMidPin, INPUT);
-  pinMode(echoLeftPin, INPUT);
-  pinMode(echoRightPin, INPUT);
-  // attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
+  //pinMode(echoLeftPin, INPUT);
+  //pinMode(echoRightPin, INPUT);
+  attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
   // attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
   mag = Adafruit_HMC5883_Unified();
+  myservo.attach(19);
   Serial.begin(115200);
   /* if (!mag.begin()) {  //using the manually assigned sda and scl due to me doing things with the library on my pc
     while (1) { delay(10); }
@@ -235,13 +241,13 @@ void IRS_RightEncoder() {
 }
 void GetUltrasoundData(float dir, bool sendMove) {
   // Calculate the movement based on both encoder readings
-  int rigthCount = rightEncoderCounter;
+  /* int rigthCount = rightEncoderCounter;
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
   double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
   weMoved = rightDistanceMoved;  //(rightDistanceMoved + leftDistanceMoved) / 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
-  lastLeftEncoderCounterUsedToCalculate = leftCount;
+  lastLeftEncoderCounterUsedToCalculate = leftCount; */
 
   if (millis() - timeOfLastTrigger >= 50) {
     canPingLeft = true;
@@ -362,7 +368,9 @@ void GetUltrasoundData(float dir, bool sendMove) {
   str.concat("|");
   str.concat(_medianRight);
   str.concat('`');
-  client.print(str);
+  if (sendMove) {
+    client.print(str);
+  }
   //Serial.println(str);
 }
 float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
@@ -531,7 +539,7 @@ float PidController(float target, float kp, float kd, float ki, float moved) {
   return u;
 }
 
-float PidController_turning(float targetDegree, float kp, float kd, float ki, float currentDegree) {   // get a pid value u  then turn the front servo by u degrees or something while also reducing the left or right wheel by u pwm down to some value or 0 if below
+float PidController_turning(float targetDegree, float kp, float kd, float ki, float currentDegree) {  // get a pid value u  then turn the front servo by u degrees or something while also reducing the left or right wheel by u pwm down to some value or 0 if below
   unsigned long currentTime = micros();
   float deltaT = ((float)(currentTime - pid_previousTimeTurn)) / 1.0e6;
   float e = currentDegree - targetDegree;
@@ -544,11 +552,11 @@ float PidController_turning(float targetDegree, float kp, float kd, float ki, fl
   return u;
 }
 float findOppositeSide(float adjacent, float theta) {
-    // Convert angle from degrees to radians
-    float thetaRad = theta * PI / 180.0;
-    // Calculate the opposite side
-    float opposite = adjacent * tan(thetaRad);
-    return opposite;
+  // Convert angle from degrees to radians
+  float thetaRad = theta * PI / 180.0;
+  // Calculate the opposite side
+  float opposite = adjacent * tan(thetaRad);
+  return opposite;
 }
 void smurfMovement(String signal) {
   keyInpt = "";
@@ -561,46 +569,94 @@ void smurfMovement(String signal) {
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
   } else if (signal == "none" || signal == "None") {
-    digitalWrite(input1Pin, LOW);
-    digitalWrite(input2Pin, LOW);
-    digitalWrite(input3Pin, LOW);
-    digitalWrite(input4Pin, LOW);
+    setPWMLeft(0);
+    setPWMRight(0);
   }
 }
 void justLeftRight(int direction) {
-  ResetPIDs();
+  // ResetPIDs();
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
+      if (temp == "pwm") {
+        pwmValueInt = keyInpt.toInt();
+      }
     }
-    MoveRightMotor(130 * direction);
-    MoveLeftMotor(130 * (-1) * direction);
+    // Serial.println("We are going left o rright");
+    /*if (_medianMid < 40) {
+      setPWMLeft(0);
+      setPWMRight(0);
+      GetUltrasoundData(0, false);
+    } else {*/
+    if (direction > 0) {
+      while (pos > 40) {
+        pos--;
+        SetServoAngle();
+        delay(100);
+      }
+      setPWMLeft(0);
+      setPWMRight(pwmValueInt);
+    } else {
+      while (pos < 140) {
+        pos++;
+        SetServoAngle();
+        delay(100);
+      }
+      setPWMLeft(pwmValueInt);
+      setPWMRight(0);
+    }
+    // GetUltrasoundData(0, false);
+    delay(75);
+    // }
+    //GetUltrasoundData(0, false);
   }
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
-  ResetPIDs();
+  setPWMLeft(0);
+  setPWMRight(0);
+}
+void SetServoAngle() {
+  if (pos >= 20 && pos <= 160) {
+    myservo.write(pos);  // tell servo to go to position in variable 'pos'
+    delay(25);
+  }
 }
 
 void justForward() {
   ResetPIDs();
-
-  float degreeChangeFromStart = 0;
+  /*float degreeChangeFromStart = 0;
   float currentDeg = MagneticSensorReading();
   float lastDeg = currentDeg;
   float change = 0;
 
   float speedadjustment = 0;
   float speedRight;
-  float speedLeft;
+  float speedLeft;*/
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
+      if (temp == "pwm") {
+        pwmValueInt = keyInpt.toInt();
+      }
     }
-    currentDeg = MagneticSensorReading();
-    change = currentDeg - lastDeg;
-    if (change > 200) {
+    Serial.println("We are going forward");
+    /*if (_medianMid < 40) {
+      setPWMLeft(0);
+      setPWMRight(0);
+   GetUltrasoundData(0, false);*/
+    //} else {
+    setPWMLeft(pwmValueInt);
+    setPWMRight(pwmValueInt);
+    pos = 90;
+   // SetServoAngle();
+    //GetUltrasoundData(0, false);
+    //}
+    delay(75);
+    //GetUltrasoundData(0, false);
+
+    //currentDeg = MagneticSensorReading();
+    //change = currentDeg - lastDeg;
+    /*if (change > 200) {
       change -= 360;
     } else if (change < -200) {
       change += 360;
@@ -617,7 +673,7 @@ void justForward() {
     }
     speedLeft += speedadjustment;
     speedRight -= speedadjustment;
-    GetUltrasoundData(currentDeg, true);
+    GetUltrasoundData(currentDeg, true);*/
     /*
      String str = "report|";
      str.concat(speedLeft);
@@ -641,13 +697,15 @@ void justForward() {
      str.concat('`');
      client.print(str);
     */
-    MoveRightMotor(speedRight);
-    MoveLeftMotor(speedLeft);
+    // MoveRightMotor(speedRight);
+    // MoveLeftMotor(speedLeft);
   }
-  GetUltrasoundData(currentDeg, true);
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
-  ResetPIDs();
+  // GetUltrasoundData(0, false);
+  setPWMLeft(0);
+  setPWMRight(0);
+  // MoveRightMotor(0);
+  //MoveLeftMotor(0);
+  //ResetPIDs();
 }
 void forward(int mm) {
   ResetPIDs();
@@ -758,10 +816,19 @@ void turnOnCrack(float degree) {
 }
 int temp = 0;
 
-void setPWM(int pwmValue) {
-  analogWrite(analogOutputRightPin, pwmValue);  //Write recieved PWM to a pin
-                                                // Serial.print("Recieved ");
-                                                // Serial.println(pwmValue);
+void setPWMLeft(int pwmValue) {
+  if (pwmValue < 20) {
+    analogWrite(analogOutputLeftPin, 0);
+  } else {
+    analogWrite(analogOutputLeftPin, pwmValue);
+  }
+}
+void setPWMRight(int pwmValue) {
+  if (pwmValue < 20) {
+    analogWrite(analogOutputRightPin, 0);
+  } else {
+    analogWrite(analogOutputRightPin, pwmValue);
+  }
 }
 bool switchDir = false;
 bool switchBreak = false;
@@ -783,11 +850,13 @@ void loop() {
   if (client.available() > 0) {
     while (client.available()) {
       String line = client.readStringUntil('~');
+      Serial.println(line);
       if (line == "moveForward") {
         String distanceStr = client.readStringUntil('~');
         int distanceToMove = distanceStr.toInt();
         forward(distanceToMove);
       } else if (line == "smurf") {
+
         smurfMovement(client.readStringUntil('~'));
       } else if (line == "turn") {
         String degreeStr = client.readStringUntil('~');
@@ -795,24 +864,23 @@ void loop() {
         turnOnCrack(degreeToTurn / 2);
       } else if (line == "break") {
         if (switchBreak) {
-          digitalWrite(input1Pin, LOW);
-          switchBreak = false;
+          //  digitalWrite(input1Pin, LOW);
+          //  switchBreak = false;
         } else {
-          digitalWrite(input1Pin, HIGH);
-          switchBreak = true;
+          // digitalWrite(input1Pin, HIGH);
+          //   switchBreak = true;
         }
       } else if (line == "dir") {
         if (switchDir) {
-          digitalWrite(input2Pin, LOW);
-          switchDir = false;
+          //   digitalWrite(input2Pin, LOW);
+          //   switchDir = false;
         } else {
-          digitalWrite(input2Pin, HIGH);
-          switchDir = true;
+          //  digitalWrite(input2Pin, HIGH);
+          //   switchDir = true;
         }
       } else if (line == "pwm") {
         String pwmValue = client.readStringUntil('~');
-        int pwmValueInt = pwmValue.toInt();
-        setPWM(pwmValueInt);
+        pwmValueInt = pwmValue.toInt();
       }
     }
   }

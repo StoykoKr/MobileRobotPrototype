@@ -264,7 +264,7 @@ namespace RobotAppControl
             return customBitmap;
 
         }
-        private void btn_LoadImageAsMap_Click(object sender, EventArgs e)
+        private void LoadImageAsMap()
         {
             using (OpenFileDialog dlg = new OpenFileDialog())
             {
@@ -284,6 +284,10 @@ namespace RobotAppControl
 
 
             }
+        }// TODO add MQTT call
+        private void btn_LoadImageAsMap_Click(object sender, EventArgs e)
+        {
+            LoadImageAsMap();
         }
         private void pBox_Area_MouseDown(object sender, MouseEventArgs e)
         {
@@ -323,12 +327,8 @@ namespace RobotAppControl
             _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
             PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
         }
-        private void pBox_Area_Click(object sender, EventArgs e)
+        private void AreaClick(Point coordinates) // TODO add MQTT call
         {
-            MouseEventArgs me = (MouseEventArgs)e;
-            if (me.Button != MouseButtons.Right)
-                return;
-            Point coordinates = me.Location;
             txtBox_TextOutput.Clear();
             txtBox_TextOutput.AppendText($"Point x = {coordinates.X - picture_offsetX} \n");
             txtBox_TextOutput.AppendText($"Point y = {coordinates.Y - picture_offsetY} \n");
@@ -345,8 +345,15 @@ namespace RobotAppControl
                 endX = coordinates.X - picture_offsetX;
                 endY = coordinates.Y - picture_offsetY;
                 settingEnd = false;
-
             }
+        }
+        private void pBox_Area_Click(object sender, EventArgs e)
+        {
+            MouseEventArgs me = (MouseEventArgs)e;
+            if (me.Button != MouseButtons.Right)
+                return;
+            Point coordinates = me.Location;
+            AreaClick(coordinates);
         }
         private bool CheckConnection()
         {
@@ -356,7 +363,8 @@ namespace RobotAppControl
                 StopInterpreting();
                 return false;
             }
-            try
+            return true;
+            /*try  // no idea what i was doing here
             {
                 // Socket socket = stream.Socket;
                 //  bool answ = socket.Connected && !socket.Poll(1000, SelectMode.SelectRead);
@@ -367,9 +375,9 @@ namespace RobotAppControl
                 //  StopListening();
                 //  StopInterpreting();
                 return false;
-            }
+            } */
         }
-        private void btn_SaveImg_Click(object sender, EventArgs e)
+        private void ImageSave()
         {
             SaveFileDialog saveFileDialog1 = AskSaveFile();
             if (saveFileDialog1.FileName != "")
@@ -396,6 +404,10 @@ namespace RobotAppControl
 
                 fs.Close();
             }
+        }
+        private void btn_SaveImg_Click(object sender, EventArgs e)
+        {
+            ImageSave();
 
         }
         private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Graphics graphics, Dictionary<Tuple<int, int>, int> affectedCells)
@@ -498,10 +510,14 @@ namespace RobotAppControl
             }
             MessageBox.Show("Success! Image converted and saved.");
         }
-        private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
+        private void StartConvertingToOcccupancyThread()
         {
             Thread thread = new Thread(() => ConvertToOccMap());
             thread.Start();
+        }
+        private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
+        {
+            StartConvertingToOcccupancyThread();
         }
         void WriteDataSingular(String message)
         {
@@ -563,7 +579,7 @@ namespace RobotAppControl
 
             }
         }
-        private void btn_ControlRobot_Click(object sender, EventArgs e)
+        private void ControlRobotLogic()
         {
             if (currentlyControlling)
             {
@@ -578,7 +594,11 @@ namespace RobotAppControl
                 StartInterpreting();
             }
         }
-        private void btn_ConnectionButton_Click(object sender, EventArgs e)
+        private void btn_ControlRobot_Click(object sender, EventArgs e)
+        {
+            ControlRobotLogic();
+        }
+        private void ConnectionButton()
         {
             if (CheckConnection())
             {
@@ -593,9 +613,12 @@ namespace RobotAppControl
                 MessageBox.Show("we got here");
             }
         }
-        private void btn_CreateNewImage_Click(object sender, EventArgs e)
+        private void btn_ConnectionButton_Click(object sender, EventArgs e)
         {
-
+            ConnectionButton();
+        }
+        private void CreateNewImage()
+        {
             custom = new CustomBitmap(5000, 5000);
             for (int counter = 0; counter < custom.Width * custom.Height; counter++)
             {
@@ -606,20 +629,29 @@ namespace RobotAppControl
             PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
             interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this);
             // RefreshPicture();
-
-
         }
-        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        private void btn_CreateNewImage_Click(object sender, EventArgs e)
+        {
+            CreateNewImage();
+        }
+        private void ClosingProcedure()
         {
             StopListening();
             StopInterpreting();
         }
-        private void button1_Click(object sender, EventArgs e)
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            ClosingProcedure();
+        }
+        private void SetObstacles()
         {
             SetObstaclesFromMap(custom);
-            // someTomefoolery();
         }
-        private void btn_ManualRotation_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e)
+        {
+            SetObstacles();
+        }
+        private void PlanPath()
         {
             // Define start and goal positions
             //   var start = new NewNode(startX, startY);
@@ -658,6 +690,10 @@ namespace RobotAppControl
 
             // Refresh the picture box to show the path
             RefreshPicture();
+        }
+        private void btn_ManualRotation_Click(object sender, EventArgs e)
+        {
+            PlanPath();
         }
         private double FindTurnDegree(Node start, Node next)
         {
@@ -716,15 +752,23 @@ namespace RobotAppControl
 
             return baseDegree;
         }
-        private void btn_SetStart_Click(object sender, EventArgs e)
+        private void SetStart()
         {
             settingStart = true;
             settingEnd = false;
         }
-        private void btn_SetEnd_Click(object sender, EventArgs e)
+        private void btn_SetStart_Click(object sender, EventArgs e)
+        {
+            SetStart();
+        }
+        private void SetEnd()
         {
             settingEnd = true;
             settingStart = false;
+        }
+        private void btn_SetEnd_Click(object sender, EventArgs e)
+        {
+            SetEnd();
         }
         private List<string> CookedPath(List<Node> list)
         {
@@ -764,9 +808,13 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
-        private void btn_ExecuteRoute_Click(object sender, EventArgs e)
+        private void ExecutePlan()
         {
             ExecutePath(CookedPath(finalPath));
+        }
+        private void btn_ExecuteRoute_Click(object sender, EventArgs e)
+        {
+            ExecutePlan();
         }
         private int PWMSignalStrenght = 0;
         private void WritePWMTOScreen()
@@ -843,9 +891,9 @@ namespace RobotAppControl
                 mqttClient.ConnectedAsync += async e =>
                 {
                     Console.WriteLine("Connected successfully with MQTT Brokers.");
-
+                   
                     // Subscribe to a topic
-                    await mqttClient.SubscribeAsync(new MQTTnet.Client.Subscribing.MqttClientSubscribeOptionsBuilder()
+                    await mqttClient.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
                         .WithTopicFilter("testinTopic")
                         .Build());
 

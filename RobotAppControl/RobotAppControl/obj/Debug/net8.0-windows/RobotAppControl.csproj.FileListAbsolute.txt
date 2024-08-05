@@ -31,3 +31,6 @@ D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\ne
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotAppControl.pdb
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotAppControl.genruntimeconfig.cache
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\ref\RobotAppControl.dll
+D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\bin\Debug\net8.0-windows\MQTTnet.dll
+D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotAppControl.csproj.AssemblyReference.cache
+D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotApp.0FB3A657.Up2Date
