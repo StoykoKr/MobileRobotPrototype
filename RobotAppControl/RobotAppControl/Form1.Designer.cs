@@ -47,6 +47,9 @@
             btnStop = new Button();
             btnDir = new Button();
             btnMQTT = new Button();
+            btnSetServo = new Button();
+            txtBoxServo = new TextBox();
+            button2 = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -84,7 +87,7 @@
             // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1057, 290);
+            btn_ManualRotation.Location = new Point(1093, 290);
             btn_ManualRotation.Name = "btn_ManualRotation";
             btn_ManualRotation.Size = new Size(118, 23);
             btn_ManualRotation.TabIndex = 4;
@@ -172,7 +175,7 @@
             // 
             // btn_ExecuteRoute
             // 
-            btn_ExecuteRoute.Location = new Point(1068, 319);
+            btn_ExecuteRoute.Location = new Point(1116, 319);
             btn_ExecuteRoute.Name = "btn_ExecuteRoute";
             btn_ExecuteRoute.Size = new Size(95, 23);
             btn_ExecuteRoute.TabIndex = 17;
@@ -240,11 +243,41 @@
             btnMQTT.UseVisualStyleBackColor = true;
             btnMQTT.Click += btnMQTT_Click;
             // 
+            // btnSetServo
+            // 
+            btnSetServo.Location = new Point(1019, 319);
+            btnSetServo.Name = "btnSetServo";
+            btnSetServo.Size = new Size(75, 23);
+            btnSetServo.TabIndex = 24;
+            btnSetServo.Text = "SetServo^";
+            btnSetServo.UseVisualStyleBackColor = true;
+            btnSetServo.Click += btnSetServo_Click;
+            // 
+            // txtBoxServo
+            // 
+            txtBoxServo.Location = new Point(1019, 291);
+            txtBoxServo.Name = "txtBoxServo";
+            txtBoxServo.Size = new Size(61, 23);
+            txtBoxServo.TabIndex = 25;
+            // 
+            // button2
+            // 
+            button2.Location = new Point(1082, 204);
+            button2.Name = "button2";
+            button2.Size = new Size(75, 23);
+            button2.TabIndex = 26;
+            button2.Text = "button2";
+            button2.UseVisualStyleBackColor = true;
+            button2.Click += button2_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(button2);
+            Controls.Add(txtBoxServo);
+            Controls.Add(btnSetServo);
             Controls.Add(btnMQTT);
             Controls.Add(btnDir);
             Controls.Add(btnStop);
@@ -295,5 +328,8 @@
         private Button btnStop;
         private Button btnDir;
         private Button btnMQTT;
+        private Button btnSetServo;
+        private TextBox txtBoxServo;
+        private Button button2;
     }
 }

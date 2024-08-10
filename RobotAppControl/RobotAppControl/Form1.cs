@@ -30,6 +30,7 @@ namespace RobotAppControl
         private CustomBitmap custom;
         private CustomBitmap occupancyMap;
         ConcurrentQueue<string> stringsToBeInterpreted;
+        ConcurrentQueue<string> TotalRevievedStrings;
         TcpListener? server = null;
         Listener? listener;
         Interpreter? interpreter;
@@ -61,6 +62,7 @@ namespace RobotAppControl
         {
             InitializeComponent();
             stringsToBeInterpreted = new ConcurrentQueue<string>();
+            TotalRevievedStrings = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
             // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
             this.KeyPreview = true;
@@ -73,7 +75,7 @@ namespace RobotAppControl
         {
             if (listener == null)
             {
-                listener = new Listener(ref stringsToBeInterpreted);
+                listener = new Listener(ref stringsToBeInterpreted, ref TotalRevievedStrings);
                 listenThread = new Thread(() => listener.BeginListening(stream));
                 listenThread.Start();
             }
@@ -563,10 +565,7 @@ namespace RobotAppControl
             {
                 currentlyPressedKey = e.KeyCode;
                 WriteDataSingular(currentlyPressedKey.ToString());
-                if (currentlyPressedKey == Keys.S)
-                {
-                    ///
-                }
+
             }
 
         }
@@ -891,7 +890,7 @@ namespace RobotAppControl
                 mqttClient.ConnectedAsync += async e =>
                 {
                     Console.WriteLine("Connected successfully with MQTT Brokers.");
-                   
+
                     // Subscribe to a topic
                     await mqttClient.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
                         .WithTopicFilter("testinTopic")
@@ -928,6 +927,17 @@ namespace RobotAppControl
                 Console.WriteLine("Press key to exit.");
                 Console.ReadLine();
             }
+        }
+
+        private void btnSetServo_Click(object sender, EventArgs e)
+        {
+            int servoAngle = int.Parse(txtBoxServo.Text);
+            WriteData($"servo~{servoAngle}~");
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

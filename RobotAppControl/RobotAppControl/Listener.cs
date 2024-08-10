@@ -17,12 +17,14 @@ namespace RobotAppControl
         char character;
         Queue<char> rawCharsToWorkWith;
         ConcurrentQueue<string> stringsToBeInterpreted;
+        ConcurrentQueue<string> allstringsToBeInterpreted;
         StringBuilder helperStringBuilder;
         string lastQueued = "";
-        public Listener(ref ConcurrentQueue<string> strings)
+        public Listener(ref ConcurrentQueue<string> strings, ref ConcurrentQueue<string> allstrings)
         {          
             rawCharsToWorkWith = new Queue<char>();
             stringsToBeInterpreted = strings;
+            allstringsToBeInterpreted = allstrings;
             helperStringBuilder = new StringBuilder();
         }
         private void MergeInStrings() // Looks at the data in the char queue and makes complete strings using a StringBuilder until a chosen char appears as a delimiter. The complete strings are enqueued to another queue that is consumed by the InterpreterThread
@@ -41,8 +43,9 @@ namespace RobotAppControl
                     else
                     {
                         lastQueued = helperStringBuilder.ToString();
-                    stringsToBeInterpreted.Enqueue(lastQueued);
-                    helperStringBuilder.Clear();
+                        stringsToBeInterpreted.Enqueue(lastQueued);
+                        allstringsToBeInterpreted.Enqueue(lastQueued);
+                        helperStringBuilder.Clear();
                     }
                 }
                 else

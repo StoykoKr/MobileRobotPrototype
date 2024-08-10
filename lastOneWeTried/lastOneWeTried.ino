@@ -3,25 +3,25 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
 #include <ESP32Servo.h>
+#include "driver/mcpwm.h"
 
-#define input1Pin 27
-#define input2Pin 26
-#define input3Pin 25
-#define input4Pin 33
-#define analogOutputLeftPin 18  // pwm analog values for speed TODO
-#define analogOutputRightPin 5
-#define trigPin 2
-#define echoMidPin 15
+#define signalOutputInterruptPinRight 22
+#define signalOutputInterruptPinLeft 5
+#define analogOutputLeftPin 16  // pwm analog values for speed TODO
+#define analogOutputRightPin 19
+#define trigPin 32
+#define echoMidPin 25
 #define echoLeftPin 18
 #define echoRightPin 2
 #define encoderLeftPin 35  // encoder has 20 holes
 #define encoderRightPin 17
+#define servoPin 27
 //#define sclMagneticPin 22  // only used due to manual changes in a library
 //#define sdaMagneticPin 21
 
-#define WHEEL_DIAM 65
+#define WHEEL_DIAM 10.16
 #define distance_Wheels 140  // Distance between the wheels
-#define TICKS_PER_REV 20
+#define TICKS_PER_REV 42
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((float)(A)) / MM_PER_TICK
 //#define MM_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)
@@ -30,7 +30,7 @@
 double midUSArr[] = { 0, 0, 0 };
 double leftUSArr[] = { 0, 0, 0 };
 double rightUSArr[] = { 0, 0, 0 };
-double _medianMid;
+double _medianMid = 0;
 double _medianLeft;
 double _medianRight;
 WiFiClient client;
@@ -82,10 +82,10 @@ bool leftGoingForward = false;
 bool rightGoingForward = false;
 const uint16_t port = 13000;
 const char* host = "192.168.43.144";
-int pwmValueInt = 0;
+int pwmValueInt = 75;  // this is for duty cycle its from 0 to 100
 Servo myservo;
-int pos = 0;
-
+int pos = 90;
+unsigned long previousTimeThereWasAnObstacle = millis();
 const float hard_iron[3] = {  // with magneto the values are new
   211.01 * 1.47, -260.85 * 1.47, -641.62 * 1.47
 };
@@ -122,6 +122,8 @@ void setup() {
   //pinMode(input1Pin, OUTPUT);
   //pinMode(input2Pin, OUTPUT);
   //pinMode(input3Pin, OUTPUT);
+  pinMode(signalOutputInterruptPinRight, INPUT);
+  pinMode(signalOutputInterruptPinLeft, INPUT);
   //pinMode(input4Pin, OUTPUT);
   pinMode(analogOutputLeftPin, OUTPUT);
   pinMode(analogOutputRightPin, OUTPUT);
@@ -132,16 +134,54 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   // attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
-  // attachInterrupt(digitalPinToInterrupt(encoderRightPin), IRS_RightEncoder, RISING);
-  // attachInterrupt(digitalPinToInterrupt(encoderLeftPin), IRS_LeftEncoder, RISING);
-  mag = Adafruit_HMC5883_Unified();
-  myservo.attach(19);
+  attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinRight), IRS_RightEncoder, RISING);
+  attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinLeft), IRS_LeftEncoder, RISING);
+  // mag = Adafruit_HMC5883_Unified();
+  //myservo.attach(19);
+  initPWM();
+  ESP32PWM::allocateTimer(2);
+  ESP32PWM::allocateTimer(3);
+  myservo.setPeriodHertz(50);  // standard 50 hz servo
+  myservo.attach(servoPin, 1000, 2000);
   Serial.begin(115200);
   /* if (!mag.begin()) {  //using the manually assigned sda and scl due to me doing things with the library on my pc
     while (1) { delay(10); }
   } */
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
+}
+void setPWMLeft(int duty_cycle) {  // 0 to 100% duty cycle
+  if (duty_cycle > 100) {
+    duty_cycle = 100;
+  } else if (duty_cycle < 0) {
+    duty_cycle = 0;
+  }
+  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_A, duty_cycle);
+  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_1, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+}
+void setPWMRight(int duty_cycle) {
+  if (duty_cycle > 100) {
+    duty_cycle = 100;
+  } else if (duty_cycle < 0) {
+    duty_cycle = 0;
+  }
+  mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, duty_cycle);
+  mcpwm_set_duty_type(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, MCPWM_DUTY_MODE_0);
+}
+void initPWM() {
+  mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, analogOutputRightPin);
+  mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM1A, analogOutputLeftPin);
+  // Initialize the MCPWM configuration
+  mcpwm_config_t pwm_config;
+  pwm_config.frequency = 20000;  // PWM frequency in Hz
+  pwm_config.cmpr_a = 0.0;       // Duty cycle of PWMxA = 0.0%
+  pwm_config.cmpr_b = 0.0;       // Duty cycle of PWMxB = 0.0% (not used)
+  pwm_config.counter_mode = MCPWM_UP_COUNTER;
+  pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
+
+  // Initialize MCPWM unit 0, timer 0
+  mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
+  mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_1, &pwm_config);
 }
 
 void ResetPIDs() {
@@ -208,48 +248,31 @@ void IRS_RightSensor() {
   }
 }
 void IRS_LeftEncoder() {
-
-  interruptTimeLeftEncoder = millis();
-  // If interrupts come faster than Xms, assume it's a bounce and ignore
-  if (interruptTimeLeftEncoder - lastInterruptTimeLeftEncoder > bounce) {
-    if (leftGoingForward) {
-      leftEncoderCounter--;
-    } else {
-      leftEncoderCounter++;
-    }
-    lastInterruptTimeLeftEncoder = interruptTimeLeftEncoder;
+  if (leftGoingForward) {
+    leftEncoderCounter--;
+  } else {
+    leftEncoderCounter++;
   }
-
-  //leftEncoderCounter++;
-  // Keep track of when we were here last
 }
 void IRS_RightEncoder() {
-
-
-  interruptTimeRightEncoder = millis();
-  // If interrupts come faster than Xms, assume it's a bounce and ignore
-  if (interruptTimeRightEncoder - lastInterruptTimeRightEncoder > bounce) {
-    if (rightGoingForward) {
-      rightEncoderCounter--;
-    } else {
-      rightEncoderCounter++;
-    }
-    lastInterruptTimeRightEncoder = interruptTimeRightEncoder;
-  }
-
-  // rightEncoderCounter++;
+  /*if (rightGoingForward) {
+    rightEncoderCounter--;
+  } else {
+    rightEncoderCounter++;
+  }*/
+  rightEncoderCounter++;
 }
 void GetUltrasoundData(float dir, bool sendMove) {
   // Calculate the movement based on both encoder readings
-  /* int rigthCount = rightEncoderCounter;
+  int rigthCount = rightEncoderCounter;
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
   double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
   weMoved = rightDistanceMoved;  //(rightDistanceMoved + leftDistanceMoved) / 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
-  lastLeftEncoderCounterUsedToCalculate = leftCount; */
+  lastLeftEncoderCounterUsedToCalculate = leftCount;
 
-  if (millis() - timeOfLastTrigger >= 50) {
+  if (millis() - timeOfLastTrigger >= 100) {
     canPingLeft = true;
     canPingMid = true;
     canPingRight = true;
@@ -259,7 +282,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
     timeOfLastTrigger = millis();
-  }
+  } /*
   if (newRightData) {
     newRightData = false;
     distanceRight = (microSecRightEndDuration * 0.0343) / 2;
@@ -287,7 +310,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
         }
       }
     }
-  }
+  } */
   if (newMidData) {
     newMidData = false;
     distanceMid = (microSecMidEndDuration * 0.0343) / 2;
@@ -316,7 +339,11 @@ void GetUltrasoundData(float dir, bool sendMove) {
         }
       }
     }
+    if (_medianMid < 40) {
+      previousTimeThereWasAnObstacle = millis();
+    }
   }
+  /*
   if (newLeftData) {
     newLeftData = false;
     distanceLeft = (microSecLeftEndDuration * 0.0343) / 2;
@@ -344,7 +371,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
         }
       }
     }
-  }
+  } */
   String str = "mapPoint|";
   if (sendMove) {
     str.concat(weMoved);
@@ -362,7 +389,8 @@ void GetUltrasoundData(float dir, bool sendMove) {
   str.concat("|");
   str.concat(90);
   str.concat("|");
-  str.concat(_medianLeft);
+  // str.concat(_medianLeft);
+  str.concat(pos);
   str.concat("|");
   str.concat(-90);
   str.concat("|");
@@ -371,7 +399,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
   if (sendMove) {
     client.print(str);
   }
-  //Serial.println(str);
+  Serial.println(str);
 }
 float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
@@ -412,7 +440,7 @@ void MagneticSensorReadingFORPROCESSING() {  // NEEDS TO BE REVERTED LATER
   }
 }
 
-void MoveRightMotor(float speedUnfiltered) {
+/*void MoveRightMotor(float speedUnfiltered) {
   speedUnfiltered = speedUnfiltered * -1;
   float speed = fabs(speedUnfiltered);
   if (speed > 255)
@@ -492,7 +520,7 @@ void MoveLeftMotor(float speedUnfiltered) {
     leftGoingForward = false;
   }
   analogWrite(analogOutputLeftPin, speed);
-}
+}*/
 float PidController_straightForward_adjust(float targetDegree, float kp, float kd, float ki, float currentDegree) {
   unsigned long currentTime = micros();
   float deltaT = ((float)(currentTime - pid_previousTimeAdj)) / 1.0e6;
@@ -558,6 +586,10 @@ float findOppositeSide(float adjacent, float theta) {
   float opposite = adjacent * tan(thetaRad);
   return opposite;
 }
+bool goingForward = false;
+bool turnedLeft = false;
+bool turnedRight = false;
+
 void smurfMovement(String signal) {
   keyInpt = "";
   if (signal == "w" || signal == "W") {
@@ -565,12 +597,28 @@ void smurfMovement(String signal) {
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
   } else if (signal == "s" || signal == "S") {
-    //currently not available
+    //spin();
+    setPWMLeft(0);
+    setPWMRight(0);
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
   } else if (signal == "none" || signal == "None") {
-    setPWMLeft(0);
-    setPWMRight(0);
+    //setPWMLeft(0);
+   // setPWMRight(0);
+  }
+}
+void spin() {
+  for (int i = 30; i <= 150; i += 3) {
+    pos = i;
+    myservo.write(pos);
+    delay(100);
+    GetUltrasoundData(0, true);
+  }
+  for (int i = 150; i >= 30; i -= 3) {
+    pos = i;
+    myservo.write(pos);
+    delay(100);
+    // GetUltrasoundData(0, false);
   }
 }
 void justLeftRight(int direction) {
@@ -590,47 +638,41 @@ void justLeftRight(int direction) {
       GetUltrasoundData(0, false);
     } else {*/
     if (direction > 0) {
-      while (pos > 40) {
-        pos--;
+      if (!turnedLeft) {
+        pos = 50;
         SetServoAngle();
         delay(100);
+        turnedLeft = true;
+        goingForward = false;
+        turnedRight = false;
       }
       setPWMLeft(0);
       setPWMRight(pwmValueInt);
     } else {
-      while (pos < 140) {
-        pos++;
+      if (!turnedRight) {
+        pos = 120;
         SetServoAngle();
         delay(100);
+        turnedLeft = false;
+        goingForward = false;
+        turnedRight = true;
       }
       setPWMLeft(pwmValueInt);
       setPWMRight(0);
     }
-    // GetUltrasoundData(0, false);
     delay(75);
-    // }
-    //GetUltrasoundData(0, false);
   }
   setPWMLeft(0);
   setPWMRight(0);
 }
 void SetServoAngle() {
-  if (pos >= 20 && pos <= 160) {
+  if (pos >= 30 && pos <= 150) {
     myservo.write(pos);  // tell servo to go to position in variable 'pos'
     delay(25);
   }
 }
 
 void justForward() {
-  ResetPIDs();
-  /*float degreeChangeFromStart = 0;
-  float currentDeg = MagneticSensorReading();
-  float lastDeg = currentDeg;
-  float change = 0;
-
-  float speedadjustment = 0;
-  float speedRight;
-  float speedLeft;*/
   while (keyInpt != "None") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
@@ -639,73 +681,35 @@ void justForward() {
         pwmValueInt = keyInpt.toInt();
       }
     }
-    Serial.println("We are going forward");
-    /*if (_medianMid < 40) {
-      setPWMLeft(0);
-      setPWMRight(0);
-   GetUltrasoundData(0, false);*/
-    //} else {
-    setPWMLeft(pwmValueInt);
-    setPWMRight(pwmValueInt);
-    pos = 90;
-   // SetServoAngle();
-    //GetUltrasoundData(0, false);
-    //}
-    delay(75);
-    //GetUltrasoundData(0, false);
-
-    //currentDeg = MagneticSensorReading();
-    //change = currentDeg - lastDeg;
-    /*if (change > 200) {
-      change -= 360;
-    } else if (change < -200) {
-      change += 360;
+    if (!goingForward) {
+      pos = 90;
+      SetServoAngle();
+      delay(100);
+      goingForward = true;
+      turnedLeft = false;
+      turnedRight = false;
+      setPWMLeft(75);  // 0 to 100
+      setPWMRight(75);
     }
-    degreeChangeFromStart += change;
-    lastDeg = currentDeg;
-    speedadjustment = PidController_straightForward_adjust(0, 0.9, 0.2, 0.07, degreeChangeFromStart);  //2.2, 0.3, 0.18    ||   0.6, 0.21, 0.1 || 0.9, 0.2, 0.07
-    speedLeft = 120;
-    speedRight = 120;
-    if (speedadjustment > 150) {
-      speedadjustment = 150;
-    } else if (speedadjustment < -150) {
-      speedadjustment = -150;
+    GetUltrasoundData(0, true);
+    if (_medianMid < 40) {
+     // setPWMLeft(0);
+     // setPWMRight(0);
+    } else {
+     // setPWMLeft(75);  // 0 to 100
+      //setPWMRight(75);
+      //  }
+      //  if (_medianMid > 40 && previousTimeThereWasAnObstacle - millis() > 350) {
+      //    setPWMLeft(pwmValueInt);
+      //    setPWMRight(pwmValueInt);
+      //  } else {
+      //     setPWMLeft(0);
+      //     setPWMRight(0);
+      //   }
     }
-    speedLeft += speedadjustment;
-    speedRight -= speedadjustment;
-    GetUltrasoundData(currentDeg, true);*/
-    /*
-     String str = "report|";
-     str.concat(speedLeft);
-     str.concat("|");
-     str.concat(speedRight);
-     str.concat("|");
-     str.concat(speedadjustment);
-     str.concat("|");
-     str.concat(leftEncoderCounter);
-      str.concat("|");
-     str.concat(rightEncoderCounter);
-      str.concat("|");
-      str.concat("Heading:");
-      str.concat(current);
-      str.concat("|");
-      str.concat("adjustmentLeft:");
-      str.concat(adjustmentHeadingLeftChange);
-      str.concat("|");
-      str.concat("adjustmentLeft:");
-     str.concat(adjustmentHeadingLeftChange);
-     str.concat('`');
-     client.print(str);
-    */
-    // MoveRightMotor(speedRight);
-    // MoveLeftMotor(speedLeft);
   }
-  // GetUltrasoundData(0, false);
   setPWMLeft(0);
   setPWMRight(0);
-  // MoveRightMotor(0);
-  //MoveLeftMotor(0);
-  //ResetPIDs();
 }
 void forward(int mm) {
   ResetPIDs();
@@ -748,12 +752,12 @@ void forward(int mm) {
     }
     speedLeft += speedadjustment;
     speedRight -= speedadjustment;
-    MoveRightMotor(speedRight);
-    MoveLeftMotor(speedLeft);
+    //MoveRightMotor(speedRight);
+    //MoveLeftMotor(speedLeft);
   }
 
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
+  // MoveRightMotor(0);
+  // MoveLeftMotor(0);
   ResetPIDs();
 }
 void turn(float degree) {
@@ -776,11 +780,11 @@ void turn(float degree) {
     }
     degreeChangeFromStart += change;
     lastDeg = currentDeg;
-    MoveRightMotor(130 * dir);
-    MoveLeftMotor(-130 * dir);
+    //MoveRightMotor(130 * dir);
+    // MoveLeftMotor(-130 * dir);
   }
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
+  // MoveRightMotor(0);
+  // MoveLeftMotor(0);
   ResetPIDs();
 }
 void turnOnCrack(float degree) {
@@ -806,33 +810,23 @@ void turnOnCrack(float degree) {
     degreeChangeFromStart += change;
     lastDeg = currentDeg;
 
-    MoveRightMotor(speed * dir);
-    MoveLeftMotor(-speed * dir);
+    //MoveRightMotor(speed * dir);
+    // MoveLeftMotor(-speed * dir);
   }
-  MoveRightMotor(0);
-  MoveLeftMotor(0);
+  //MoveRightMotor(0);
+  //MoveLeftMotor(0);
   ResetPIDs();
   delay(300);
 }
-int temp = 0;
+//int temp = 0;
 
-void setPWMLeft(int pwmValue) {
-  if (pwmValue < 20) {
-    analogWrite(analogOutputLeftPin, 0);
-  } else {
-    analogWrite(analogOutputLeftPin, pwmValue);
-  }
-}
-void setPWMRight(int pwmValue) {
-  if (pwmValue < 20) {
-    analogWrite(analogOutputRightPin, 0);
-  } else {
-    analogWrite(analogOutputRightPin, pwmValue);
-  }
-}
 bool switchDir = false;
 bool switchBreak = false;
+bool posCheck = true;
+bool speedCheck = true;
+
 void loop() {
+
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
     //WiFi.begin("Stoiko", "01122001");
@@ -843,10 +837,11 @@ void loop() {
     }
   }
   int maxloops = 0;
-  while (!client.available() && maxloops < 500) {
+  while (!client.available() && maxloops < 250) {
     maxloops++;
     delay(1);  //delay 1 msec
   }
+  // GetUltrasoundData(0, true);
   if (client.available() > 0) {
     while (client.available()) {
       String line = client.readStringUntil('~');
@@ -856,7 +851,6 @@ void loop() {
         int distanceToMove = distanceStr.toInt();
         forward(distanceToMove);
       } else if (line == "smurf") {
-
         smurfMovement(client.readStringUntil('~'));
       } else if (line == "turn") {
         String degreeStr = client.readStringUntil('~');
@@ -878,63 +872,19 @@ void loop() {
           //  digitalWrite(input2Pin, HIGH);
           //   switchDir = true;
         }
+      } else if (line == "servo") {
+        String servoValue = client.readStringUntil('~');
+        pos = servoValue.toInt();
+        SetServoAngle();
       } else if (line == "pwm") {
         String pwmValue = client.readStringUntil('~');
         pwmValueInt = pwmValue.toInt();
       }
     }
+    delay(100);
   }
-  delay(100);
-  /*
-  mag.getEvent(&event);
-  Serial.print("X = ");
-  Serial.println(event.magnetic.x);
-  Serial.print("Y = ");
-  Serial.println(event.magnetic.y);
-  Serial.print("Z = ");
-  Serial.println(event.magnetic.z);
-  */
-  //Serial.println(MagneticSensorReading());
-  /*int rigthCount = rightEncoderCounter;
-  int leftCount = leftEncoderCounter;
-  double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  int rd = rigthCount - lastRightEncoderCounterUsedToCalculate;
-  int ld = leftCount - lastLeftEncoderCounterUsedToCalculate;
-  weMoved += (rightDistanceMoved + leftDistanceMoved) / 2;
-  tempMoved += rd;
-  lastRightEncoderCounterUsedToCalculate = rigthCount;
-  lastLeftEncoderCounterUsedToCalculate = leftCount;  
-  Serial.print("Right encoder:");
-  Serial.println(rigthCount);
-  Serial.print("left encoder:");
-  Serial.println(leftCount); */
-  /*if (millis() >= 10000 && temp == 0) {
-    temp = 1;
-  } else if (temp == 0) {
-   */
-  /*
-    String str = "";
-    str.concat(mag_datat[0] * 10);
-    str.concat(" ");
-    str.concat(mag_datat[1] * 10);
-    str.concat(" ");
-    str.concat(mag_datat[2] * 10);
-    str.concat(" ");
-    Serial.println(str);
-  
-  MagneticSensorReadingFORPROCESSING();*/
-  /*  Serial.print("x:");
-  Serial.print(mag_datat[0]);
-  Serial.print(",");
-  Serial.print("y:");
-  Serial.print(mag_datat[1]);
-  Serial.print(",");
-  Serial.print("z:");
-  Serial.print(mag_datat[2]);*/
-  //Serial.print("heading:");
-  //Serial.println(MagneticSensorReading());
-  /*Serial.print(",");
-  Serial.print("mid:");
-  Serial.println(180); */
+  // GetUltrasoundData(0, false);
+  delay(150);
+  //spin();
+  //delay(3000);
 }
