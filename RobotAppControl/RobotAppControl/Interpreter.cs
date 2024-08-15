@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Collections;
 
 namespace RobotAppControl
 {
@@ -20,9 +21,10 @@ namespace RobotAppControl
         private int counter = 0;
         private Form1 formControl;
         public double movedTotalRecieved = 0;
-
+        private List<string> magDataList;
         public Interpreter(ref ConcurrentQueue<string> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
         {
+            magDataList = new List<string>();
             stringsToBeInterpreted = strings;
             bitmap = actualMap;
             currentX = curX;
@@ -124,6 +126,18 @@ namespace RobotAppControl
 
                                 }
                                 Console.WriteLine("Saved!");
+                            }
+                            else if (splitData[0] == "calib")
+                            {
+                                magDataList.Add(splitData[1] + " " + splitData[2] + " " + splitData[3]);
+                            }
+                            else if (splitData[0] == "endCalib")
+                            {
+                                using (TextWriter tw = new StreamWriter("magData.txt"))
+                                {
+                                    foreach (String s in magDataList)
+                                        tw.WriteLine(s);
+                                }
                             }
 
                         }

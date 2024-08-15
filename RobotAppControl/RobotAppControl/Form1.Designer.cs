@@ -50,6 +50,8 @@
             btnSetServo = new Button();
             txtBoxServo = new TextBox();
             button2 = new Button();
+            btnCalib = new Button();
+            btnRelayTest = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -57,7 +59,7 @@
             // 
             pBox_Area.Location = new Point(43, 28);
             pBox_Area.Name = "pBox_Area";
-            pBox_Area.Size = new Size(970, 586);
+            pBox_Area.Size = new Size(920, 586);
             pBox_Area.TabIndex = 0;
             pBox_Area.TabStop = false;
             pBox_Area.Click += pBox_Area_Click;
@@ -67,7 +69,7 @@
             // 
             // btn_CreateNewImage
             // 
-            btn_CreateNewImage.Location = new Point(1057, 57);
+            btn_CreateNewImage.Location = new Point(999, 59);
             btn_CreateNewImage.Name = "btn_CreateNewImage";
             btn_CreateNewImage.Size = new Size(118, 23);
             btn_CreateNewImage.TabIndex = 1;
@@ -77,7 +79,7 @@
             // 
             // btn_LoadImageAsMap
             // 
-            btn_LoadImageAsMap.Location = new Point(1044, 28);
+            btn_LoadImageAsMap.Location = new Point(986, 30);
             btn_LoadImageAsMap.Name = "btn_LoadImageAsMap";
             btn_LoadImageAsMap.Size = new Size(156, 23);
             btn_LoadImageAsMap.TabIndex = 2;
@@ -87,7 +89,7 @@
             // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1093, 290);
+            btn_ManualRotation.Location = new Point(1055, 292);
             btn_ManualRotation.Name = "btn_ManualRotation";
             btn_ManualRotation.Size = new Size(118, 23);
             btn_ManualRotation.TabIndex = 4;
@@ -97,7 +99,7 @@
             // 
             // txtBox_TextOutput
             // 
-            txtBox_TextOutput.Location = new Point(1037, 348);
+            txtBox_TextOutput.Location = new Point(999, 350);
             txtBox_TextOutput.Multiline = true;
             txtBox_TextOutput.Name = "txtBox_TextOutput";
             txtBox_TextOutput.Size = new Size(161, 178);
@@ -125,7 +127,7 @@
             // 
             // btn_ControlRobot
             // 
-            btn_ControlRobot.Location = new Point(1037, 115);
+            btn_ControlRobot.Location = new Point(986, 117);
             btn_ControlRobot.Name = "btn_ControlRobot";
             btn_ControlRobot.Size = new Size(164, 23);
             btn_ControlRobot.TabIndex = 12;
@@ -135,7 +137,7 @@
             // 
             // btn_ConnectionButton
             // 
-            btn_ConnectionButton.Location = new Point(1044, 86);
+            btn_ConnectionButton.Location = new Point(986, 88);
             btn_ConnectionButton.Name = "btn_ConnectionButton";
             btn_ConnectionButton.Size = new Size(139, 23);
             btn_ConnectionButton.TabIndex = 13;
@@ -145,7 +147,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(1044, 233);
+            button1.Location = new Point(1006, 235);
             button1.Name = "button1";
             button1.Size = new Size(139, 23);
             button1.TabIndex = 14;
@@ -155,7 +157,7 @@
             // 
             // btn_SetStart
             // 
-            btn_SetStart.Location = new Point(1019, 261);
+            btn_SetStart.Location = new Point(981, 263);
             btn_SetStart.Name = "btn_SetStart";
             btn_SetStart.Size = new Size(75, 23);
             btn_SetStart.TabIndex = 15;
@@ -165,7 +167,7 @@
             // 
             // btn_SetEnd
             // 
-            btn_SetEnd.Location = new Point(1147, 262);
+            btn_SetEnd.Location = new Point(1109, 264);
             btn_SetEnd.Name = "btn_SetEnd";
             btn_SetEnd.Size = new Size(71, 22);
             btn_SetEnd.TabIndex = 16;
@@ -175,7 +177,7 @@
             // 
             // btn_ExecuteRoute
             // 
-            btn_ExecuteRoute.Location = new Point(1116, 319);
+            btn_ExecuteRoute.Location = new Point(1078, 321);
             btn_ExecuteRoute.Name = "btn_ExecuteRoute";
             btn_ExecuteRoute.Size = new Size(95, 23);
             btn_ExecuteRoute.TabIndex = 17;
@@ -185,7 +187,7 @@
             // 
             // btnLessPWM
             // 
-            btnLessPWM.Location = new Point(1019, 144);
+            btnLessPWM.Location = new Point(981, 146);
             btnLessPWM.Name = "btnLessPWM";
             btnLessPWM.Size = new Size(75, 23);
             btnLessPWM.TabIndex = 18;
@@ -195,7 +197,7 @@
             // 
             // btnMorePWM
             // 
-            btnMorePWM.Location = new Point(1147, 144);
+            btnMorePWM.Location = new Point(1078, 146);
             btnMorePWM.Name = "btnMorePWM";
             btnMorePWM.Size = new Size(75, 23);
             btnMorePWM.TabIndex = 19;
@@ -205,7 +207,7 @@
             // 
             // btnCheckCurrentPWM
             // 
-            btnCheckCurrentPWM.Location = new Point(1068, 173);
+            btnCheckCurrentPWM.Location = new Point(986, 175);
             btnCheckCurrentPWM.Name = "btnCheckCurrentPWM";
             btnCheckCurrentPWM.Size = new Size(115, 23);
             btnCheckCurrentPWM.TabIndex = 20;
@@ -215,7 +217,7 @@
             // 
             // btnStop
             // 
-            btnStop.Location = new Point(1019, 202);
+            btnStop.Location = new Point(981, 204);
             btnStop.Name = "btnStop";
             btnStop.Size = new Size(75, 23);
             btnStop.TabIndex = 21;
@@ -225,7 +227,7 @@
             // 
             // btnDir
             // 
-            btnDir.Location = new Point(1147, 202);
+            btnDir.Location = new Point(1143, 204);
             btnDir.Name = "btnDir";
             btnDir.Size = new Size(75, 23);
             btnDir.TabIndex = 22;
@@ -245,7 +247,7 @@
             // 
             // btnSetServo
             // 
-            btnSetServo.Location = new Point(1019, 319);
+            btnSetServo.Location = new Point(981, 321);
             btnSetServo.Name = "btnSetServo";
             btnSetServo.Size = new Size(75, 23);
             btnSetServo.TabIndex = 24;
@@ -255,14 +257,14 @@
             // 
             // txtBoxServo
             // 
-            txtBoxServo.Location = new Point(1019, 291);
+            txtBoxServo.Location = new Point(981, 293);
             txtBoxServo.Name = "txtBoxServo";
             txtBoxServo.Size = new Size(61, 23);
             txtBoxServo.TabIndex = 25;
             // 
             // button2
             // 
-            button2.Location = new Point(1082, 204);
+            button2.Location = new Point(1062, 206);
             button2.Name = "button2";
             button2.Size = new Size(75, 23);
             button2.TabIndex = 26;
@@ -270,11 +272,33 @@
             button2.UseVisualStyleBackColor = true;
             button2.Click += button2_Click;
             // 
+            // btnCalib
+            // 
+            btnCalib.Location = new Point(1121, 177);
+            btnCalib.Name = "btnCalib";
+            btnCalib.Size = new Size(75, 23);
+            btnCalib.TabIndex = 27;
+            btnCalib.Text = "Calibrate";
+            btnCalib.UseVisualStyleBackColor = true;
+            btnCalib.Click += btnCalib_Click;
+            // 
+            // btnRelayTest
+            // 
+            btnRelayTest.Location = new Point(1147, 233);
+            btnRelayTest.Name = "btnRelayTest";
+            btnRelayTest.Size = new Size(75, 23);
+            btnRelayTest.TabIndex = 28;
+            btnRelayTest.Text = "Relay";
+            btnRelayTest.UseVisualStyleBackColor = true;
+            btnRelayTest.Click += btnRelayTest_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnRelayTest);
+            Controls.Add(btnCalib);
             Controls.Add(button2);
             Controls.Add(txtBoxServo);
             Controls.Add(btnSetServo);
@@ -331,5 +355,7 @@
         private Button btnSetServo;
         private TextBox txtBoxServo;
         private Button button2;
+        private Button btnCalib;
+        private Button btnRelayTest;
     }
 }

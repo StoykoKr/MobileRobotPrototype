@@ -13,6 +13,7 @@ using System.Windows.Forms;
 using System.Xml.Linq;
 using MQTTnet;
 using MQTTnet.Client;
+using System.Collections;
 
 namespace RobotAppControl
 {
@@ -58,11 +59,13 @@ namespace RobotAppControl
         private List<Node> finalPath = null;
         private MqttFactory mqttFactory = new MqttFactory();
         private IMqttClient mqttClient = null;
+        ConcurrentQueue<string> rawMagDataToBeWorkedOn;
         public Form1()
         {
             InitializeComponent();
             stringsToBeInterpreted = new ConcurrentQueue<string>();
             TotalRevievedStrings = new ConcurrentQueue<string>();
+            rawMagDataToBeWorkedOn = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
             // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
             this.KeyPreview = true;
@@ -938,6 +941,25 @@ namespace RobotAppControl
         private void button2_Click(object sender, EventArgs e)
         {
 
+        }
+        bool isTakingMagData = false;
+
+        private void btnCalib_Click(object sender, EventArgs e)
+        {
+            if (isTakingMagData)
+            {
+                stringsToBeInterpreted.Enqueue("endCalib|");
+            }
+            else
+            {
+                WriteData($"calMag~");
+                isTakingMagData = true;
+            }
+        }
+
+        private void btnRelayTest_Click(object sender, EventArgs e)
+        {
+            WriteData($"relay~");
         }
     }
 }
