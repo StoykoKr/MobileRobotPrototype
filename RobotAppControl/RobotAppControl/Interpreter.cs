@@ -133,7 +133,7 @@ namespace RobotAppControl
                             }
                             else if (splitData[0] == "endCalib")
                             {
-                                using (TextWriter tw = new StreamWriter("magData.txt"))
+                                using (TextWriter tw = new StreamWriter("magDataCalibrated.txt"))
                                 {
                                     foreach (String s in magDataList)
                                         tw.WriteLine(s);

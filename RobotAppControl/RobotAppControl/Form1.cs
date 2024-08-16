@@ -954,6 +954,7 @@ namespace RobotAppControl
             {
                 WriteData($"calMag~");
                 isTakingMagData = true;
+                MessageBox.Show("We are collecting data.");
             }
         }
 
