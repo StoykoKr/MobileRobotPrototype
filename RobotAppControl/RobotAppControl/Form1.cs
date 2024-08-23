@@ -60,6 +60,9 @@ namespace RobotAppControl
         private MqttFactory mqttFactory = new MqttFactory();
         private IMqttClient mqttClient = null;
         ConcurrentQueue<string> rawMagDataToBeWorkedOn;
+        List<double> segments = new List<double>();
+        List<double> turns = new List<double>();
+        List<bool> turnsss = new List<bool>();
         public Form1()
         {
             InitializeComponent();
@@ -217,7 +220,6 @@ namespace RobotAppControl
             // Define your criteria for an obstacle. For example, a pixel is an obstacle if it is black.
             return color.R + color.G + color.B < 100; // Example threshold for black
         }
-
         private void StopListening()
         {
             if (listener != null)
@@ -472,12 +474,12 @@ namespace RobotAppControl
                 {
                     for (int j = 0; j < occupancyMap.Height; j++)
                     {
-                        HandleAdjacentPixels(i, j, 4, g, AffectedCells); // the third one is the spread value aka how many "rings" around the middle
+                        HandleAdjacentPixels(i, j, 5, g, AffectedCells); // the third one is the spread value aka how many "rings" around the middle
                     }
                 }
                 foreach (var item in AffectedCells)
                 {
-                    if (item.Value > 20)
+                    if (item.Value > 10)
                     {
                         rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
                         rectangle.Inflate(2, 2);
@@ -680,7 +682,12 @@ namespace RobotAppControl
                 foreach (var item in path)
                 {
                     if (previous != null)
+                    {
+
                         txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({item.X},{item.Y}) : {Math.Truncate(FindTurnDegree(previous, item) * 10) / 10}degrees | {Math.Truncate(thetaStar.Heuristic(previous, item) * 10) / 10}cm \n ");  // which is {FindTurnDegree(previous, item)} \n ");
+                        turns.Add(Math.Truncate(FindTurnDegree(previous, item) * 10) / 10);
+                        segments.Add(Math.Truncate(thetaStar.Heuristic(previous, item) * 10) / 10);
+                    }
                     previous = item;
                 }
                 //   txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({goal.X},{goal.Y}) which is {FindTurnDegree(previous, goal)} \n ");
@@ -696,6 +703,54 @@ namespace RobotAppControl
         private void btn_ManualRotation_Click(object sender, EventArgs e)
         {
             PlanPath();
+
+        }
+        private double findOppositeSide(double adjacent, double theta)
+        {
+            // Convert angle from degrees to radians
+            double thetaRad = (90 - theta) * Math.PI / 180.0;
+            // Calculate the opposite side
+            double opposite = adjacent * Math.Tan(thetaRad);
+            return opposite;
+        }
+        private double TheThetaWeWant(double sideOne,double sideTwo)
+        {
+            
+            if(sideOne < sideTwo)
+            {
+                turnsss.Add(true);
+                return (180 - (sideTwo - sideOne))/2; 
+            }
+            else
+            {
+                turnsss.Add(false); // lqvo
+                return (180 - (sideOne - sideTwo))/2;
+            }
+        }
+        private List<string> goodPath()
+        {
+            List<string> res = new List<string>();
+            for (int i = 0; i < segments.Count; i++)
+            {
+                if(i + 1 < segments.Count)
+                {
+                    var TURN = TheThetaWeWant(turns[i], turns[i + 1]);
+                    var advance = findOppositeSide(16.5, TURN);
+                    //if ()
+                    //{
+
+                   // }else
+                    segments[i] = segments[i] - advance;
+                    segments[i+1] = segments[i+1] - advance;
+                    res.Add("moveForward~" + (segments[i] * 10).ToString());
+                    res.Add($"turn~{TURN * (turnsss[i] == true ? -1 : 1)}");
+                }
+                else
+                {
+                    res.Add("moveForward~" + (segments[i]*10).ToString());
+                }
+            }
+            return res;
         }
         private double FindTurnDegree(Node start, Node next)
         {
@@ -812,7 +867,12 @@ namespace RobotAppControl
         }
         private void ExecutePlan()
         {
-            ExecutePath(CookedPath(finalPath));
+            // ExecutePath(CookedPath(finalPath));
+            var output = goodPath();
+            foreach (var item in output)
+            {
+                WriteData(item);
+            }
         }
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
@@ -931,19 +991,16 @@ namespace RobotAppControl
                 Console.ReadLine();
             }
         }
-
         private void btnSetServo_Click(object sender, EventArgs e)
         {
             int servoAngle = int.Parse(txtBoxServo.Text);
             WriteData($"servo~{servoAngle}~");
         }
-
         private void button2_Click(object sender, EventArgs e)
         {
 
         }
         bool isTakingMagData = false;
-
         private void btnCalib_Click(object sender, EventArgs e)
         {
             if (isTakingMagData)
@@ -957,10 +1014,42 @@ namespace RobotAppControl
                 MessageBox.Show("We are collecting data.");
             }
         }
-
         private void btnRelayTest_Click(object sender, EventArgs e)
         {
             WriteData($"relay~");
+        }
+        private void button3_Click(object sender, EventArgs e)
+        {
+
+            for (int i = 0; i <= 360; i++)
+            {
+              //  stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{40}|-90|{40}|`");
+            }
+            for (int i = 360; i >= 0; i--)
+            {
+               // stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{-40}|-90|{-40}|`");
+            }
+            for (int i = 180; i < 360; i++)
+            {
+               // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{180}|0|{0}|90|{-0}|-90|{-0}|`");
+            }
+            for (int i = 1; i < 40; i++)
+            {
+              // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{90}|0|{0}|90|{-0}|-90|{-0}|`");
+            }
+            for (int i = 1; i < 40; i++)
+            {
+             //   stringsToBeInterpreted.Enqueue($"mapPoint|{24}|{135}|0|{0}|90|{-0}|-90|{-0}|`");
+            }
+            for (int i = 360; i > 180; i--)
+            {
+             //   stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{i}|0|{0}|90|{-10}|-90|{-10}|`");
+            }
+            for (int i = 1; i < 40; i++)
+            {
+               // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{45}|0|{0}|90|{-0}|-90|{-0}|`");
+            }
+
         }
     }
 }

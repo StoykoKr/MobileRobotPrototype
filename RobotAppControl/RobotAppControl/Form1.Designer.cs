@@ -52,6 +52,7 @@
             button2 = new Button();
             btnCalib = new Button();
             btnRelayTest = new Button();
+            button3 = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -292,11 +293,22 @@
             btnRelayTest.UseVisualStyleBackColor = true;
             btnRelayTest.Click += btnRelayTest_Click;
             // 
+            // button3
+            // 
+            button3.Location = new Point(1147, 376);
+            button3.Name = "button3";
+            button3.Size = new Size(75, 23);
+            button3.TabIndex = 29;
+            button3.Text = "button3";
+            button3.UseVisualStyleBackColor = true;
+            button3.Click += button3_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(button3);
             Controls.Add(btnRelayTest);
             Controls.Add(btnCalib);
             Controls.Add(button2);
@@ -357,5 +369,6 @@
         private Button button2;
         private Button btnCalib;
         private Button btnRelayTest;
+        private Button button3;
     }
 }

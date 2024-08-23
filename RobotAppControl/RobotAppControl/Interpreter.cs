@@ -22,6 +22,13 @@ namespace RobotAppControl
         private Form1 formControl;
         public double movedTotalRecieved = 0;
         private List<string> magDataList;
+        private double currentDegrees = 0;
+
+        private double MidDegrees = Math.Atan2(5, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
+        private double LeftDegrees = Math.Atan2(-22, 16) * (180.0 / Math.PI);  //left
+        private double RightDegrees = Math.Atan2(23, 15) * (180.0 / Math.PI);  //right
+
+
         public Interpreter(ref ConcurrentQueue<string> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
         {
             magDataList = new List<string>();
@@ -31,7 +38,6 @@ namespace RobotAppControl
             currentY = curY;
             currentRotation = curRotation;
             formControl = formReference;
-
         }
         private void UpdateImg()  // Invokes the UI thread to show the results of the newly painted map.
         {
@@ -47,35 +53,50 @@ namespace RobotAppControl
 
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
-                    currentRotation = double.Parse(whatWeKnow[2]) + 180;
+                    currentRotation = double.Parse(whatWeKnow[2]) + 270; //270;    // ADJUST HERE BY 90 IN A DIRECTION NOT SURE WHICH // Added change idk what now
                     double movementDistance = float.Parse(whatWeKnow[1]) * 0.1;
-                    currentX -= movementDistance * Math.Cos(currentRotation * Math.PI / 180);
+                    currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
+                    int offsedX = 0;
+                    int offsedY = 0;
+                    int nehsto = 0;
                     Color newColor = Color.White;
-                    for (int j = 3; j < whatWeKnow.Length; j += 2)
+                    for (int j = 3; j < whatWeKnow.Length - 1; j += 2)
                     {
-                        if (float.Parse(whatWeKnow[j + 1]) < 200)  // if too far ignore
+                        if (float.Parse(whatWeKnow[j + 1]) < 350)  // if too far ignore
                         {
-                            int centralPixelX = x - (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Cos(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
-                            int centralPixelY = y + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * Math.Sin(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
                             if (j == 3)
                             {
+                                offsedY = -30;  //  5 CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED 
+                                offsedX = 5;  // they may be reversed or with opposite sign aka + -  same with the rest of the values
                                 newColor = Color.Red;
-                                bitmap.SetPixel(
-                         x,
-                         y, Color.White);
+                                currentDegrees = MidDegrees;
+                                nehsto = 1;
+                            //    bitmap.SetPixel(
+                        // x,
+                       //  y, Color.White);
                             }
                             else if (j == 5)
                             {
+                                offsedY = -16;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                                offsedX = -22;
                                 newColor = Color.Green;
+                                currentDegrees = LeftDegrees;
+                                nehsto = -1;
 
                             }
                             else
                             {
+                                offsedY = -15;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                                offsedX = 23;
                                 newColor = Color.Blue;
+                                currentDegrees = RightDegrees;
+                                nehsto = -1;
                             }
+                            int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * nehsto * Math.Cos(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
+                            int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(float.Parse(whatWeKnow[j + 1]) * nehsto * Math.Sin(((float.Parse(whatWeKnow[j]) + currentRotation)) * Math.PI / 180));
                             bitmap.SetPixel(
                          centralPixelX,
                          centralPixelY, newColor);
@@ -93,7 +114,7 @@ namespace RobotAppControl
         public void StopInterpreting()
         {
             stopInterpreting = true;
-        }      
+        }
         public void StartInterpreting()
         {
             stopInterpreting = false;
