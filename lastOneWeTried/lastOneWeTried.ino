@@ -3,6 +3,7 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_HMC5883_U.h>
 #include <ESP32Servo.h>
+#include <math.h>
 //#include "driver/mcpwm.h"
 
 #define signalOutputInterruptPinRight 23
@@ -35,8 +36,8 @@ double _medianMid = 0;
 double _medianLeft;
 double _medianRight;
 WiFiClient client;
-volatile int leftEncoderCounter = 0;
-volatile int rightEncoderCounter = 0;
+volatile long leftEncoderCounter = 0;
+volatile long rightEncoderCounter = 0;
 volatile bool newMidData = false;
 volatile bool newLeftData = false;
 volatile bool newRightData = false;
@@ -46,7 +47,6 @@ volatile unsigned long microSecLeft = 0;
 volatile unsigned long microSecLeftEndDuration = 0;
 volatile unsigned long microSecRight = 0;
 volatile unsigned long microSecRightEndDuration = 0;
-
 int bounce = 7;
 volatile unsigned long lastLeftRec = 0;
 volatile unsigned long lastRightRec = 0;
@@ -92,8 +92,6 @@ int pwmValueInt = 0.7;  // this is for duty cycle its from 0 to 1
 Servo myservo;
 int servoChannel;
 int pos = 90;
-float speedLeftPWM = 0;
-float speedRightPWM = 0;
 unsigned long previousTimeThereWasAnObstacle = millis();
 bool goingForward = false;
 bool turnedLeft = false;
@@ -182,8 +180,6 @@ void ResetPIDs() {
   pid_previousTimeSpeedRight = 0;
   pid_ePreviousSpeedRight = 0;
   pid_eintegralSpeedRight = 0;
-  speedLeftPWM = 0;
-  speedRightPWM = 0;
 }
 void IRS_MidSensor() {
   if (digitalRead(echoMidPin) == 0x0) {
@@ -231,24 +227,16 @@ void IRS_RightSensor() {
   }
 }
 void IRS_LeftEncoder() {
-  //if (!currentGoingForwardDir) {
-  //   leftEncoderCounter--;
-  // } else {
   if (millis() - lastLeftRec >= bounce) {
     leftEncoderCounter++;
     lastLeftRec = millis();
   }
-  //}
 }
 void IRS_RightEncoder() {
-  //if (!currentGoingForwardDir) {
-  // rightEncoderCounter--;
-  // } else {
   if (millis() - lastRightRec >= bounce) {
     rightEncoderCounter++;
     lastRightRec = millis();
   }
-  // }
 }
 void GetUltrasoundData(float dir, bool sendMove) {
   int rigthCount = rightEncoderCounter;
@@ -466,31 +454,31 @@ float PidController(float target, float kp, float kd, float ki, float moved) {
 
   return u;
 }
-float PidControllerSpeedLeft(float target, float kp, float kd, float ki, float current) {
-  unsigned long currentTime = micros();
-  float deltaT = ((float)(currentTime - pid_previousTimeSpeedLeft)) / 1.0e6;
+float PidControllerSpeedLeft(float target, float kp, float current) {
+  // unsigned long currentTime = micros();
+  // float deltaT = ((float)(currentTime - pid_previousTimeSpeedLeft)) / 1.0e6;
   float e = current - target;
-  float eDerivative = (e - pid_ePreviousSpeedLeft) / deltaT;
-  pid_eintegralSpeedLeft = pid_eintegralSpeedLeft + e * deltaT;
+  //  float eDerivative = (e - pid_ePreviousSpeedLeft) / deltaT;
+  // pid_eintegralSpeedLeft = pid_eintegralSpeedLeft + e * deltaT;
 
-  float u = (kp * e) + (kd * eDerivative) + (ki * pid_eintegralSpeedLeft);
+  float u = (kp * e);  //+ (kd * eDerivative) + (ki * pid_eintegralSpeedLeft);
 
-  pid_previousTimeSpeedLeft = currentTime;
-  pid_ePreviousSpeedLeft = e;
+  //  pid_previousTimeSpeedLeft = currentTime;
+  // pid_ePreviousSpeedLeft = e;
 
   return u * -1;
 }
-float PidControllerSpeedRight(float target, float kp, float kd, float ki, float current) {
-  unsigned long currentTime = micros();
-  float deltaT = ((float)(currentTime - pid_previousTimeSpeedRight)) / 1.0e6;
+float PidControllerSpeedRight(float target, float kp, float current) {
+  //unsigned long currentTime = micros();
+  //float deltaT = ((float)(currentTime - pid_previousTimeSpeedRight)) / 1.0e6;
   float e = current - target;
-  float eDerivative = (e - pid_ePreviousSpeedRight) / deltaT;
-  pid_eintegralSpeedRight = pid_eintegralSpeedRight + e * deltaT;
+  //float eDerivative = (e - pid_ePreviousSpeedRight) / deltaT;
+  //pid_eintegralSpeedRight = pid_eintegralSpeedRight + e * deltaT;
 
-  float u = (kp * e) + (kd * eDerivative) + (ki * pid_eintegralSpeedRight);
+  float u = (kp * e);  //+ (kd * eDerivative) + (ki * pid_eintegralSpeedRight);
 
-  pid_previousTimeSpeedRight = currentTime;
-  pid_ePreviousSpeedRight = e;
+  //pid_previousTimeSpeedRight = currentTime;
+  //pid_ePreviousSpeedRight = e;
 
   return u * -1;
 }
@@ -547,7 +535,9 @@ void spin() {
 }
 void justLeftRight(int direction) {
   // ResetPIDs();
-  while (keyInpt != "None") {
+  turnedRight = false;
+  turnedLeft = false;
+  while (keyInpt != "None" && keyInpt != "none") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
@@ -617,30 +607,67 @@ float lastSpeedLeft = 0;
 int LastSecondTicksLeft[] = { 0, 0, 0, 0, 0 };
 int LastSecondTicksRight[] = { 0, 0, 0, 0, 0 };
 int timeIntervalIndexCounter = 0;
+int rightthing = 0;
+long lastRight = 0;
+int leftthing = 0;
+long lastLeft = 0;
 void UpdateTicksRight() {
-  rotationCounterForSpeedRight = abs(rightEncoderCounter) - rotationCounterForSpeedRight;
-  LastSecondTicksRight[timeIntervalIndexCounter] = rotationCounterForSpeedRight;
-  // lastSpeedRight = UNDEFINED;  // TODO MATH
+  rightthing = rightEncoderCounter - lastRight;
+  lastRight = rightEncoderCounter;
+  LastSecondTicksRight[timeIntervalIndexCounter] = rightthing;  // rotationCounterForSpeedRight;
 }
 void UpdateTicksLeft() {
-  rotationCounterForSpeedLeft = abs(leftEncoderCounter) - rotationCounterForSpeedLeft;
-  LastSecondTicksLeft[timeIntervalIndexCounter] = rotationCounterForSpeedLeft;
-  // lastSpeedLeft = UNDEFINED;  // TODO MATH
+  leftthing = leftEncoderCounter - lastLeft;
+  lastLeft = leftEncoderCounter;
+  LastSecondTicksLeft[timeIntervalIndexCounter] = leftthing;
 }
-float GetCurrentSpeedRight() {
+float GetCurrentSpeedRight() {  // The math here can be wrong I just grabbed a number and plugged it. Its supposed to convert from mm/s (arr of 5 for each 200ms min will be a little more the sec in practice) to kn/h
   return (LastSecondTicksRight[0] + LastSecondTicksRight[1] + LastSecondTicksRight[2] + LastSecondTicksRight[3] + LastSecondTicksRight[4]) * MM_PER_TICK * 0.0036;
 }
 float GetCurrentSpeedLeft() {
   return (LastSecondTicksLeft[0] + LastSecondTicksLeft[1] + LastSecondTicksLeft[2] + LastSecondTicksLeft[3] + LastSecondTicksLeft[4]) * MM_PER_TICK * 0.0036;
 }
-
+float lastDegKeepDir = 0;
+float changeKeepDir = 0;
+float degreeChangeFromStartKeepDir = 0;
+void ResetKeepDir() {
+  lastDegKeepDir = 0;
+  changeKeepDir = 0;
+  degreeChangeFromStartKeepDir = 0;
+}
+void keepDirection() {
+  float currentDeg = MagneticSensorReading();
+  changeKeepDir = currentDeg - lastDegKeepDir;
+  if (changeKeepDir > 200) {
+    changeKeepDir -= 360;
+  } else if (changeKeepDir < -200) {
+    changeKeepDir += 360;
+  }
+  degreeChangeFromStartKeepDir += changeKeepDir;
+  lastDegKeepDir = currentDeg;
+  pos = 90 + (degreeChangeFromStartKeepDir * 0.75);  //can be - idk
+  SetServoAngle();
+}
+float PWMLeftCoefficient = 1;
+float PWMRightCoefficient = 1;
 void justForward() {
   speedTimer = millis();
   speedAdjustTimer = millis();
   rotationCounterForSpeedRight = 0;
   rotationCounterForSpeedLeft = 0;
-  // ResetPIDs();
-  while (keyInpt != "None") {
+  rightthing = 0;
+  lastRight = 0;
+  PWMLeftCoefficient = 1;
+  PWMRightCoefficient = 1;
+  goingForward = false;
+  ResetPIDs();
+  ResetKeepDir();
+  lastDegKeepDir = MagneticSensorReading();
+  GetUltrasoundData(MagneticSensorReading(), false);
+  GetUltrasoundData(MagneticSensorReading(), false);
+  GetUltrasoundData(MagneticSensorReading(), false);
+  GetUltrasoundData(MagneticSensorReading(), false);
+  while (keyInpt != "None" && keyInpt != "none") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
       keyInpt = client.readStringUntil('~');
@@ -648,7 +675,8 @@ void justForward() {
         pwmValueInt = keyInpt.toInt();
       }
     }
-    if (!goingForward) {
+    GetUltrasoundData(MagneticSensorReading(), true);
+    if (!goingForward) {  // set the servo forward
       pos = 90;
       SetServoAngle();
       delay(100);
@@ -656,7 +684,7 @@ void justForward() {
       turnedLeft = false;
       turnedRight = false;
     }
-    /*if (millis() - speedTimer >= millisecToRecordTicksInterval) {
+    if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
       if (5 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
       }
@@ -666,52 +694,37 @@ void justForward() {
       speedTimer = millis();
     }
 
-    if (millis() - speedAdjustTimer >= 75) {
-      float changeLEft = PidControllerSpeedLeft(3, 0.06, 0.002, 0, GetCurrentSpeedLeft());
+    if (millis() - speedAdjustTimer >= 100) {  // Minimum time between pwm changes
+      float changeLEft = PidControllerSpeedLeft(3, 0.015, GetCurrentSpeedLeft());
+      float changeRight = PidControllerSpeedRight(3, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
-      float changeRight = PidControllerSpeedRight(3, 0.06, 0.002, 0, GetCurrentSpeedRight());
-
-      //+= PidControllerSpeedLeft(3, 0.06, 0.002, 0, GetCurrentSpeedLeft());  //will look someting like that when called   Can tinker with setPWMLeft(nnn) inside same logic for right side
-      if (changeLEft >= 0.2) {
-        changeLEft = 0.2;
-      } else if (changeLEft <= -0.2) {
-        changeLEft = -0.2;
+      if (fabs(changeLEft) > 0.0001) {
+        if (PWMLeftCoefficient + changeLEft < 1.9 && PWMLeftCoefficient + changeLEft > 0.1) {
+          PWMLeftCoefficient += changeLEft;
+        }
       }
-      speedLeftPWM += changeLEft;
-      if (speedLeftPWM > 0.75) {
-        speedLeftPWM = 0.75;
-      } else if (speedLeftPWM < 0) {
-        speedLeftPWM = 0;
+      if (fabs(changeRight) > 0.0001) {
+        if (PWMRightCoefficient + changeRight < 1.9 && PWMRightCoefficient + changeRight > 0.1) {
+          PWMRightCoefficient += changeRight;
+        }
       }
-      //+= PidControllerSpeedRight(3, 0.06, 0.002, 0, GetCurrentSpeedRight());
-      if (changeRight >= 0.2) {
-        changeRight = 0.2;
-      } else if (changeRight <= -0.2) {
-        changeRight = -0.2;
-      }
-      speedRightPWM += changeRight;
-      if (speedRightPWM > 0.75) {
-        speedRightPWM = 0.75;
-      } else if (speedRightPWM < 0) {
-        speedRightPWM = 0;
+      //Serial.println("small is: ");
+      //Serial.println(rightthing);
+      //Serial.println("count is: ");
+      //Serial.println(rightEncoderCounter);
+      //Serial.println("speed is: ");
+      //Serial.println(GetCurrentSpeedRight());
+      //Serial.println("coef is: ");
+      //Serial.println(GetCurrentSpeedLeft());
+      if (millis() - previousTimeThereWasAnObstacle <= 250) {
+        setPWMLeft(0);
+        setPWMRight(0);
+      } else {
+        setPWMLeft(0.5);   //* PWMLeftCoefficient);
+        setPWMRight(0.5);  // * PWMRightCoefficient);
+        keepDirection();
       }
       speedAdjustTimer = millis();
-    }*/
-    //setPWMLeft(speedLeftPWM);
-    // setPWMRight(speedRightPWM);
-    //  Serial.println("Left and right: ");
-    // Serial.println(speedLeftPWM);
-    // Serial.println(speedRightPWM);
-    // setPWMLeft(0.55);
-    // setPWMRight(0.55);
-    GetUltrasoundData(MagneticSensorReading(), true);
-
-    if (millis() - previousTimeThereWasAnObstacle <= 250) {  // when this works correctly? do the PID if there is no collision danger
-      setPWMLeft(0);
-      setPWMRight(0);
-    } else {
-      setPWMLeft(0.7);  // 0 to 1
-      setPWMRight(0.7);
     }
   }
   setPWMLeft(0);
@@ -754,10 +767,10 @@ void forward(int mm) {
       turnedLeft = false;
       turnedRight = false;
       setPWMRight(0.7);
-      setPWMLeft(0.7); 
+      setPWMLeft(0.7);
     }
-      setPWMRight(0.7);
-      setPWMLeft(0.7);  // 0 to 1
+    setPWMRight(0.7);
+    setPWMLeft(0.7);  // 0 to 1
     // } else if (change < -200) {
     //   change += 360;
     // }
@@ -914,19 +927,25 @@ void ReverseDirection() {
   }
 }
 int maxloops = 0;
+bool yes = true;
 void loop() {
 
 
   //Serial.println(MagneticSensorReading());
   //delay(200);
 
-
-
-  //spin();
-  //if (yes) {
-  // setPWMLeft(0.7);
-  // setPWMRight(0.7);
-  // Serial.println("Engine started");
+  //justForward();
+  spin();
+  if (yes) {
+    setPWMLeft(0.7);
+    //  setPWMRight(0.7);
+    // yes = false;
+  }
+  if (yes) {
+   // setPWMLeft(0.7);
+    setPWMRight(0.7);
+    yes = false;
+  }  // Serial.println("Engine started");
   // yes = false;
   //} else {
   //  setPWMLeft(0);
@@ -938,7 +957,7 @@ void loop() {
   //setPWMLeft(0);
   //setPWMRight(0);
   //delay(2000);
-
+  /*
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
     delay(3000);
@@ -959,14 +978,12 @@ void loop() {
       if (line == "moveForward") {
         String distanceStr = client.readStringUntil('~');
         int distanceToMove = distanceStr.toInt();
-        Serial.println("WE hERE too");
         forward(distanceToMove);
       } else if (line == "smurf") {
         smurfMovement(client.readStringUntil('~'));
       } else if (line == "turn") {
         String degreeStr = client.readStringUntil('~');
         float degreeToTurn = degreeStr.toFloat();
-        Serial.println("WE hERE");
         // turnOnCrack(degreeToTurn / 2);
         turn(degreeToTurn);
       } else if (line == "servo") {
@@ -982,5 +999,5 @@ void loop() {
       }
     }
   }
-  delay(150);
+  delay(150);  //*/
 }

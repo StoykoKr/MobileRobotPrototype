@@ -27,8 +27,12 @@ namespace RobotAppControl
         private double MidDegrees = Math.Atan2(5, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
         private double LeftDegrees = Math.Atan2(-22, 16) * (180.0 / Math.PI);  //left
         private double RightDegrees = Math.Atan2(23, 15) * (180.0 / Math.PI);  //right
-
-
+        // get the data for the points here and use it in the path planning method with modifications for end points. This should avoid colliding paths.
+        // PIDs or something needs to be done to make it move in a line.. right now it is not.
+        // When we are planning a path right now it does not consider starting rotation at all. It thinks that it is in the correct rotation and the given spot and just goes.
+        // a way to resolve the aforementioned problem is to make it check the starting rotation and add a movement and a turn before the start of the path to adjust it accordingly.
+        // The problem here is that the easiest way for that would require moving backwards.. which we currently can't. If we could tho the task is simple just use the existing logic for planned turns and play with the values a little
+        // last time there was another bug/issues with the wheels related to PIDs and/or constant changes in the PWM signal
         public Interpreter(ref ConcurrentQueue<string> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
         {
             magDataList = new List<string>();

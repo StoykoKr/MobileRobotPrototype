@@ -14,6 +14,7 @@ using System.Xml.Linq;
 using MQTTnet;
 using MQTTnet.Client;
 using System.Collections;
+using MQTTnet.Server;
 
 namespace RobotAppControl
 {
@@ -48,6 +49,7 @@ namespace RobotAppControl
         private Pen pen = new Pen(Brushes.Black);
         private Rectangle rectangle;
         TcpClient client;
+        MqttServer mqttServer = null;
         public delegate void RefreshTheImg();
         public RefreshTheImg myDelagate;
         private bool settingStart = false;
@@ -58,11 +60,13 @@ namespace RobotAppControl
         private int endY = 0;
         private List<Node> finalPath = null;
         private MqttFactory mqttFactory = new MqttFactory();
-        private IMqttClient mqttClient = null;
+        // private IMqttClient mqttClient = null;
         ConcurrentQueue<string> rawMagDataToBeWorkedOn;
         List<double> segments = new List<double>();
         List<double> turns = new List<double>();
         List<bool> turnsss = new List<bool>();
+        private Form1 selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway;
+        private IMqttClient? imagePublisherClient = null;
         public Form1()
         {
             InitializeComponent();
@@ -74,7 +78,9 @@ namespace RobotAppControl
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
             server = new TcpListener(localAddr, port);
-            server.Start();
+            selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
+            InitMQTTClient();
+          //  server.Start();
 
         }
         private void StartListen()
@@ -270,6 +276,17 @@ namespace RobotAppControl
             }
             return customBitmap;
 
+        }
+
+        private void LoadDefaultImage()
+        {
+            custom = LoadImageAsCustomBitmap("Default");
+            _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
+            PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+        }
+        private void SaveDefaultImage()
+        {
+            custom.Bitmap.Save("Default");
         }
         private void LoadImageAsMap()
         {
@@ -474,7 +491,7 @@ namespace RobotAppControl
                 {
                     for (int j = 0; j < occupancyMap.Height; j++)
                     {
-                        HandleAdjacentPixels(i, j, 5, g, AffectedCells); // the third one is the spread value aka how many "rings" around the middle
+                        HandleAdjacentPixels(i, j, 2, g, AffectedCells); // 2 or 3 should work fine?
                     }
                 }
                 foreach (var item in AffectedCells)
@@ -482,11 +499,8 @@ namespace RobotAppControl
                     if (item.Value > 10)
                     {
                         rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
-                        rectangle.Inflate(2, 2);
+                        rectangle.Inflate(25, 25);    // adds x to the size in EACH direction so 25 * 2  with 30 it looks a bit too much but logic says it should be more correct?
                         g.FillRectangle(Brushes.Black, rectangle);
-
-
-                        // occupancyMap.SetPixel(item.Key.Item1, item.Key.Item2, Color.Black);
                     }
                 }
                 SaveFileDialog saveFileDialog1 = AskSaveFile();
@@ -713,18 +727,18 @@ namespace RobotAppControl
             double opposite = adjacent * Math.Tan(thetaRad);
             return opposite;
         }
-        private double TheThetaWeWant(double sideOne,double sideTwo)
+        private double TheThetaWeWant(double sideOne, double sideTwo)
         {
-            
-            if(sideOne < sideTwo)
+
+            if (sideOne < sideTwo)
             {
                 turnsss.Add(true);
-                return (180 - (sideTwo - sideOne))/2; 
+                return (180 - (sideTwo - sideOne)) / 2;
             }
             else
             {
                 turnsss.Add(false); // lqvo
-                return (180 - (sideOne - sideTwo))/2;
+                return (180 - (sideOne - sideTwo)) / 2;
             }
         }
         private List<string> goodPath()
@@ -732,22 +746,22 @@ namespace RobotAppControl
             List<string> res = new List<string>();
             for (int i = 0; i < segments.Count; i++)
             {
-                if(i + 1 < segments.Count)
+                if (i + 1 < segments.Count)
                 {
                     var TURN = TheThetaWeWant(turns[i], turns[i + 1]);
                     var advance = findOppositeSide(16.5, TURN);
                     //if ()
                     //{
 
-                   // }else
+                    // }else
                     segments[i] = segments[i] - advance;
-                    segments[i+1] = segments[i+1] - advance;
+                    segments[i + 1] = segments[i + 1] - advance;
                     res.Add("moveForward~" + (segments[i] * 10).ToString());
                     res.Add($"turn~{TURN * (turnsss[i] == true ? -1 : 1)}");
                 }
                 else
                 {
-                    res.Add("moveForward~" + (segments[i]*10).ToString());
+                    res.Add("moveForward~" + (segments[i] * 10).ToString());
                 }
             }
             return res;
@@ -868,6 +882,7 @@ namespace RobotAppControl
         private void ExecutePlan()
         {
             // ExecutePath(CookedPath(finalPath));
+            txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             var output = goodPath();
             foreach (var item in output)
             {
@@ -929,7 +944,83 @@ namespace RobotAppControl
 
             WriteData("break~");
         }
+        private async void InitMQTTClient()  
+        {
+            if (imagePublisherClient == null)
+            {           
+                imagePublisherClient = mqttFactory.CreateMqttClient();
+                var mqttClientOptions = new MqttClientOptionsBuilder().WithWebSocketServer(o => o.WithUri("ws://localhost:9001/mqtt"))
+                     .WithClientId("ServerClient")
+                     .WithCleanSession()
+                    .Build();
+                imagePublisherClient.ApplicationMessageReceivedAsync += delegate (MqttApplicationMessageReceivedEventArgs args)   
+                {
+                    // Do some work with the message...
+                    string topic = args.ApplicationMessage.Topic;
+                    string str = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
+
+                    switch (topic)
+                    {
+                        case "topic/one":
+                            HandleTopicOne(str);
+                            break;
+
+                        case "topic/two":
+                            HandleTopicTwo(str);
+                            break;
+
+                        case "topic/three":
+                            HandleTopicThree(str);
+                            break;
+
+                        default:
+                            Console.WriteLine($"Unknown topic: {topic}");
+                            break;
+                    }
+
+                    return Task.CompletedTask;
+                };
+
+
+                await imagePublisherClient.ConnectAsync(mqttClientOptions);
+
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/one").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/two").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/three").Build());
+
+            }
+        }
+        private void HandleTopicOne(string payload)
+        {
+            Console.WriteLine($"Message received on topic/one: {payload}");
+            // Add custom logic for topic/one
+        }
+
+        private void HandleTopicTwo(string payload)
+        {
+            Console.WriteLine($"Message received on topic/two: {payload}");
+            // Add custom logic for topic/two
+        }
+
+        private void HandleTopicThree(string payload)
+        {
+            Console.WriteLine($"Message received on topic/three: {payload}");
+            // Add custom logic for topic/three
+        }
+
         private async void btnMQTT_Click(object sender, EventArgs e)
+        {
+            if (mqttServer == null)
+            {
+              //  TempServer();
+            }
+            else
+            {
+              //  await mqttServer.StopAsync();
+            }
+        }
+        /*
+        private async void MqttClient() // old-ish code
         {
             using (mqttClient = mqttFactory.CreateMqttClient())
             {
@@ -991,10 +1082,146 @@ namespace RobotAppControl
                 Console.ReadLine();
             }
         }
+        */
+
+        private async void TempServer() // this is obsolete as we are now using mosquitto    we simply need a client now to post images and listen to the other topics
+        {
+            // Create and configure the MQTT broker options
+            var optionsBuilder = new MqttServerOptionsBuilder()
+                .WithDefaultEndpoint()
+                .WithDefaultEndpointPort(1883);
+
+            // Create the MQTT server
+            mqttServer = mqttFactory.CreateMqttServer(optionsBuilder.Build());
+
+            // Attach event handlers
+            mqttServer.ClientConnectedAsync += ClientConnected;
+            mqttServer.ClientDisconnectedAsync += ClientDisconnected;
+            mqttServer.InterceptingPublishAsync += MessageReceived;
+            // mqttServer.ApplicationMessageEnqueuedOrDroppedAsync
+            // Start the MQTT server
+            await mqttServer.StartAsync();
+            // Stop the MQTT server
+            // await mqttServer.StopAsync();
+            MessageBox.Show("Server is up");
+        }
+        private async void SendImage()
+        {
+            await PublishImageChunks();
+        }
+        public static byte[] ImageToByte(Image img)
+        {
+            using (var stream = new MemoryStream())
+            {
+                img.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                return stream.ToArray();
+            }
+        }
+        private async Task PublishImageChunks()
+        {    
+            // Read and split the image into chunks
+            byte[] imageBytes = ImageToByte(custom.Bitmap);    // Will use the current image on screen
+            int chunkSize = 256 * 1024; // 256 KB per chunk
+            int numberOfChunks = (int)Math.Ceiling((double)imageBytes.Length / chunkSize);
+
+            for (int i = 0; i < numberOfChunks; i++)
+            {
+                int currentChunkSize = Math.Min(chunkSize, imageBytes.Length - i * chunkSize);
+                byte[] chunk = new byte[currentChunkSize];
+                Array.Copy(imageBytes, i * chunkSize, chunk, 0, currentChunkSize);
+
+                var message = new MqttApplicationMessageBuilder()
+                    .WithTopic("Image/Chunk")
+                    .WithPayload(chunk)
+                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                    .Build();
+
+                await imagePublisherClient.PublishAsync(message);
+            }
+
+            // Signal the end of the image transmission
+            var endMessage = new MqttApplicationMessageBuilder()
+                .WithTopic("Image/End")
+                .WithPayload(Encoding.UTF8.GetBytes("End of Image"))
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await imagePublisherClient.PublishAsync(endMessage);
+        }
+        private static Task ClientConnected(ClientConnectedEventArgs eventArgs)
+        {
+            // Console.WriteLine($"Client connected: {eventArgs.ClientId}");
+            return Task.CompletedTask;
+        }
+
+        private Task ClientDisconnected(ClientDisconnectedEventArgs eventArgs)
+        {
+            // Console.WriteLine($"Client disconnected: {eventArgs.ClientId}");
+            return Task.CompletedTask;
+        }
+        private void addToTextBox(string messageToAdd)
+        {
+            SafeUpdate(() => txtBox_TextOutput.AppendText(messageToAdd));
+        }
+        private void SafeUpdate(Action action)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(action);
+            }
+            else
+            {
+                action();
+            }
+        }
+
+        private Task MessageReceived(InterceptingPublishEventArgs eventArgs)
+        {
+            var message = eventArgs.ApplicationMessage;
+            var topic = message.Topic;
+
+            // Check if the message is received on the "Direction" topic
+            if (topic == "Direction")
+            {
+                var payload = Encoding.UTF8.GetString(message.Payload);
+
+                // ThreadPool.QueueUserWorkItem(state => addToTextBox(payload));
+
+                WriteDataSingular(payload);
+                // If this works we place some control logic here and we good.
+
+
+            }
+            else if (topic == "Whatever topic we expect")  // There should be better ways buuut :)
+            {
+                var payload = Encoding.UTF8.GetString(message.PayloadSegment);
+
+                // we have the info and are free to reroute or whatever
+
+                //   CreateNewImage();
+                //  ConnectionButton();
+                // ControlRobotLogic();
+                //  SetObstacles();
+                // SetStart();
+                // SetEnd();
+                //  AreaClick(Point coordinates)
+                //  PlanPath();
+                // ExecutePlan();
+                //  ImageSave();
+                //   StartConvertingToOcccupancyThread(); 
+                //  LoadImageAsMap();
+            }
+
+            return Task.CompletedTask;
+        }
+
         private void btnSetServo_Click(object sender, EventArgs e)
         {
-            int servoAngle = int.Parse(txtBoxServo.Text);
-            WriteData($"servo~{servoAngle}~");
+            //  int servoAngle = int.Parse(txtBoxServo.Text);
+            // WriteData($"servo~{servoAngle}~");
+            LoadDefaultImage();
+
+
         }
         private void button2_Click(object sender, EventArgs e)
         {
@@ -1016,38 +1243,39 @@ namespace RobotAppControl
         }
         private void btnRelayTest_Click(object sender, EventArgs e)
         {
-            WriteData($"relay~");
+           // WriteData($"relay~");
+           SaveDefaultImage();
         }
         private void button3_Click(object sender, EventArgs e)
         {
 
             for (int i = 0; i <= 360; i++)
             {
-              //  stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{40}|-90|{40}|`");
+                //  stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{40}|-90|{40}|`");
             }
             for (int i = 360; i >= 0; i--)
             {
-               // stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{-40}|-90|{-40}|`");
+                // stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{-40}|-90|{-40}|`");
             }
             for (int i = 180; i < 360; i++)
             {
-               // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{180}|0|{0}|90|{-0}|-90|{-0}|`");
+                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{180}|0|{0}|90|{-0}|-90|{-0}|`");
             }
             for (int i = 1; i < 40; i++)
             {
-              // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{90}|0|{0}|90|{-0}|-90|{-0}|`");
+                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{90}|0|{0}|90|{-0}|-90|{-0}|`");
             }
             for (int i = 1; i < 40; i++)
             {
-             //   stringsToBeInterpreted.Enqueue($"mapPoint|{24}|{135}|0|{0}|90|{-0}|-90|{-0}|`");
+                //   stringsToBeInterpreted.Enqueue($"mapPoint|{24}|{135}|0|{0}|90|{-0}|-90|{-0}|`");
             }
             for (int i = 360; i > 180; i--)
             {
-             //   stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{i}|0|{0}|90|{-10}|-90|{-10}|`");
+                //   stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{i}|0|{0}|90|{-10}|-90|{-10}|`");
             }
             for (int i = 1; i < 40; i++)
             {
-               // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{45}|0|{0}|90|{-0}|-90|{-0}|`");
+                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{45}|0|{0}|90|{-0}|-90|{-0}|`");
             }
 
         }

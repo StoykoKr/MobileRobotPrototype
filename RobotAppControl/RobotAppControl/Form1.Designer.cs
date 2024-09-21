@@ -148,7 +148,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(1006, 235);
+            button1.Location = new Point(978, 235);
             button1.Name = "button1";
             button1.Size = new Size(139, 23);
             button1.TabIndex = 14;
@@ -248,11 +248,11 @@
             // 
             // btnSetServo
             // 
-            btnSetServo.Location = new Point(981, 321);
+            btnSetServo.Location = new Point(969, 321);
             btnSetServo.Name = "btnSetServo";
-            btnSetServo.Size = new Size(75, 23);
+            btnSetServo.Size = new Size(87, 23);
             btnSetServo.TabIndex = 24;
-            btnSetServo.Text = "SetServo^";
+            btnSetServo.Text = "load Default";
             btnSetServo.UseVisualStyleBackColor = true;
             btnSetServo.Click += btnSetServo_Click;
             // 
@@ -285,11 +285,11 @@
             // 
             // btnRelayTest
             // 
-            btnRelayTest.Location = new Point(1147, 233);
+            btnRelayTest.Location = new Point(1123, 233);
             btnRelayTest.Name = "btnRelayTest";
-            btnRelayTest.Size = new Size(75, 23);
+            btnRelayTest.Size = new Size(99, 23);
             btnRelayTest.TabIndex = 28;
-            btnRelayTest.Text = "Relay";
+            btnRelayTest.Text = "save default";
             btnRelayTest.UseVisualStyleBackColor = true;
             btnRelayTest.Click += btnRelayTest_Click;
             // 
