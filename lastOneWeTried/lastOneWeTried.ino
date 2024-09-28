@@ -8,12 +8,12 @@
 
 #define signalOutputInterruptPinRight 23
 #define signalOutputInterruptPinLeft 5
-#define analogOutputLeftPin 25
-#define analogOutputRightPin 12
-#define trigPin 32
-#define echoMidPin 17
-#define echoLeftPin 19   // TO BE UPDATED
-#define echoRightPin 18  // TO BE UPDATED
+#define analogOutputLeftPin 4   //19//32   //25
+#define analogOutputRightPin 2  //17  //12
+#define trigPin 26              //32
+#define echoMidPin 15           //17
+#define echoLeftPin 33          //19   // TO BE UPDATED
+#define echoRightPin 18         // TO BE UPDATED
 #define servoPin 27
 //#define dirLeftPin 16   // TO BE UPDATED
 //#define dirRightPin 3  // TO BE UPDATED
@@ -108,22 +108,22 @@ const float soft_iron[3][3] = {
 };
 
 void setup() {
-  pinMode(signalOutputInterruptPinRight, INPUT);
-  pinMode(signalOutputInterruptPinLeft, INPUT);
+  // pinMode(signalOutputInterruptPinRight, INPUT);
+  // pinMode(signalOutputInterruptPinLeft, INPUT);
   pinMode(analogOutputLeftPin, OUTPUT);
   pinMode(analogOutputRightPin, OUTPUT);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoMidPin, INPUT);
-  pinMode(echoLeftPin, INPUT);  //temporary
-  pinMode(echoRightPin, INPUT);
+  // pinMode(trigPin, OUTPUT);
+  // pinMode(echoMidPin, INPUT);
+  // pinMode(echoLeftPin, INPUT);  //temporary
+  // pinMode(echoRightPin, INPUT);
   // pinMode(dirLeftPin, OUTPUT);
   // pinMode(dirRightPin, OUTPUT);
-  attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
+  /*attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinRight), IRS_RightEncoder, RISING);
-  attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinLeft), IRS_LeftEncoder, RISING);
-  mag = Adafruit_HMC5883_Unified();
+  attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinLeft), IRS_LeftEncoder, RISING);*/
+ // mag = Adafruit_HMC5883_Unified();
   ESP32PWM::allocateTimer(0);
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
@@ -131,11 +131,11 @@ void setup() {
   motorLeftPWM.attachPin(analogOutputLeftPin, 3000, 10);
   motorRightPWM.attachPin(analogOutputRightPin, 3000, 10);
   myservo.setPeriodHertz(50);  // standard 50 hz servo
-  servoChannel = myservo.attach(servoPin, 1000, 2000);
+  servoChannel = myservo.attach(servoPin);//, 1000, 2000);
   Serial.begin(115200);
-  if (!mag.begin()) {
-    while (1) { delay(10); }
-  }
+  //if (!mag.begin()) {
+  //  while (1) { delay(10); }
+ // }
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
 }
@@ -370,6 +370,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
   if (sendMove) {  //&& weMoved > 0) {
     client.print(str);
   }
+  // Serial.println(str);
 }
 float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
@@ -505,9 +506,8 @@ void smurfMovement(String signal) {
   keyInpt = "";
   ResetPIDs();
   if (signal == "w" || signal == "W") {
-    //if (!currentGoingForwardDir) {
-    //  ReverseDirection();
-    // }
+    // setPWMLeft(0.7);
+    //setPWMRight(0.7);
     justForward();
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
@@ -522,15 +522,20 @@ void smurfMovement(String signal) {
   }
 }
 void spin() {
-  for (int i = 30; i <= 150; i += 3) {
+  for (int i = 90; i <= 110; i += 3) {
     pos = i;
     myservo.write(pos);
-    delay(100);
+    delay(50);
   }
-  for (int i = 150; i >= 30; i -= 3) {
+  for (int i = 110; i >= 70; i -= 3) {
     pos = i;
     myservo.write(pos);
-    delay(100);
+    delay(50);
+  }
+  for (int i = 70; i <= 90; i += 3) {
+    pos = i;
+    myservo.write(pos);
+    delay(50);
   }
 }
 void justLeftRight(int direction) {
@@ -545,29 +550,25 @@ void justLeftRight(int direction) {
         pwmValueInt = keyInpt.toInt();
       }
     }
-    GetUltrasoundData(MagneticSensorReading(), true);
+    //GetUltrasoundData(MagneticSensorReading(), true);
     if (direction > 0) {
       if (!turnedLeft) {
-        pos = 30;
-        SetServoAngle();
-        delay(100);
+        AdjustPosTo(35);
         turnedLeft = true;
         goingForward = false;
         turnedRight = false;
+        setPWMLeft(0);
+        setPWMRight(0.6);
       }
-      setPWMLeft(0);
-      setPWMRight(0.75);
     } else {
       if (!turnedRight) {
-        pos = 150;
-        SetServoAngle();
-        delay(100);
+        AdjustPosTo(145);
         turnedLeft = false;
         goingForward = false;
         turnedRight = true;
+        setPWMLeft(0.6);
+        setPWMRight(0);
       }
-      setPWMLeft(0.75);
-      setPWMRight(0);
     }
   }
   setPWMLeft(0);
@@ -577,10 +578,8 @@ void justLeftRight(int direction) {
   turnedRight = false;
 }
 void SetServoAngle() {
-  if (pos >= 30 && pos <= 150) {
-    myservo.write(pos);  // tell servo to go to position in variable 'pos'
-    delay(25);
-  }
+  myservo.write(pos);
+  delay(25);
 }
 void CollectAndSendMagDataForCalibration() {
   while (true) {
@@ -648,9 +647,21 @@ void keepDirection() {
   pos = 90 + (degreeChangeFromStartKeepDir * 0.75);  //can be - idk
   SetServoAngle();
 }
+void AdjustPosTo(int wanted) {
+  while (pos != wanted) {
+    if (pos > wanted) {
+      pos--;
+      SetServoAngle();
+    } else if (pos < wanted) {
+      pos++;
+      SetServoAngle();
+    }
+  }
+}
 float PWMLeftCoefficient = 1;
 float PWMRightCoefficient = 1;
 void justForward() {
+  /*
   speedTimer = millis();
   speedAdjustTimer = millis();
   rotationCounterForSpeedRight = 0;
@@ -661,12 +672,13 @@ void justForward() {
   PWMRightCoefficient = 1;
   goingForward = false;
   ResetPIDs();
-  ResetKeepDir();
-  lastDegKeepDir = MagneticSensorReading();
+  ResetKeepDir();*/
+  /*lastDegKeepDir = MagneticSensorReading();
   GetUltrasoundData(MagneticSensorReading(), false);
   GetUltrasoundData(MagneticSensorReading(), false);
   GetUltrasoundData(MagneticSensorReading(), false);
   GetUltrasoundData(MagneticSensorReading(), false);
+  //*/
   while (keyInpt != "None" && keyInpt != "none") {
     if (client.available() > 0) {
       String temp = client.readStringUntil('~');
@@ -675,15 +687,18 @@ void justForward() {
         pwmValueInt = keyInpt.toInt();
       }
     }
-    GetUltrasoundData(MagneticSensorReading(), true);
+    // GetUltrasoundData(MagneticSensorReading(), true);
     if (!goingForward) {  // set the servo forward
-      pos = 90;
-      SetServoAngle();
-      delay(100);
+      AdjustPosTo(90);
       goingForward = true;
       turnedLeft = false;
       turnedRight = false;
     }
+    // setPWMLeft(0.7);
+    //setPWMRight(0.7);
+    setPWMRight(0.5);
+    setPWMLeft(0.5);
+    /*
     if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
       if (5 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
@@ -716,16 +731,19 @@ void justForward() {
       //Serial.println(GetCurrentSpeedRight());
       //Serial.println("coef is: ");
       //Serial.println(GetCurrentSpeedLeft());
-      if (millis() - previousTimeThereWasAnObstacle <= 250) {
-        setPWMLeft(0);
-        setPWMRight(0);
-      } else {
-        setPWMLeft(0.5);   //* PWMLeftCoefficient);
-        setPWMRight(0.5);  // * PWMRightCoefficient);
-        keepDirection();
-      }
+      // if (millis() - previousTimeThereWasAnObstacle <= 250) {
+      //   setPWMLeft(0);
+      //  setPWMRight(0);
+      //  } else {
+      // setPWMRight(0.5);// * PWMRightCoefficient);
+      // setPWMLeft(0.5);// * PWMLeftCoefficient);
+
+      // keepDirection();
+      //  }
       speedAdjustTimer = millis();
-    }
+    }*/
+
+    //*/
   }
   setPWMLeft(0);
   setPWMRight(0);
@@ -733,6 +751,7 @@ void justForward() {
   turnedLeft = false;
   turnedRight = false;
 }
+
 void forward(int mm) {
   Serial.println("Even entered forward");
   ResetPIDs();
@@ -932,20 +951,42 @@ void loop() {
 
 
   //Serial.println(MagneticSensorReading());
-  //delay(200);
+  //delay(200)
+  /*GetUltrasoundData(0, false);
+  Serial.println(MagneticSensorReading());
+  delay(500);*/
 
+  // pos = 90;
+  // SetServoAngle();
+  //delay(3000);
+  // pos = 0;
+  //SetServoAngle();
+  //delay(5000);
+  //pos = 180;
+  //SetServoAngle();
+  //delay(5000);
+  /* GetUltrasoundData(10, false);
+  Serial.println(_medianMid);
+  Serial.println(_medianLeft);
+  Serial.println(_medianRight);
+  delay(500);*/
   //justForward();
+  /*setPWMRight(0.5);
+  setPWMLeft(0.5);
+  delay(3000);
+
+  setPWMRight(0);
+  //setPWMLeft(0);
+  delay(3000);  // Serial.println("Engine started");
+                // spin();
   spin();
-  if (yes) {
-    setPWMLeft(0.7);
-    //  setPWMRight(0.7);
-    // yes = false;
-  }
-  if (yes) {
-   // setPWMLeft(0.7);
-    setPWMRight(0.7);
-    yes = false;
-  }  // Serial.println("Engine started");
+  setPWMRight(0.5);
+  setPWMLeft(0);
+  delay(3000);
+
+  setPWMRight(0);
+  spin();
+  delay(3000);*/
   // yes = false;
   //} else {
   //  setPWMLeft(0);
@@ -957,7 +998,9 @@ void loop() {
   //setPWMLeft(0);
   //setPWMRight(0);
   //delay(2000);
-  /*
+
+
+
   while (WiFi.status() != WL_CONNECTED) {
     WiFi.begin("Miyagi", "$;)_eo73,,.5dhWLd*@");
     delay(3000);
@@ -966,6 +1009,7 @@ void loop() {
       delay(3000);
     }
   }
+
   maxloops = 0;
   while (!client.available() && maxloops < 500) {
     maxloops++;
@@ -981,6 +1025,9 @@ void loop() {
         forward(distanceToMove);
       } else if (line == "smurf") {
         smurfMovement(client.readStringUntil('~'));
+        //setPWMRight(0.6);
+        //setPWMLeft(0.6);
+        //spin();
       } else if (line == "turn") {
         String degreeStr = client.readStringUntil('~');
         float degreeToTurn = degreeStr.toFloat();

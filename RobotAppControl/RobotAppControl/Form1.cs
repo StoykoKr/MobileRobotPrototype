@@ -80,7 +80,7 @@ namespace RobotAppControl
             server = new TcpListener(localAddr, port);
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
             InitMQTTClient();
-          //  server.Start();
+            server.Start();
 
         }
         private void StartListen()
