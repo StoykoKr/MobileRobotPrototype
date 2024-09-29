@@ -31,6 +31,7 @@ const char* mqtt_server = "your.mqtt.broker";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
+const char* publishTopicMagCalibration = "CaliberationMagData";
 const char* publishTopicServoControl = "FrontServoControl";
 const char* subTopicMovement = "Movement";
 const char* subTopicConfirmation = "ServoPosConfirm";
@@ -396,8 +397,8 @@ void justLeftRight(int direction) {
   turnedRight = false;
   turnedLeft = false;
   while (client.connected() && !stopSignal) {
+    CheckWiFiConnection();
     client.loop();
-
     GetUltrasoundData(MagneticSensorReading(), true);
     if (direction > 0) {
       if (!turnedLeft) {
@@ -432,16 +433,14 @@ void justLeftRight(int direction) {
 }
 void CollectAndSendMagDataForCalibration() {
   while (true) {
-    //MagneticSensorReadingFORPROCESSING();
-    String str = "calib|";
-    //str.concat(mag_datat[0]);
-    // str.concat("|");
-    // str.concat(mag_datat[1]);
-    // str.concat("|");
-    // str.concat(mag_datat[2]);
-    str.concat(MagneticSensorReading());
-    str.concat('`');
-    //  client.print(str);
+    MagneticSensorReadingFORPROCESSING();
+    StaticJsonDocument<300> jsonDoc;
+    jsonDoc["x"] = mag_datat[0];
+    jsonDoc["y"] = mag_datat[1];
+    jsonDoc["z"] = mag_datat[2];
+    char jsonBuffer[256];
+    serializeJson(jsonDoc, jsonBuffer);
+    client.publish(publishTopicMagCalibration, jsonBuffer);
     delay(150);
   }
 }
@@ -501,6 +500,7 @@ void justForward() {
   ResetKeepDir();
   lastDegKeepDir = MagneticSensorReading();
   while (client.connected() && !stopSignal) {
+    CheckWiFiConnection();
     client.loop();
     if (!goingForward) {
       startingServoPosReached = false;
@@ -565,7 +565,7 @@ void forward(int mm) {
   ResetKeepDir();
   lastDegKeepDir = MagneticSensorReading();
   weMovedAuto = 0;
-  while (weMovedAuto < mm) {
+  while (weMovedAuto < mm && !stopSignal) {
     int rigthCount = rightEncoderCounter;
     int leftCount = leftEncoderCounter;
     double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculateAuto) * MM_PER_TICK;
@@ -573,6 +573,7 @@ void forward(int mm) {
     weMovedAuto += (rightDistanceMoved + leftDistanceMoved) / 2.0;
     lastRightEncoderCounterUsedToCalculateAuto = rigthCount;
     lastLeftEncoderCounterUsedToCalculateAuto = leftCount;
+    CheckConnections();
     client.loop();
     if (!goingForward) {
       startingServoPosReached = false;
@@ -631,7 +632,7 @@ void turn(float degree) {
   float lastDeg = currentDeg;
   float change = 0;
 
-  while (fabs(degree) - fabs(degreeChangeFromStart) > 10) {
+  while (fabs(degree) - fabs(degreeChangeFromStart) > 10 && !stopSignal) {
     CheckConnections();
     client.loop();
     currentDeg = MagneticSensorReading();
@@ -708,6 +709,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
       stopSignal = false;
     }
   }
+  if (jsonDoc.containsKey("calMag")) {
+    int action = jsonDoc["calMag"];
+    if (action == 1) {
+      CollectAndSendMagDataForCalibration();
+    }
+  }
   if (jsonDoc.containsKey("move")) {
     int moveDistance = jsonDoc["move"];
     forward(moveDistance);
@@ -735,6 +742,7 @@ void StopMovement() {  //викам го ако изгубя връзка или
 }
 void CheckConnections() {
   while (!client.connected()) {
+    stopSignal = true;
     CheckWiFiConnection();
     if (client.connect("ESP32ClientWheels")) {
       client.subscribe(subTopicMovement);  //subscribes here

@@ -34,3 +34,4 @@ D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\ne
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\bin\Debug\net8.0-windows\MQTTnet.dll
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotAppControl.csproj.AssemblyReference.cache
 D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\obj\Debug\net8.0-windows\RobotApp.0FB3A657.Up2Date
+D:\MobileRobot\MobileRobotPrototype\RobotAppControl\RobotAppControl\bin\Debug\net8.0-windows\Newtonsoft.Json.dll

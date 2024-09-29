@@ -41,12 +41,6 @@
             btn_SetStart = new Button();
             btn_SetEnd = new Button();
             btn_ExecuteRoute = new Button();
-            btnLessPWM = new Button();
-            btnMorePWM = new Button();
-            btnCheckCurrentPWM = new Button();
-            btnStop = new Button();
-            btnDir = new Button();
-            btnMQTT = new Button();
             btnSetServo = new Button();
             txtBoxServo = new TextBox();
             button2 = new Button();
@@ -186,66 +180,6 @@
             btn_ExecuteRoute.UseVisualStyleBackColor = true;
             btn_ExecuteRoute.Click += btn_ExecuteRoute_Click;
             // 
-            // btnLessPWM
-            // 
-            btnLessPWM.Location = new Point(981, 146);
-            btnLessPWM.Name = "btnLessPWM";
-            btnLessPWM.Size = new Size(75, 23);
-            btnLessPWM.TabIndex = 18;
-            btnLessPWM.Text = "LessPWM";
-            btnLessPWM.UseVisualStyleBackColor = true;
-            btnLessPWM.Click += btnLessPWM_Click;
-            // 
-            // btnMorePWM
-            // 
-            btnMorePWM.Location = new Point(1078, 146);
-            btnMorePWM.Name = "btnMorePWM";
-            btnMorePWM.Size = new Size(75, 23);
-            btnMorePWM.TabIndex = 19;
-            btnMorePWM.Text = "MorePWM";
-            btnMorePWM.UseVisualStyleBackColor = true;
-            btnMorePWM.Click += btnMorePWM_Click;
-            // 
-            // btnCheckCurrentPWM
-            // 
-            btnCheckCurrentPWM.Location = new Point(986, 175);
-            btnCheckCurrentPWM.Name = "btnCheckCurrentPWM";
-            btnCheckCurrentPWM.Size = new Size(115, 23);
-            btnCheckCurrentPWM.TabIndex = 20;
-            btnCheckCurrentPWM.Text = "Current PWM";
-            btnCheckCurrentPWM.UseVisualStyleBackColor = true;
-            btnCheckCurrentPWM.Click += btnCheckCurrentPWM_Click;
-            // 
-            // btnStop
-            // 
-            btnStop.Location = new Point(981, 204);
-            btnStop.Name = "btnStop";
-            btnStop.Size = new Size(75, 23);
-            btnStop.TabIndex = 21;
-            btnStop.Text = "stop";
-            btnStop.UseVisualStyleBackColor = true;
-            btnStop.Click += btnStop_Click;
-            // 
-            // btnDir
-            // 
-            btnDir.Location = new Point(1143, 204);
-            btnDir.Name = "btnDir";
-            btnDir.Size = new Size(75, 23);
-            btnDir.TabIndex = 22;
-            btnDir.Text = "Dirction";
-            btnDir.UseVisualStyleBackColor = true;
-            btnDir.Click += btnDir_Click;
-            // 
-            // btnMQTT
-            // 
-            btnMQTT.Location = new Point(1147, 545);
-            btnMQTT.Name = "btnMQTT";
-            btnMQTT.Size = new Size(75, 23);
-            btnMQTT.TabIndex = 23;
-            btnMQTT.Text = "MQTT";
-            btnMQTT.UseVisualStyleBackColor = true;
-            btnMQTT.Click += btnMQTT_Click;
-            // 
             // btnSetServo
             // 
             btnSetServo.Location = new Point(969, 321);
@@ -265,7 +199,7 @@
             // 
             // button2
             // 
-            button2.Location = new Point(1062, 206);
+            button2.Location = new Point(1044, 193);
             button2.Name = "button2";
             button2.Size = new Size(75, 23);
             button2.TabIndex = 26;
@@ -275,7 +209,7 @@
             // 
             // btnCalib
             // 
-            btnCalib.Location = new Point(1121, 177);
+            btnCalib.Location = new Point(1136, 204);
             btnCalib.Name = "btnCalib";
             btnCalib.Size = new Size(75, 23);
             btnCalib.TabIndex = 27;
@@ -314,12 +248,6 @@
             Controls.Add(button2);
             Controls.Add(txtBoxServo);
             Controls.Add(btnSetServo);
-            Controls.Add(btnMQTT);
-            Controls.Add(btnDir);
-            Controls.Add(btnStop);
-            Controls.Add(btnCheckCurrentPWM);
-            Controls.Add(btnMorePWM);
-            Controls.Add(btnLessPWM);
             Controls.Add(btn_ExecuteRoute);
             Controls.Add(btn_SetEnd);
             Controls.Add(btn_SetStart);
@@ -358,12 +286,6 @@
         private Button btn_SetStart;
         private Button btn_SetEnd;
         private Button btn_ExecuteRoute;
-        private Button btnLessPWM;
-        private Button btnMorePWM;
-        private Button btnCheckCurrentPWM;
-        private Button btnStop;
-        private Button btnDir;
-        private Button btnMQTT;
         private Button btnSetServo;
         private TextBox txtBoxServo;
         private Button button2;

@@ -15,6 +15,8 @@ using MQTTnet;
 using MQTTnet.Client;
 using System.Collections;
 using MQTTnet.Server;
+using Newtonsoft.Json;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 
 namespace RobotAppControl
 {
@@ -31,14 +33,14 @@ namespace RobotAppControl
         private Rectangle _imgRect = new Rectangle(0, 0, 0, 0);
         private CustomBitmap custom;
         private CustomBitmap occupancyMap;
-        ConcurrentQueue<string> stringsToBeInterpreted;
+        ConcurrentQueue<(string key, object value)> stringsToBeInterpreted;
         ConcurrentQueue<string> TotalRevievedStrings;
-        TcpListener? server = null;
+        // TcpListener? server = null;
         Listener? listener;
         Interpreter? interpreter;
         Thread listenThread;
         Thread interpreterThread;
-        NetworkStream stream;
+        // NetworkStream stream;
         double currentX = 0;
         double currentY = 0;
         double currentRotation = 0;
@@ -48,8 +50,8 @@ namespace RobotAppControl
         IPAddress localAddr = IPAddress.Parse("192.168.43.144");
         private Pen pen = new Pen(Brushes.Black);
         private Rectangle rectangle;
-        TcpClient client;
-        MqttServer mqttServer = null;
+        //TcpClient client;
+        //MqttServer mqttServer = null;
         public delegate void RefreshTheImg();
         public RefreshTheImg myDelagate;
         private bool settingStart = false;
@@ -70,26 +72,26 @@ namespace RobotAppControl
         public Form1()
         {
             InitializeComponent();
-            stringsToBeInterpreted = new ConcurrentQueue<string>();
+            stringsToBeInterpreted = new ConcurrentQueue<(string key, object value)>();
             TotalRevievedStrings = new ConcurrentQueue<string>();
             rawMagDataToBeWorkedOn = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
             // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
-            server = new TcpListener(localAddr, port);
+            // server = new TcpListener(localAddr, port);
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
             InitMQTTClient();
-            server.Start();
+            // server.Start();
 
         }
         private void StartListen()
         {
             if (listener == null)
             {
-                listener = new Listener(ref stringsToBeInterpreted, ref TotalRevievedStrings);
-                listenThread = new Thread(() => listener.BeginListening(stream));
-                listenThread.Start();
+                // listener = new Listener(ref stringsToBeInterpreted, ref TotalRevievedStrings);
+                //listenThread = new Thread(() => listener.BeginListening(stream));
+                //  listenThread.Start();
             }
         }
         private void SetObstaclesFromMap(CustomBitmap map)
@@ -381,25 +383,8 @@ namespace RobotAppControl
         }
         private bool CheckConnection()
         {
-            if (stream == null)
-            {
-                StopListening();
-                StopInterpreting();
-                return false;
-            }
             return true;
-            /*try  // no idea what i was doing here
-            {
-                // Socket socket = stream.Socket;
-                //  bool answ = socket.Connected && !socket.Poll(1000, SelectMode.SelectRead);
-                return true;
-            }
-            catch (Exception)
-            {
-                //  StopListening();
-                //  StopInterpreting();
-                return false;
-            } */
+           
         }
         private void ImageSave()
         {
@@ -545,10 +530,10 @@ namespace RobotAppControl
             try
             {
                 Byte[] data = System.Text.Encoding.ASCII.GetBytes($"smurf~{message}~");
-                if (CheckConnection())
-                {
-                    stream.Write(data, 0, data.Length);
-                }
+                /* if (CheckConnection())
+                 {
+                     stream.Write(data, 0, data.Length);
+                 }*/
             }
             catch (ArgumentNullException e)
             {
@@ -563,10 +548,10 @@ namespace RobotAppControl
         {
             try
             {
-                Byte[] data = System.Text.Encoding.ASCII.GetBytes($"{message}~");
+                //Byte[] data = System.Text.Encoding.ASCII.GetBytes($"{message}~");
                 if (CheckConnection())
                 {
-                    stream.Write(data, 0, data.Length);
+                    //stream.Write(data, 0, data.Length);
                 }
             }
             catch (ArgumentNullException e)
@@ -578,23 +563,37 @@ namespace RobotAppControl
                 Console.WriteLine("SocketException: {0}", e);
             }
         }
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        Keys lastSentKey = Keys.Enter;
+        private async void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (currentlyControlling && currentlyPressedKey == Keys.None)
+            if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
             {
                 currentlyPressedKey = e.KeyCode;
-                WriteDataSingular(currentlyPressedKey.ToString());
+                lastSentKey = e.KeyCode;
+                //WriteDataSingular(currentlyPressedKey.ToString());
+                var message = new
+                {
+                    manualCommand = currentlyPressedKey.ToString(),
+                    stopSignal = "false"
+                };
 
+                await PublishJsonMessageAsync("Movement", message);
             }
 
         }
-        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        private async void Form1_KeyUp(object sender, KeyEventArgs e)
         {
             if (currentlyControlling && currentlyPressedKey != Keys.None)
             {
                 currentlyPressedKey = Keys.None;
-                WriteDataSingular(currentlyPressedKey.ToString());
+                //WriteDataSingular(currentlyPressedKey.ToString());
+                var message = new
+                {
+                    manualCommand = currentlyPressedKey.ToString(),
+                    stopSignal = "true"
+                };
 
+                await PublishJsonMessageAsync("Movement", message);
             }
         }
         private void ControlRobotLogic()
@@ -616,24 +615,9 @@ namespace RobotAppControl
         {
             ControlRobotLogic();
         }
-        private void ConnectionButton()
-        {
-            if (CheckConnection())
-            {
-                MessageBox.Show("Already connected???");
-            }
-            else
-            {
-                client = server.AcceptTcpClient();
-                stream = client.GetStream();
-
-
-                MessageBox.Show("we got here");
-            }
-        }
         private void btn_ConnectionButton_Click(object sender, EventArgs e)
         {
-            ConnectionButton();
+            // ConnectionButton();
         }
         private void CreateNewImage()
         {
@@ -893,67 +877,16 @@ namespace RobotAppControl
         {
             ExecutePlan();
         }
-        private int PWMSignalStrenght = 0;
-        private void WritePWMTOScreen()
-        {
-            txtBox_TextOutput.Clear();
-            txtBox_TextOutput.AppendText($"PWM = {PWMSignalStrenght}");
-        }
-        private void SendPWMdata()
-        {
-            WriteData($"pwm~{PWMSignalStrenght}~");
-        }
-        private void btnLessPWM_Click(object sender, EventArgs e)
-        {
-            if (PWMSignalStrenght > 0)
-            {
-                PWMSignalStrenght -= 25;
-            }
-
-            if (PWMSignalStrenght < 0)
-            {
-                PWMSignalStrenght = 0;
-            }
-            WritePWMTOScreen();
-            SendPWMdata();
-        }
-        private void btnCheckCurrentPWM_Click(object sender, EventArgs e)
-        {
-            WritePWMTOScreen();
-        }
-        private void btnMorePWM_Click(object sender, EventArgs e)
-        {
-            if (PWMSignalStrenght < 250)
-            {
-                PWMSignalStrenght += 25;
-            }
-
-            if (PWMSignalStrenght > 250)
-            {
-                PWMSignalStrenght = 250;
-            }
-            WritePWMTOScreen();
-            SendPWMdata();
-        }
-        private void btnDir_Click(object sender, EventArgs e)
-        {
-            WriteData("dir~");
-        }
-        private void btnStop_Click(object sender, EventArgs e)
-        {
-
-            WriteData("break~");
-        }
-        private async void InitMQTTClient()  
-        {
-            if (imagePublisherClient == null)
-            {           
-                imagePublisherClient = mqttFactory.CreateMqttClient();
-                var mqttClientOptions = new MqttClientOptionsBuilder().WithWebSocketServer(o => o.WithUri("ws://localhost:9001/mqtt"))
+        MqttClientOptions mqttClientOptions = new MqttClientOptionsBuilder().WithWebSocketServer(o => o.WithUri("ws://localhost:9001/mqtt"))
                      .WithClientId("ServerClient")
                      .WithCleanSession()
                     .Build();
-                imagePublisherClient.ApplicationMessageReceivedAsync += delegate (MqttApplicationMessageReceivedEventArgs args)   
+        private async void InitMQTTClient()
+        {
+            if (imagePublisherClient == null)
+            {
+                imagePublisherClient = mqttFactory.CreateMqttClient();
+                imagePublisherClient.ApplicationMessageReceivedAsync += delegate (MqttApplicationMessageReceivedEventArgs args)
                 {
                     // Do some work with the message...
                     string topic = args.ApplicationMessage.Topic;
@@ -961,203 +894,36 @@ namespace RobotAppControl
 
                     switch (topic)
                     {
-                        case "topic/one":
-                            HandleTopicOne(str);
+                        case "DataForMapping":
+                            HandleTopicMap(str);
                             break;
-
-                        case "topic/two":
-                            HandleTopicTwo(str);
-                            break;
-
-                        case "topic/three":
-                            HandleTopicThree(str);
-                            break;
-
                         default:
-                            Console.WriteLine($"Unknown topic: {topic}");
+                            addToTextBox($"Unknown topic: {topic}");
                             break;
                     }
 
                     return Task.CompletedTask;
                 };
 
+                imagePublisherClient.ConnectedAsync += async e =>
+                {
+                    addToTextBox($"Connected to MQTT broker\n");
+                };
 
                 await imagePublisherClient.ConnectAsync(mqttClientOptions);
+
+                imagePublisherClient.DisconnectedAsync += async e =>
+                {
+                   
+                    await ReconnectToBrokerAsync();
+                };
+
 
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/one").Build());
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/two").Build());
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/three").Build());
 
             }
-        }
-        private void HandleTopicOne(string payload)
-        {
-            Console.WriteLine($"Message received on topic/one: {payload}");
-            // Add custom logic for topic/one
-        }
-
-        private void HandleTopicTwo(string payload)
-        {
-            Console.WriteLine($"Message received on topic/two: {payload}");
-            // Add custom logic for topic/two
-        }
-
-        private void HandleTopicThree(string payload)
-        {
-            Console.WriteLine($"Message received on topic/three: {payload}");
-            // Add custom logic for topic/three
-        }
-
-        private async void btnMQTT_Click(object sender, EventArgs e)
-        {
-            if (mqttServer == null)
-            {
-              //  TempServer();
-            }
-            else
-            {
-              //  await mqttServer.StopAsync();
-            }
-        }
-        /*
-        private async void MqttClient() // old-ish code
-        {
-            using (mqttClient = mqttFactory.CreateMqttClient())
-            {
-                var mqttClientOptions = new MqttClientOptionsBuilder()
-                    .WithClientId("Client1")
-                    .WithTcpServer("-broker here-", 1883) // Use a public broker for demo purposes
-                    .WithCleanSession()
-                    .Build();
-
-                mqttClient.ApplicationMessageReceivedAsync += e =>
-                {
-                    Console.WriteLine("Received application message.");
-                    Console.WriteLine($"Topic: {e.ApplicationMessage.Topic}");
-                    Console.WriteLine($"Payload: {Encoding.UTF8.GetString(e.ApplicationMessage.Payload)}");
-                    Console.WriteLine($"QoS: {e.ApplicationMessage.QualityOfServiceLevel}");
-                    Console.WriteLine($"Retain: {e.ApplicationMessage.Retain}");
-                    Console.WriteLine();
-                    return Task.CompletedTask;
-                };
-
-                mqttClient.ConnectedAsync += async e =>
-                {
-                    Console.WriteLine("Connected successfully with MQTT Brokers.");
-
-                    // Subscribe to a topic
-                    await mqttClient.SubscribeAsync(new MqttClientSubscribeOptionsBuilder()
-                        .WithTopicFilter("testinTopic")
-                        .Build());
-
-                    Console.WriteLine("Subscribed to topic 'testinTopic'");
-                };
-
-                mqttClient.DisconnectedAsync += async e =>
-                {
-                    Console.WriteLine("Disconnected from MQTT Brokers.");
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-
-                    try
-                    {
-                        await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None); // Since 3.0.5 with CancellationToken
-                    }
-                    catch
-                    {
-                        Console.WriteLine("Reconnecting failed.");
-                    }
-                };
-
-
-                try
-                {
-                    await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None); // Since 3.0.5 with CancellationToken
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Connecting to MQTT Brokers failed: {ex.Message}");
-                }
-
-                Console.WriteLine("Press key to exit.");
-                Console.ReadLine();
-            }
-        }
-        */
-
-        private async void TempServer() // this is obsolete as we are now using mosquitto    we simply need a client now to post images and listen to the other topics
-        {
-            // Create and configure the MQTT broker options
-            var optionsBuilder = new MqttServerOptionsBuilder()
-                .WithDefaultEndpoint()
-                .WithDefaultEndpointPort(1883);
-
-            // Create the MQTT server
-            mqttServer = mqttFactory.CreateMqttServer(optionsBuilder.Build());
-
-            // Attach event handlers
-            mqttServer.ClientConnectedAsync += ClientConnected;
-            mqttServer.ClientDisconnectedAsync += ClientDisconnected;
-            mqttServer.InterceptingPublishAsync += MessageReceived;
-            // mqttServer.ApplicationMessageEnqueuedOrDroppedAsync
-            // Start the MQTT server
-            await mqttServer.StartAsync();
-            // Stop the MQTT server
-            // await mqttServer.StopAsync();
-            MessageBox.Show("Server is up");
-        }
-        private async void SendImage()
-        {
-            await PublishImageChunks();
-        }
-        public static byte[] ImageToByte(Image img)
-        {
-            using (var stream = new MemoryStream())
-            {
-                img.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-                return stream.ToArray();
-            }
-        }
-        private async Task PublishImageChunks()
-        {    
-            // Read and split the image into chunks
-            byte[] imageBytes = ImageToByte(custom.Bitmap);    // Will use the current image on screen
-            int chunkSize = 256 * 1024; // 256 KB per chunk
-            int numberOfChunks = (int)Math.Ceiling((double)imageBytes.Length / chunkSize);
-
-            for (int i = 0; i < numberOfChunks; i++)
-            {
-                int currentChunkSize = Math.Min(chunkSize, imageBytes.Length - i * chunkSize);
-                byte[] chunk = new byte[currentChunkSize];
-                Array.Copy(imageBytes, i * chunkSize, chunk, 0, currentChunkSize);
-
-                var message = new MqttApplicationMessageBuilder()
-                    .WithTopic("Image/Chunk")
-                    .WithPayload(chunk)
-                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-                    .Build();
-
-                await imagePublisherClient.PublishAsync(message);
-            }
-
-            // Signal the end of the image transmission
-            var endMessage = new MqttApplicationMessageBuilder()
-                .WithTopic("Image/End")
-                .WithPayload(Encoding.UTF8.GetBytes("End of Image"))
-                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-                .Build();
-
-            await imagePublisherClient.PublishAsync(endMessage);
-        }
-        private static Task ClientConnected(ClientConnectedEventArgs eventArgs)
-        {
-            // Console.WriteLine($"Client connected: {eventArgs.ClientId}");
-            return Task.CompletedTask;
-        }
-
-        private Task ClientDisconnected(ClientDisconnectedEventArgs eventArgs)
-        {
-            // Console.WriteLine($"Client disconnected: {eventArgs.ClientId}");
-            return Task.CompletedTask;
         }
         private void addToTextBox(string messageToAdd)
         {
@@ -1174,47 +940,88 @@ namespace RobotAppControl
                 action();
             }
         }
-
-        private Task MessageReceived(InterceptingPublishEventArgs eventArgs)
+        private  async Task ReconnectToBrokerAsync()
         {
-            var message = eventArgs.ApplicationMessage;
-            var topic = message.Topic;
-
-            // Check if the message is received on the "Direction" topic
-            if (topic == "Direction")
+            while (!imagePublisherClient.IsConnected)
             {
-                var payload = Encoding.UTF8.GetString(message.Payload);
-
-                // ThreadPool.QueueUserWorkItem(state => addToTextBox(payload));
-
-                WriteDataSingular(payload);
-                // If this works we place some control logic here and we good.
-
-
+                try
+                {                   
+                    await imagePublisherClient.ConnectAsync(mqttClientOptions);
+                }
+                catch
+                {
+                    await Task.Delay(5000);  // Wait 5 seconds before retrying
+                }
             }
-            else if (topic == "Whatever topic we expect")  // There should be better ways buuut :)
-            {
-                var payload = Encoding.UTF8.GetString(message.PayloadSegment);
-
-                // we have the info and are free to reroute or whatever
-
-                //   CreateNewImage();
-                //  ConnectionButton();
-                // ControlRobotLogic();
-                //  SetObstacles();
-                // SetStart();
-                // SetEnd();
-                //  AreaClick(Point coordinates)
-                //  PlanPath();
-                // ExecutePlan();
-                //  ImageSave();
-                //   StartConvertingToOcccupancyThread(); 
-                //  LoadImageAsMap();
-            }
-
-            return Task.CompletedTask;
+        }
+        private void HandleTopicMap(string payload)
+        {
+            JsonMessageClass? message = JsonConvert.DeserializeObject<JsonMessageClass>(payload);
+            stringsToBeInterpreted.Enqueue(("mapPoint", message));
         }
 
+        private void HandleTopicTwo(string payload)
+        {
+            Console.WriteLine($"Message received on topic/two: {payload}");
+            // Add custom logic for topic/two
+        }
+
+        private void HandleTopicThree(string payload)
+        {
+            Console.WriteLine($"Message received on topic/three: {payload}");
+            // Add custom logic for topic/three
+        }
+
+        private void SendImage()
+        {
+            PublishImageChunks();
+        }
+        private async Task PublishJsonMessageAsync(string topic, object message)
+        {
+            var payload = JsonConvert.SerializeObject(message);
+            var mqttMessage = new MqttApplicationMessageBuilder()
+                .WithTopic(topic)  // Specify the topic
+                .WithPayload(Encoding.UTF8.GetBytes(payload))
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce)
+                .Build();
+
+            await imagePublisherClient.PublishAsync(mqttMessage);
+        }
+
+
+        private async void PublishImageChunks()
+        {
+            // Read and split the image into chunks
+            byte[] imageBytes = ImageToByte(custom.Bitmap);    // Will use the current image on screen
+            int chunkSize = 128 * 1024; // 256 KB per chunk
+            int numberOfChunks = (int)Math.Ceiling((double)imageBytes.Length / chunkSize);
+
+            for (int i = 0; i < numberOfChunks; i++)
+            {
+                int currentChunkSize = Math.Min(chunkSize, imageBytes.Length - i * chunkSize);
+                byte[] chunk = new byte[currentChunkSize];
+                Array.Copy(imageBytes, i * chunkSize, chunk, 0, currentChunkSize);
+
+                var message = new
+                {
+                    chunkNumber = i + 1,
+                    totalChunks = numberOfChunks,
+                    data = chunk
+                };
+
+                await PublishJsonMessageAsync("topic", message);
+            }
+        }
+
+        public static byte[] ImageToByte(Image img)
+        {
+            using (var stream = new MemoryStream())
+            {
+                img.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+                return stream.ToArray();
+            }
+        }
+  
         private void btnSetServo_Click(object sender, EventArgs e)
         {
             //  int servoAngle = int.Parse(txtBoxServo.Text);
@@ -1228,23 +1035,30 @@ namespace RobotAppControl
 
         }
         bool isTakingMagData = false;
-        private void btnCalib_Click(object sender, EventArgs e)
+        private async void btnCalib_Click(object sender, EventArgs e)
         {
             if (isTakingMagData)
             {
-                stringsToBeInterpreted.Enqueue("endCalib|");
+                MessageBox.Show("Stopping Collection");
+                stringsToBeInterpreted.Enqueue(("endCalib", 0));
             }
             else
             {
-                WriteData($"calMag~");
+                var message = new
+                {
+                    calMag = 1
+
+                };
+                await PublishJsonMessageAsync("Movement", message);
+
                 isTakingMagData = true;
                 MessageBox.Show("We are collecting data.");
             }
         }
         private void btnRelayTest_Click(object sender, EventArgs e)
         {
-           // WriteData($"relay~");
-           SaveDefaultImage();
+            // WriteData($"relay~");
+            SaveDefaultImage();
         }
         private void button3_Click(object sender, EventArgs e)
         {
@@ -1277,6 +1091,11 @@ namespace RobotAppControl
             {
                 // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{45}|0|{0}|90|{-0}|-90|{-0}|`");
             }
+
+        }
+
+        private void btnStop_Click_1(object sender, EventArgs e)
+        {
 
         }
     }
