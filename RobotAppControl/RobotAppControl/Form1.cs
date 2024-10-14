@@ -82,7 +82,7 @@ namespace RobotAppControl
             myDelagate = new RefreshTheImg(RefreshPicture);
             // server = new TcpListener(localAddr, port);
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
-            InitMQTTClient();
+           // InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
             // server.Start();
 
         }

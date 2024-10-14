@@ -1,0 +1,67 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|c:\\users\\hari\\data\\projects\\robo\\mobilerobotprototype\\robotappcontrol\\robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|c:\\users\\hari\\data\\projects\\robo\\mobilerobotprototype\\robotappcontrol\\robotappcontrol\\interpreter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\interpreter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 1,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Interpreter.cs",
+              "DocumentMoniker": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Interpreter.cs",
+              "RelativeDocumentMoniker": "RobotAppControl\\Interpreter.cs",
+              "ToolTip": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Interpreter.cs",
+              "RelativeToolTip": "RobotAppControl\\Interpreter.cs",
+              "ViewState": "AQIAADQAAAAAAAAAAAAAAFYAAAAgAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-09-29T07:58:10.543Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Form1.cs",
+              "DocumentMoniker": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
+              "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
+              "ToolTip": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
+              "RelativeToolTip": "RobotAppControl\\Form1.cs",
+              "ViewState": "AgIAAH0CAAAAAAAAAAAQwKsCAAAMAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-07-01T12:18:37.339Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Form1.cs [Design]",
+              "DocumentMoniker": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
+              "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
+              "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs [Design]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-09-29T07:37:26.1Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
