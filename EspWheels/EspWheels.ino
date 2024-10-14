@@ -9,12 +9,12 @@
 
 #define signalOutputInterruptPinRight 23
 #define signalOutputInterruptPinLeft 5
-#define analogOutputLeftPin 4   //19//32   //25
-#define analogOutputRightPin 2  //17  //12
-#define trigPin 26              //32
-#define echoMidPin 15           //17
-#define echoLeftPin 33          //19   // TO BE UPDATED
-#define echoRightPin 18         // TO BE UPDATED
+#define analogOutputLeftPin 26   //17   //33
+#define analogOutputRightPin 16  //14
+#define trigPin 33               //26
+#define echoMidPin 18
+#define echoLeftPin 19   //17
+#define echoRightPin 17  //16
 
 #define WHEEL_DIAM 203.2
 //#define distance_Wheels 140   // TO BE UPDATED?
@@ -27,7 +27,7 @@
 
 const char* ssid = "Miyagi";
 const char* password = "$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "your.mqtt.broker";
+const char* mqtt_server = "192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -130,8 +130,8 @@ void setup() {
   ESP32PWM::allocateTimer(1);
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
-  motorLeftPWM.attachPin(analogOutputLeftPin, 3000, 10);
-  motorRightPWM.attachPin(analogOutputRightPin, 3000, 10);
+  motorLeftPWM.attachPin(analogOutputLeftPin, 5000, 10);
+  motorRightPWM.attachPin(analogOutputRightPin, 5000, 10);
   Serial.begin(115200);
   if (!mag.begin()) {
     while (1) { delay(10); }
@@ -145,8 +145,8 @@ void resetConnectionParams() {
   WiFi.disconnect();
 }
 void setPWMLeft(float duty_cycle) {  // 0.0 to 1.0
-  if (duty_cycle >= 0.75) {
-    motorLeftPWM.writeScaled(0.75);
+  if (duty_cycle >= 0.95) {
+    motorLeftPWM.writeScaled(0.95);
   } else if (duty_cycle < 0) {
     motorLeftPWM.writeScaled(0);
   } else {
@@ -154,8 +154,8 @@ void setPWMLeft(float duty_cycle) {  // 0.0 to 1.0
   }
 }
 void setPWMRight(float duty_cycle) {
-  if (duty_cycle >= 0.75) {
-    motorRightPWM.writeScaled(0.75);
+  if (duty_cycle >= 0.95) {
+    motorRightPWM.writeScaled(0.95);
   } else if (duty_cycle < 0) {
     motorRightPWM.writeScaled(0);
   } else {
@@ -232,7 +232,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
   double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
+  weMoved = /* (rightDistanceMoved + */ leftDistanceMoved;  //); /// 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
 
@@ -400,6 +400,7 @@ void justLeftRight(int direction) {
     CheckWiFiConnection();
     client.loop();
     GetUltrasoundData(MagneticSensorReading(), true);
+    //GetUltrasoundData(0, true);
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
@@ -440,7 +441,7 @@ void CollectAndSendMagDataForCalibration() {
     jsonDoc["z"] = mag_datat[2];
     char jsonBuffer[256];
     serializeJson(jsonDoc, jsonBuffer);
-    client.publish(publishTopicMagCalibration, jsonBuffer);
+    client.publish(publishTopicMagCalibration, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
     delay(150);
   }
 }
@@ -466,7 +467,7 @@ void ResetKeepDir() {
   degreeChangeFromStartKeepDir = 0;
 }
 void keepDirection() {
-  float currentDeg = MagneticSensorReading();
+  float currentDeg = MagneticSensorReading();  //0;
   changeKeepDir = currentDeg - lastDegKeepDir;
   if (changeKeepDir > 200) {
     changeKeepDir -= 360;
@@ -480,13 +481,14 @@ void keepDirection() {
 void AdjustPosTo(int wanted, bool waitAnswer) {
   StaticJsonDocument<200> jsonDoc;
   jsonDoc["wantedDirection"] = wanted;
+  jsonDoc["stopServos"] = false;
   jsonDoc["answer"] = waitAnswer;
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
   if (waitAnswer) {
-    client.publish(publishTopicServoControl, jsonBuffer, 1);
+    client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
   } else {
-    client.publish(publishTopicServoControl, jsonBuffer);
+    client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
   }
 }
 void justForward() {
@@ -512,6 +514,7 @@ void justForward() {
     if (startingServoPosReached) {
 
       GetUltrasoundData(MagneticSensorReading(), true);
+      // GetUltrasoundData(0, true);
 
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
@@ -522,6 +525,9 @@ void justForward() {
         timeIntervalIndexCounter++;
         speedTimer = millis();
       }
+      // Serial.println("Left is .. Then right is ..");
+      // Serial.println(leftEncoderCounter);
+      // Serial.println(rightEncoderCounter);
 
       if (millis() - speedAdjustTimer >= 100) {  // Minimum time between pwm changes
         float changeLEft = PidControllerSpeedLeft(3, 0.015, GetCurrentSpeedLeft());
@@ -540,12 +546,16 @@ void justForward() {
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-          setPWMRight(0.5 * PWMRightCoefficient);
+          // setPWMRight(0.5 * PWMRightCoefficient);
+          setPWMRight(0.5 * PWMLeftCoefficient);
           setPWMLeft(0.5 * PWMLeftCoefficient);
           keepDirection();
         }
         speedAdjustTimer = millis();
       }
+      //*/
+      //setPWMRight(0.5);
+      //setPWMLeft(0.5);
     }
   }
   StopMovement();
@@ -570,11 +580,9 @@ void forward(int mm) {
     int leftCount = leftEncoderCounter;
     double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculateAuto) * MM_PER_TICK;
     double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculateAuto) * MM_PER_TICK;
-    weMovedAuto += (rightDistanceMoved + leftDistanceMoved) / 2.0;
+    weMovedAuto += /*(rightDistanceMoved + */ leftDistanceMoved;  //) / 2.0;
     lastRightEncoderCounterUsedToCalculateAuto = rigthCount;
     lastLeftEncoderCounterUsedToCalculateAuto = leftCount;
-    CheckConnections();
-    client.loop();
     if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(90, true);
@@ -611,7 +619,8 @@ void forward(int mm) {
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-          setPWMRight(0.5 * PWMRightCoefficient);
+            // setPWMRight(0.5 * PWMRightCoefficient);
+          setPWMRight(0.5 * PWMLeftCoefficient);
           setPWMLeft(0.5 * PWMLeftCoefficient);
           keepDirection();
         }
@@ -623,6 +632,8 @@ void forward(int mm) {
   goingForward = false;
   turnedLeft = false;
   turnedRight = false;
+  CheckWiFiConnection();
+  client.loop();
 }
 void turn(float degree) {
   delay(1250);  // delay for probable inertia from movement
@@ -675,6 +686,8 @@ void turn(float degree) {
   turnedLeft = false;
   goingForward = false;
   turnedRight = false;
+  CheckWiFiConnection();
+  client.loop();
 }
 void publishJsonDataForMap(float direction, float movement, float left, float mid, float right) {
   StaticJsonDocument<300> jsonDoc;
@@ -685,7 +698,7 @@ void publishJsonDataForMap(float direction, float movement, float left, float mi
   jsonDoc["rightSensor"] = right;
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
-  client.publish(publishTopicMapData, jsonBuffer);
+  client.publish(publishTopicMapData, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
 }
 void callback(char* topic, byte* payload, unsigned int length) {
   String message;
@@ -745,8 +758,8 @@ void CheckConnections() {
     stopSignal = true;
     CheckWiFiConnection();
     if (client.connect("ESP32ClientWheels")) {
-      client.subscribe(subTopicMovement);  //subscribes here
-      client.subscribe(subTopicConfirmation);
+      client.subscribe(subTopicMovement, 1);
+      client.subscribe(subTopicConfirmation, 1);
     } else {
       delay(2000);
     }
@@ -764,4 +777,11 @@ void loop() {
   CheckConnections();
   client.loop();  // must be called constantly to check for new data
   delay(100);
+  //*/
+
+  /*setPWMRight(0.5);
+  setPWMLeft(0.5);
+  delay(2500);
+  setPWMRight(0);
+  setPWMLeft(0);  */
 }

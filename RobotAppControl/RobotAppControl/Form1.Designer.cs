@@ -47,6 +47,10 @@
             btnCalib = new Button();
             btnRelayTest = new Button();
             button3 = new Button();
+            btnArmDown = new Button();
+            btnArmUp = new Button();
+            btnGrab = new Button();
+            btnRelease = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -64,7 +68,7 @@
             // 
             // btn_CreateNewImage
             // 
-            btn_CreateNewImage.Location = new Point(999, 59);
+            btn_CreateNewImage.Location = new Point(1100, 57);
             btn_CreateNewImage.Name = "btn_CreateNewImage";
             btn_CreateNewImage.Size = new Size(118, 23);
             btn_CreateNewImage.TabIndex = 1;
@@ -74,7 +78,7 @@
             // 
             // btn_LoadImageAsMap
             // 
-            btn_LoadImageAsMap.Location = new Point(986, 30);
+            btn_LoadImageAsMap.Location = new Point(1062, 28);
             btn_LoadImageAsMap.Name = "btn_LoadImageAsMap";
             btn_LoadImageAsMap.Size = new Size(156, 23);
             btn_LoadImageAsMap.TabIndex = 2;
@@ -84,7 +88,7 @@
             // 
             // btn_ManualRotation
             // 
-            btn_ManualRotation.Location = new Point(1055, 292);
+            btn_ManualRotation.Location = new Point(1104, 332);
             btn_ManualRotation.Name = "btn_ManualRotation";
             btn_ManualRotation.Size = new Size(118, 23);
             btn_ManualRotation.TabIndex = 4;
@@ -94,7 +98,7 @@
             // 
             // txtBox_TextOutput
             // 
-            txtBox_TextOutput.Location = new Point(999, 350);
+            txtBox_TextOutput.Location = new Point(977, 361);
             txtBox_TextOutput.Multiline = true;
             txtBox_TextOutput.Name = "txtBox_TextOutput";
             txtBox_TextOutput.Size = new Size(161, 178);
@@ -102,7 +106,7 @@
             // 
             // btn_SaveImg
             // 
-            btn_SaveImg.Location = new Point(1019, 545);
+            btn_SaveImg.Location = new Point(986, 545);
             btn_SaveImg.Name = "btn_SaveImg";
             btn_SaveImg.Size = new Size(118, 23);
             btn_SaveImg.TabIndex = 6;
@@ -112,7 +116,7 @@
             // 
             // btn_ConvertLoadedToOccupancyGrid
             // 
-            btn_ConvertLoadedToOccupancyGrid.Location = new Point(1044, 580);
+            btn_ConvertLoadedToOccupancyGrid.Location = new Point(986, 580);
             btn_ConvertLoadedToOccupancyGrid.Name = "btn_ConvertLoadedToOccupancyGrid";
             btn_ConvertLoadedToOccupancyGrid.Size = new Size(152, 46);
             btn_ConvertLoadedToOccupancyGrid.TabIndex = 11;
@@ -122,7 +126,7 @@
             // 
             // btn_ControlRobot
             // 
-            btn_ControlRobot.Location = new Point(986, 117);
+            btn_ControlRobot.Location = new Point(1054, 115);
             btn_ControlRobot.Name = "btn_ControlRobot";
             btn_ControlRobot.Size = new Size(164, 23);
             btn_ControlRobot.TabIndex = 12;
@@ -132,7 +136,7 @@
             // 
             // btn_ConnectionButton
             // 
-            btn_ConnectionButton.Location = new Point(986, 88);
+            btn_ConnectionButton.Location = new Point(1079, 86);
             btn_ConnectionButton.Name = "btn_ConnectionButton";
             btn_ConnectionButton.Size = new Size(139, 23);
             btn_ConnectionButton.TabIndex = 13;
@@ -142,7 +146,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(978, 235);
+            button1.Location = new Point(977, 280);
             button1.Name = "button1";
             button1.Size = new Size(139, 23);
             button1.TabIndex = 14;
@@ -152,7 +156,7 @@
             // 
             // btn_SetStart
             // 
-            btn_SetStart.Location = new Point(981, 263);
+            btn_SetStart.Location = new Point(1144, 372);
             btn_SetStart.Name = "btn_SetStart";
             btn_SetStart.Size = new Size(75, 23);
             btn_SetStart.TabIndex = 15;
@@ -162,7 +166,7 @@
             // 
             // btn_SetEnd
             // 
-            btn_SetEnd.Location = new Point(1109, 264);
+            btn_SetEnd.Location = new Point(1147, 401);
             btn_SetEnd.Name = "btn_SetEnd";
             btn_SetEnd.Size = new Size(71, 22);
             btn_SetEnd.TabIndex = 16;
@@ -172,9 +176,9 @@
             // 
             // btn_ExecuteRoute
             // 
-            btn_ExecuteRoute.Location = new Point(1078, 321);
+            btn_ExecuteRoute.Location = new Point(1147, 465);
             btn_ExecuteRoute.Name = "btn_ExecuteRoute";
-            btn_ExecuteRoute.Size = new Size(95, 23);
+            btn_ExecuteRoute.Size = new Size(75, 23);
             btn_ExecuteRoute.TabIndex = 17;
             btn_ExecuteRoute.Text = "ExecuteRoute";
             btn_ExecuteRoute.UseVisualStyleBackColor = true;
@@ -182,7 +186,7 @@
             // 
             // btnSetServo
             // 
-            btnSetServo.Location = new Point(969, 321);
+            btnSetServo.Location = new Point(969, 332);
             btnSetServo.Name = "btnSetServo";
             btnSetServo.Size = new Size(87, 23);
             btnSetServo.TabIndex = 24;
@@ -192,14 +196,14 @@
             // 
             // txtBoxServo
             // 
-            txtBoxServo.Location = new Point(981, 293);
+            txtBoxServo.Location = new Point(969, 309);
             txtBoxServo.Name = "txtBoxServo";
             txtBoxServo.Size = new Size(61, 23);
             txtBoxServo.TabIndex = 25;
             // 
             // button2
             // 
-            button2.Location = new Point(1044, 193);
+            button2.Location = new Point(1147, 545);
             button2.Name = "button2";
             button2.Size = new Size(75, 23);
             button2.TabIndex = 26;
@@ -209,7 +213,7 @@
             // 
             // btnCalib
             // 
-            btnCalib.Location = new Point(1136, 204);
+            btnCalib.Location = new Point(1144, 429);
             btnCalib.Name = "btnCalib";
             btnCalib.Size = new Size(75, 23);
             btnCalib.TabIndex = 27;
@@ -219,7 +223,7 @@
             // 
             // btnRelayTest
             // 
-            btnRelayTest.Location = new Point(1123, 233);
+            btnRelayTest.Location = new Point(1122, 280);
             btnRelayTest.Name = "btnRelayTest";
             btnRelayTest.Size = new Size(99, 23);
             btnRelayTest.TabIndex = 28;
@@ -229,7 +233,7 @@
             // 
             // button3
             // 
-            button3.Location = new Point(1147, 376);
+            button3.Location = new Point(1147, 505);
             button3.Name = "button3";
             button3.Size = new Size(75, 23);
             button3.TabIndex = 29;
@@ -237,11 +241,55 @@
             button3.UseVisualStyleBackColor = true;
             button3.Click += button3_Click;
             // 
+            // btnArmDown
+            // 
+            btnArmDown.Location = new Point(977, 169);
+            btnArmDown.Name = "btnArmDown";
+            btnArmDown.Size = new Size(75, 23);
+            btnArmDown.TabIndex = 30;
+            btnArmDown.Text = "ArmDown";
+            btnArmDown.UseVisualStyleBackColor = true;
+            btnArmDown.Click += btnArmDown_Click;
+            // 
+            // btnArmUp
+            // 
+            btnArmUp.Location = new Point(1079, 169);
+            btnArmUp.Name = "btnArmUp";
+            btnArmUp.Size = new Size(75, 23);
+            btnArmUp.TabIndex = 31;
+            btnArmUp.Text = "ArmUp";
+            btnArmUp.UseVisualStyleBackColor = true;
+            btnArmUp.Click += btnArmUp_Click;
+            // 
+            // btnGrab
+            // 
+            btnGrab.Location = new Point(978, 213);
+            btnGrab.Name = "btnGrab";
+            btnGrab.Size = new Size(75, 23);
+            btnGrab.TabIndex = 32;
+            btnGrab.Text = "Grab";
+            btnGrab.UseVisualStyleBackColor = true;
+            btnGrab.Click += btnGrab_Click;
+            // 
+            // btnRelease
+            // 
+            btnRelease.Location = new Point(1079, 213);
+            btnRelease.Name = "btnRelease";
+            btnRelease.Size = new Size(75, 23);
+            btnRelease.TabIndex = 33;
+            btnRelease.Text = "Release";
+            btnRelease.UseVisualStyleBackColor = true;
+            btnRelease.Click += btnRelease_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnRelease);
+            Controls.Add(btnGrab);
+            Controls.Add(btnArmUp);
+            Controls.Add(btnArmDown);
             Controls.Add(button3);
             Controls.Add(btnRelayTest);
             Controls.Add(btnCalib);
@@ -292,5 +340,9 @@
         private Button btnCalib;
         private Button btnRelayTest;
         private Button button3;
+        private Button btnArmDown;
+        private Button btnArmUp;
+        private Button btnGrab;
+        private Button btnRelease;
     }
 }

@@ -17,6 +17,7 @@ using System.Collections;
 using MQTTnet.Server;
 using Newtonsoft.Json;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
+using Microsoft.VisualBasic;
 
 namespace RobotAppControl
 {
@@ -34,7 +35,7 @@ namespace RobotAppControl
         private CustomBitmap custom;
         private CustomBitmap occupancyMap;
         ConcurrentQueue<(string key, object value)> stringsToBeInterpreted;
-        ConcurrentQueue<string> TotalRevievedStrings;
+        ConcurrentQueue<(float, float, float)> TotalRevievedStrings = new ConcurrentQueue<(float, float, float)>();
         // TcpListener? server = null;
         Listener? listener;
         Interpreter? interpreter;
@@ -73,7 +74,7 @@ namespace RobotAppControl
         {
             InitializeComponent();
             stringsToBeInterpreted = new ConcurrentQueue<(string key, object value)>();
-            TotalRevievedStrings = new ConcurrentQueue<string>();
+            //TotalRevievedStrings = new ConcurrentQueue<string>();
             rawMagDataToBeWorkedOn = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
             // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
@@ -155,66 +156,6 @@ namespace RobotAppControl
             }
 
             return commands;
-        }
-        private CustomBitmap foolingAround;
-        private void someTomefoolery()
-        {
-            foolingAround = new CustomBitmap(custom.Width, custom.Height);
-
-            List<bool> trues = new List<bool>();
-            List<bool> falses = new List<bool>();
-            List<bool> truesAndHasRed = new List<bool>();
-
-            for (int i = 0; i < foolingAround.Width; i++)
-            {
-                for (int j = 0; j < foolingAround.Height; j++)
-                {
-                    Color c = Color.FromArgb(_grid.GetCost(i, j) > 1 ? ((_grid.GetCost(i, j) * 20) > 255 ? 255 : (int)Math.Round(_grid.GetCost(i, j) * 20)) : 0, 0, 0);
-                    foolingAround.SetPixel(i, j, c);
-                    if (_grid.IsWalkable(i, j) == true)
-                    {
-                        trues.Add(true);
-                        if (_grid.GetCost(i, j) > 1)
-                        {
-                            truesAndHasRed.Add(true);
-                        }
-                        foolingAround.SetPixel(i, j, c);
-                    }
-                    else
-                    {
-                        falses.Add(false);
-                        foolingAround.SetPixel(i, j, Color.Blue);
-                    }
-                }
-            }
-
-
-            SaveFileDialog saveFileDialog1 = AskSaveFile();
-            if (saveFileDialog1.FileName != "")
-            {
-                System.IO.FileStream fs =
-                   (System.IO.FileStream)saveFileDialog1.OpenFile();
-                switch (saveFileDialog1.FilterIndex)
-                {
-                    case 1:
-                        foolingAround.Bitmap.Save(fs,
-                          ImageFormat.Jpeg);
-                        break;
-
-                    case 2:
-                        foolingAround.Bitmap.Save(fs,
-                           ImageFormat.Bmp);
-                        break;
-
-                    case 3:
-                        foolingAround.Bitmap.Save(fs,
-                           ImageFormat.Gif);
-                        break;
-                }
-
-                fs.Close();
-            }
-
         }
         public void ExecutePath(List<string> commannds)
         {
@@ -384,7 +325,7 @@ namespace RobotAppControl
         private bool CheckConnection()
         {
             return true;
-           
+
         }
         private void ImageSave()
         {
@@ -525,26 +466,8 @@ namespace RobotAppControl
         {
             StartConvertingToOcccupancyThread();
         }
-        void WriteDataSingular(String message)
-        {
-            try
-            {
-                Byte[] data = System.Text.Encoding.ASCII.GetBytes($"smurf~{message}~");
-                /* if (CheckConnection())
-                 {
-                     stream.Write(data, 0, data.Length);
-                 }*/
-            }
-            catch (ArgumentNullException e)
-            {
-                Console.WriteLine("ArgumentNullException: {0}", e);
-            }
-            catch (SocketException e)
-            {
-                Console.WriteLine("SocketException: {0}", e);
-            }
-        }
-        void WriteData(String message)
+
+        void WriteData(String message) // needs update
         {
             try
             {
@@ -573,8 +496,8 @@ namespace RobotAppControl
                 //WriteDataSingular(currentlyPressedKey.ToString());
                 var message = new
                 {
-                    manualCommand = currentlyPressedKey.ToString(),
-                    stopSignal = "false"
+                    stopSignal = "false",
+                    manualCommand = currentlyPressedKey.ToString()
                 };
 
                 await PublishJsonMessageAsync("Movement", message);
@@ -585,12 +508,13 @@ namespace RobotAppControl
         {
             if (currentlyControlling && currentlyPressedKey != Keys.None)
             {
+                lastSentKey = Keys.Enter;
                 currentlyPressedKey = Keys.None;
                 //WriteDataSingular(currentlyPressedKey.ToString());
                 var message = new
                 {
-                    manualCommand = currentlyPressedKey.ToString(),
-                    stopSignal = "true"
+                    stopSignal = "true",
+                    manualCommand = currentlyPressedKey.ToString()
                 };
 
                 await PublishJsonMessageAsync("Movement", message);
@@ -725,27 +649,36 @@ namespace RobotAppControl
                 return (180 - (sideOne - sideTwo)) / 2;
             }
         }
-        private List<string> goodPath()
+        private List<object> goodPath()
         {
-            List<string> res = new List<string>();
+            List<object> res = new List<object>();
             for (int i = 0; i < segments.Count; i++)
             {
                 if (i + 1 < segments.Count)
                 {
                     var TURN = TheThetaWeWant(turns[i], turns[i + 1]);
-                    var advance = findOppositeSide(16.5, TURN);
-                    //if ()
-                    //{
-
-                    // }else
+                    var advance = findOppositeSide(16.5, TURN); // WTF is 16.5?!? ohh it should be the distance between the wheel and center for rotation calcs
                     segments[i] = segments[i] - advance;
                     segments[i + 1] = segments[i + 1] - advance;
-                    res.Add("moveForward~" + (segments[i] * 10).ToString());
-                    res.Add($"turn~{TURN * (turnsss[i] == true ? -1 : 1)}");
+
+                    var message = new
+                    {
+                        stopSignal = "false",
+                        move = segments[i] * 10,
+                        turn = TURN * (turnsss[i] == true ? -1 : 1)
+                    };
+                    res.Add(message);
+                    // res.Add("moveForward~" + (segments[i] * 10).ToString());
+                    // res.Add($"turn~{TURN * (turnsss[i] == true ? -1 : 1)}");
                 }
                 else
                 {
-                    res.Add("moveForward~" + (segments[i] * 10).ToString());
+                    var message = new
+                    {
+                        stopSignal = "false",
+                        move = segments[i] * 10
+                    };
+                    res.Add(message);
                 }
             }
             return res;
@@ -863,14 +796,14 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
-        private void ExecutePlan()
+        private async void ExecutePlan()
         {
             // ExecutePath(CookedPath(finalPath));
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             var output = goodPath();
             foreach (var item in output)
             {
-                WriteData(item);
+                await PublishJsonMessageAsync("Movement", item);
             }
         }
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
@@ -897,6 +830,15 @@ namespace RobotAppControl
                         case "DataForMapping":
                             HandleTopicMap(str);
                             break;
+                        case "Movement":
+                            HandleTopicTwo(str);
+                            break;
+                        case "CaliberationMagData":
+                            HandleTopicThree(str);
+                            break;
+                        case "ServoPosConfirm":
+                            HandleTopicThree(str);
+                            break;
                         default:
                             addToTextBox($"Unknown topic: {topic}");
                             break;
@@ -914,14 +856,15 @@ namespace RobotAppControl
 
                 imagePublisherClient.DisconnectedAsync += async e =>
                 {
-                   
+
                     await ReconnectToBrokerAsync();
                 };
 
 
-                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/one").Build());
-                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/two").Build());
-                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("topic/three").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("ServoPosConfirm").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("DataForMapping").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("CaliberationMagData").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("Movement").Build());
 
             }
         }
@@ -940,12 +883,12 @@ namespace RobotAppControl
                 action();
             }
         }
-        private  async Task ReconnectToBrokerAsync()
+        private async Task ReconnectToBrokerAsync()
         {
             while (!imagePublisherClient.IsConnected)
             {
                 try
-                {                   
+                {
                     await imagePublisherClient.ConnectAsync(mqttClientOptions);
                 }
                 catch
@@ -957,19 +900,23 @@ namespace RobotAppControl
         private void HandleTopicMap(string payload)
         {
             JsonMessageClass? message = JsonConvert.DeserializeObject<JsonMessageClass>(payload);
-            stringsToBeInterpreted.Enqueue(("mapPoint", message));
+            if (message != null)
+            {
+                stringsToBeInterpreted.Enqueue(("mapPoint", message));
+                TotalRevievedStrings.Enqueue((message.leftSensor,message.rightSensor,message.midSensor));
+                addToTextBox($"{message.direction}\n");
+                addToTextBox($"   ");
+            }
         }
 
         private void HandleTopicTwo(string payload)
         {
-            Console.WriteLine($"Message received on topic/two: {payload}");
-            // Add custom logic for topic/two
+            addToTextBox($"{payload}\n");
         }
 
         private void HandleTopicThree(string payload)
         {
-            Console.WriteLine($"Message received on topic/three: {payload}");
-            // Add custom logic for topic/three
+            addToTextBox($"{payload}\n");
         }
 
         private void SendImage()
@@ -983,6 +930,7 @@ namespace RobotAppControl
                 .WithTopic(topic)  // Specify the topic
                 .WithPayload(Encoding.UTF8.GetBytes(payload))
                 .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce)
+                .WithRetainFlag(false)
                 .Build();
 
             await imagePublisherClient.PublishAsync(mqttMessage);
@@ -1021,7 +969,7 @@ namespace RobotAppControl
                 return stream.ToArray();
             }
         }
-  
+
         private void btnSetServo_Click(object sender, EventArgs e)
         {
             //  int servoAngle = int.Parse(txtBoxServo.Text);
@@ -1097,6 +1045,54 @@ namespace RobotAppControl
         private void btnStop_Click_1(object sender, EventArgs e)
         {
 
+        }
+
+        private async void btnArmDown_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopServos = false,
+               posArmOne = 90
+               //  stopServos = false,
+               //  answer = true,
+               //  wantedDirection = 90
+            };
+
+            await PublishJsonMessageAsync("HandServoControl", message);
+           // await PublishJsonMessageAsync("wantedDirection", message);
+        }
+
+        private async void btnArmUp_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopServos = false,
+                posArmOne = 0
+            };
+
+            await PublishJsonMessageAsync("HandServoControl", message);
+        }
+
+        private async void btnGrab_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopServos = false,
+                posArmTwo = 150
+            };
+
+            await PublishJsonMessageAsync("HandServoControl", message);
+        }
+
+        private async void btnRelease_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopServos = false,
+                posArmTwo = 130
+            };
+
+            await PublishJsonMessageAsync("HandServoControl", message);
         }
     }
 }

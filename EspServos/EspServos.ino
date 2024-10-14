@@ -4,17 +4,17 @@
 #include <ArduinoJson.h>
 
 
-#define frontServoPin 999
-#define ArmServoPinOne 999
-#define ArmServoPinTwo 999
-#define ArmServoPinThree 999
-#define ArmServoPinFour 999
-#define RelayOne 18
-#define RelayTwo 19
+#define frontServoPin 19
+#define ArmServoPinOne 16
+#define ArmServoPinTwo 18
+//#define ArmServoPinThree 999
+//#define ArmServoPinFour 999
+#define RelayOne 21
+#define RelayTwo 22
 
 const char* ssid = "Miyagi";
 const char* password = "$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "your.mqtt.broker";
+const char* mqtt_server = "192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicConfirmation = "ServoPosConfirm";
@@ -32,12 +32,12 @@ Servo servo2;
 ESP32PWM pwm;
 int WantedposFrontServo = 0;
 int WantedposArmOne = 0;
-int WantedposArmTwo = 0;
+int WantedposArmTwo = 130;
 //int WantedposArmThree = 0;
 //int WantedposArmFour = 0;
-int posFrontServo = 0;
+int posFrontServo = 90;
 int posArmOne = 0;
-int posArmTwo = 0;
+int posArmTwo = 130;
 //int posArmThree = 0;
 //int posArmFour = 0;
 bool sendFrontServoConfirm = false;
@@ -49,10 +49,10 @@ void CheckConnections() {
     StopServos();
     CheckWiFiConnection();
     if (client.connect("ESP32ClientServos")) {
-      client.subscribe(subTopicServoWantedPos);  //subscribes here
-      client.subscribe(subTopicActuator);
-      client.subscribe(subTopicHandServos);
-      
+      client.subscribe(subTopicServoWantedPos, 1);  //subscribes here
+      client.subscribe(subTopicActuator, 1);
+      client.subscribe(subTopicHandServos, 1);
+
     } else {
       delay(2000);
     }
@@ -109,7 +109,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   //if() Check if this is the correct topic and do something accordingly
   // example way to handle keys
   if (jsonDoc.containsKey("stopServos")) {
-     String tempAnswer = jsonDoc["stopServos"];
+    String tempAnswer = jsonDoc["stopServos"];
     if (tempAnswer == "true") {
       stoppedServos = true;
     } else {
@@ -161,7 +161,7 @@ void AdjustFrontServoToPos() {
       delay(10);
     }
   }
-  if(sendFrontServoConfirm){
+  if (sendFrontServoConfirm && !stoppedServos && WantedposFrontServo == posFrontServo) {
     publishAnswerForFrontWheel();
   }
 }
@@ -172,11 +172,11 @@ void AdjustArmOneServoToPos() {
     if (posArmOne > WantedposArmOne) {
       posArmOne--;
       servo1.write(posArmOne);
-      delay(10);
+      delay(35);
     } else if (posArmOne < WantedposArmOne) {
       posArmOne++;
       servo1.write(posArmOne);
-      delay(10);
+      delay(35);
     }
   }
 }
@@ -187,32 +187,27 @@ void AdjustArmTwoServoToPos() {
     if (posArmTwo > WantedposArmTwo) {
       posArmTwo--;
       servo2.write(posArmTwo);
-      delay(10);
+      delay(35);
     } else if (posArmTwo < WantedposArmTwo) {
       posArmTwo++;
       servo2.write(posArmTwo);
-      delay(10);
+      delay(35);
     }
   }
 }
-//void AdjustFrontServoToPos(int targetPos) {
-//}
-//void AdjustFrontServoToPos(int targetPos) {
-//}
 void StopRelay() {  // to be called during other operations to ensure no bad things happen :)
   relayAction = 0;
   updateRelay();
 }
 void StopServos() {
-  stoppedServos = false;
+  stoppedServos = true;
 }
 void publishAnswerForFrontWheel() {
   StaticJsonDocument<200> jsonDoc;
   jsonDoc["wantedPosReached"] = true;
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
-    client.publish(publishTopicConfirmation, jsonBuffer, 1);
-  
+  client.publish(publishTopicConfirmation, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
 }
 void updateRelay() {  // !!! H-bridge NEVER HIGH HIGH
   digitalWrite(RelayOne, LOW);
