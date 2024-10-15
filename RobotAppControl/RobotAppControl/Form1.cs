@@ -70,6 +70,7 @@ namespace RobotAppControl
         List<bool> turnsss = new List<bool>();
         private Form1 selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway;
         private IMqttClient? imagePublisherClient = null;
+        private MonteCarloLocal MonteLocalization = null;
         public Form1()
         {
             InitializeComponent();
@@ -82,7 +83,7 @@ namespace RobotAppControl
             myDelagate = new RefreshTheImg(RefreshPicture);
             // server = new TcpListener(localAddr, port);
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
-           // InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
+            // InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
             // server.Start();
 
         }
@@ -287,6 +288,7 @@ namespace RobotAppControl
 
                 PictureBox.Invalidate(); // to redraw theimage
             }
+
         }
         public void RefreshPicture()
         {
@@ -299,7 +301,15 @@ namespace RobotAppControl
             txtBox_TextOutput.Clear();
             txtBox_TextOutput.AppendText($"Point x = {coordinates.X - picture_offsetX} \n");
             txtBox_TextOutput.AppendText($"Point y = {coordinates.Y - picture_offsetY} \n");
-            txtBox_TextOutput.AppendText($"Key pressed = {currentlyPressedKey}");
+            txtBox_TextOutput.AppendText($"Key pressed = {currentlyPressedKey} \n");
+
+            if (MonteLocalization == null)
+            {
+                MonteLocalization = new MonteCarloLocal(50, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 100, 5);
+                currentX = coordinates.X - picture_offsetX;
+                currentY = coordinates.Y - picture_offsetY;
+                txtBox_TextOutput.AppendText($"MonteLocalization started \n");
+            }
 
             if (settingStart)
             {
@@ -487,6 +497,8 @@ namespace RobotAppControl
             }
         }
         Keys lastSentKey = Keys.Enter;
+        int counter = 0;
+        int countTwo = 0;
         private async void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
@@ -502,7 +514,83 @@ namespace RobotAppControl
 
                 await PublishJsonMessageAsync("Movement", message);
             }
+            else if (!currentlyControlling)
+            {
+                if (e.KeyCode == Keys.W)
+                {
+                    if (MonteLocalization != null)
+                    {
+                        MonteLocalization.MoveParticles(1, currentRotation);
+                        currentX += 1 * Math.Cos(currentRotation * Math.PI / 180);
+                        currentY += 1 * Math.Sin(currentRotation * Math.PI / 180);
+                        counter++;
+                    }
+                }
+                else if (e.KeyCode == Keys.A)
+                {
+                    currentRotation -= 1.5;
+                    if (currentRotation < 0)
+                    {
+                        currentRotation += 360;
+                    }
+                    txtBoxServo.Text = currentRotation.ToString();
+                }
+                else if (e.KeyCode == Keys.S)
+                {
+                    if (MonteLocalization != null)
+                    {
+                        MonteLocalization.MoveParticles(-1, currentRotation);
+                        currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
+                        currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
+                        counter++;                       
+                    }
+                }
+                else if (e.KeyCode == Keys.D)
+                {
+                    currentRotation += 1.5;
+                    if (currentRotation > 360)
+                    {
+                        currentRotation -= 360;
+                    }
+                    txtBoxServo.Text = currentRotation.ToString();
+                }
+                if (counter > 4)
+                {
+                    MonteLocalization.UpdateParticleWeights(
+                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, -90, _grid)],
+                        _grid, 3);
+                    var estimatedPos = MonteLocalization.EstimatePosition();
+                    try
+                    {
+                   // custom.SetPixel((int)estimatedPos.X,(int)estimatedPos.Y, Color.Red);
+                    custom.SetPixel((int)currentX, (int)currentY, Color.Green);
+                    countTwo++;
+                    DrawParticles();
+                    PictureBox.Invalidate();
 
+                    }
+                    catch (Exception)
+                    {
+
+                        throw;
+                    }
+                }
+                if(countTwo > 30)
+                {
+
+                }
+
+            }
+
+        }
+        private void DrawParticles()
+        {
+            foreach (var item in MonteLocalization.Particles)
+            {
+                custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
+            }
         }
         private async void Form1_KeyUp(object sender, KeyEventArgs e)
         {
@@ -903,7 +991,7 @@ namespace RobotAppControl
             if (message != null)
             {
                 stringsToBeInterpreted.Enqueue(("mapPoint", message));
-                TotalRevievedStrings.Enqueue((message.leftSensor,message.rightSensor,message.midSensor));
+                TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
                 addToTextBox($"{message.direction}\n");
                 addToTextBox($"   ");
             }
@@ -1052,14 +1140,14 @@ namespace RobotAppControl
             var message = new
             {
                 stopServos = false,
-               posArmOne = 90
-               //  stopServos = false,
-               //  answer = true,
-               //  wantedDirection = 90
+                posArmOne = 90
+                //  stopServos = false,
+                //  answer = true,
+                //  wantedDirection = 90
             };
 
             await PublishJsonMessageAsync("HandServoControl", message);
-           // await PublishJsonMessageAsync("wantedDirection", message);
+            // await PublishJsonMessageAsync("wantedDirection", message);
         }
 
         private async void btnArmUp_Click(object sender, EventArgs e)
