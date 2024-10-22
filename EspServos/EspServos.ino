@@ -5,12 +5,17 @@
 
 
 #define frontServoPin 19
-#define ArmServoPinOne 16
-#define ArmServoPinTwo 18
+#define ArmServoPinOne 26
+#define ArmServoPinTwo 27
 //#define ArmServoPinThree 999
 //#define ArmServoPinFour 999
 #define RelayOne 21
 #define RelayTwo 22
+#define RelayDirOne 23
+#define RelayDirTwo 16
+// ultrasonic echo 18
+// ultrasonic trig 33
+// force sensor 17
 
 const char* ssid = "Miyagi";
 const char* password = "$;)_eo73,,.5dhWLd*@";

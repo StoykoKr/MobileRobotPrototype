@@ -305,7 +305,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(50, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 100, 5);
+                MonteLocalization = new MonteCarloLocal(60, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 100, 5);
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -554,28 +554,29 @@ namespace RobotAppControl
                     }
                     txtBoxServo.Text = currentRotation.ToString();
                 }
-                if (counter > 4)
+                if (counter > 0)
                 {
                     MonteLocalization.UpdateParticleWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, -90, _grid)],
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         _grid, 3);
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                   // custom.SetPixel((int)estimatedPos.X,(int)estimatedPos.Y, Color.Red);
+                    custom.SetPixel((int)estimatedPos.X,(int)estimatedPos.Y, Color.Red);
                     custom.SetPixel((int)currentX, (int)currentY, Color.Green);
+                    txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
                     countTwo++;
                     DrawParticles();
                     PictureBox.Invalidate();
-
                     }
                     catch (Exception)
                     {
 
                         throw;
                     }
+                    counter = 0;
                 }
                 if(countTwo > 30)
                 {

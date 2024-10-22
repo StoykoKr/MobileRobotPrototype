@@ -18,7 +18,7 @@ namespace RobotAppControl
             X = x;
             Y = y;
             Theta = theta;
-            Weight = 1;
+            Weight = 0.666;
         }
     }
 }

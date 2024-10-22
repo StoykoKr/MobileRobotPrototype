@@ -13,7 +13,7 @@
 #define analogOutputRightPin 16  //14
 #define trigPin 33               //26
 #define echoMidPin 18
-#define echoLeftPin 19   //17
+#define echoLeftPin vr/pw19   //17
 #define echoRightPin 17  //16
 
 #define WHEEL_DIAM 203.2
@@ -619,7 +619,7 @@ void forward(int mm) {
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-            // setPWMRight(0.5 * PWMRightCoefficient);
+          // setPWMRight(0.5 * PWMRightCoefficient);
           setPWMRight(0.5 * PWMLeftCoefficient);
           setPWMLeft(0.5 * PWMLeftCoefficient);
           keepDirection();
@@ -773,15 +773,13 @@ void CheckWiFiConnection() {
     }
   }
 }
+
 void loop() {
-  CheckConnections();
+  /* CheckConnections();
   client.loop();  // must be called constantly to check for new data
   delay(100);
   //*/
 
-  /*setPWMRight(0.5);
-  setPWMLeft(0.5);
-  delay(2500);
-  setPWMRight(0);
-  setPWMLeft(0);  */
+
+  // setPWMLeft(0);  */
 }

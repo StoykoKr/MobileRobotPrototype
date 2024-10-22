@@ -51,6 +51,7 @@
             btnArmUp = new Button();
             btnGrab = new Button();
             btnRelease = new Button();
+            txtBoxWeight = new TextBox();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -281,11 +282,19 @@
             btnRelease.UseVisualStyleBackColor = true;
             btnRelease.Click += btnRelease_Click;
             // 
+            // txtBoxWeight
+            // 
+            txtBoxWeight.Location = new Point(977, 58);
+            txtBoxWeight.Name = "txtBoxWeight";
+            txtBoxWeight.Size = new Size(67, 23);
+            txtBoxWeight.TabIndex = 34;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(txtBoxWeight);
             Controls.Add(btnRelease);
             Controls.Add(btnGrab);
             Controls.Add(btnArmUp);
@@ -344,5 +353,6 @@
         private Button btnArmUp;
         private Button btnGrab;
         private Button btnRelease;
+        private TextBox txtBoxWeight;
     }
 }
