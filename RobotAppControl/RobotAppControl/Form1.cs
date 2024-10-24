@@ -305,7 +305,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(60, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 100, 5);
+                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -498,7 +498,6 @@ namespace RobotAppControl
         }
         Keys lastSentKey = Keys.Enter;
         int counter = 0;
-        int countTwo = 0;
         private async void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
@@ -533,6 +532,7 @@ namespace RobotAppControl
                     {
                         currentRotation += 360;
                     }
+                    MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
                 else if (e.KeyCode == Keys.S)
@@ -542,7 +542,7 @@ namespace RobotAppControl
                         MonteLocalization.MoveParticles(-1, currentRotation);
                         currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
-                        counter++;                       
+                        counter++;
                     }
                 }
                 else if (e.KeyCode == Keys.D)
@@ -552,24 +552,41 @@ namespace RobotAppControl
                     {
                         currentRotation -= 360;
                     }
+                    MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
                 if (counter > 0)
                 {
-                    MonteLocalization.UpdateParticleWeights(
+                    MonteLocalization.UpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-                        _grid, 3);
+                        2);
+                    MonteLocalization.Resample();
+                    MonteLocalization.UpdateWeights(
+                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
+                        2);
+                    /*  MonteLocalization.UpdateParticleWeights(
+                          [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                                     MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
+                                      MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
+                          _grid, 3);*/
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                    custom.SetPixel((int)estimatedPos.X,(int)estimatedPos.Y, Color.Red);
-                    custom.SetPixel((int)currentX, (int)currentY, Color.Green);
-                    txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
-                    countTwo++;
-                    DrawParticles();
-                    PictureBox.Invalidate();
+                        DrawParticles();
+                        if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
+                        {
+                            custom.SetPixel((int)currentX, (int)currentY, Color.Green);
+                        }
+                        if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
+                        {
+                            custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
+                        }
+                        txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
+                        PictureBox.Invalidate();
                     }
                     catch (Exception)
                     {
@@ -578,10 +595,7 @@ namespace RobotAppControl
                     }
                     counter = 0;
                 }
-                if(countTwo > 30)
-                {
 
-                }
 
             }
 
@@ -590,7 +604,10 @@ namespace RobotAppControl
         {
             foreach (var item in MonteLocalization.Particles)
             {
-                custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
+                if (_grid.IsWalkable((int)item.X, (int)item.Y) == true)
+                {
+                    custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
+                }
             }
         }
         private async void Form1_KeyUp(object sender, KeyEventArgs e)

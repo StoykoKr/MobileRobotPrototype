@@ -13,15 +13,23 @@ namespace RobotAppControl
 {
     internal class MonteCarloLocal
     {
-        
+
         public bool isStarted { private set; get; }
-        private double radiusUncertainty;
         public double currentEstimateWeight;
+        private int minX, maxX;
+        private int minY, maxY;
+        public Random rand = new Random();
+        private Grid MapMap = null;
+        private int allParticleCount = 0;
         public List<Particle> Particles { private set; get; }
-        public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, double radiusUncertainty)
+        public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, Grid map)
         {
+            minX = 1;
+            MapMap = map;
+            maxX = map.Width - 1;
+            minY = 1; maxY = map.Height - 1;
             isStarted = true;
-            this.radiusUncertainty = radiusUncertainty;
+            allParticleCount = particleCount;
             Particles = InitializeParticles(particleCount, CenterX - range, CenterX + range, CenterY - range, CenterY + range);
             currentEstimateWeight = 0;
         }
@@ -40,42 +48,167 @@ namespace RobotAppControl
 
             return particles;
         }
-        private int counter = 0;
-        public void MoveParticles(double forwardMove, double Angle)
+        private double RecalcDegree(double angle, double range)
         {
             Random rand = new Random();
-            for(int i = 0;i < Particles.Count; i++)
-            {              
-                double newAngle = Angle;
-                if (rand.NextDouble() > 0.6)
+            double newAngle = angle;
+            if (rand.NextDouble() > 0.5)
+            {
+                newAngle += range * rand.NextDouble();
+                if (newAngle > 360)
                 {
-                    newAngle += radiusUncertainty * rand.NextDouble();
-                    if (newAngle > 360)
-                    {
-                        newAngle -= 360;
-                    }
+                    newAngle -= 360;
                 }
-                else if (rand.NextDouble() < 0.4)
-                {
-                    newAngle -= radiusUncertainty * rand.NextDouble();
-                    if (newAngle < 0)
-                    {
-                        newAngle += 360;
-                    }
-                }
-                else
-                {
-                    // no changes newAngle = Angle
-                }
-
-                Particles[i].Theta = newAngle;
-
-                Particles[i].X += forwardMove * Math.Cos(Particles[i].Theta * Math.PI / 180);
-                Particles[i].Y += forwardMove * Math.Sin(Particles[i].Theta * Math.PI / 180);
             }
-            counter++;
+            else if (rand.NextDouble() < 0.5)
+            {
+                newAngle -= range * rand.NextDouble();
+                if (newAngle < 0)
+                {
+                    newAngle += 360;
+                }
+            }
+            else
+            {
+                // no changes newAngle = Angle
+            }
+            return newAngle;
+        }
+        public void MoveParticles(double forwardMove, double Angle)
+        {
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                Particles[i].Theta = RecalcDegree(Angle, 5);
+                Particles[i].X += (forwardMove + (rand.NextDouble() * 0.2)) * Math.Cos(Particles[i].Theta * Math.PI / 180);
+                Particles[i].Y += (forwardMove + (rand.NextDouble() * 0.2)) * Math.Sin(Particles[i].Theta * Math.PI / 180);
+            }
+        }
+        private bool enterChaos = false;
+        private (double, double, double) lastEstimatedPos = (700, 700, 120);
+        public void UpdateWeights(double[] observedData, double sigma)
+        {
+            double totalWeight = 0;
+
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                // Compute likelihood P(D | x_i) using Gaussian probability
+                double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
+
+                // Update particle weight: P(H|D) ∝ P(D|H) * P(H) (Bayes Law)
+                Particles[i].Weight *= likelihood;
+
+                totalWeight += Particles[i].Weight;
+            }
+            if (totalWeight == 0)
+            {
+                totalWeight = 0.1;
+                enterChaos = true;
+            }
+            else
+            {
+                enterChaos = false;
+                lastEstimatedPos = EstimatePosition();
+                for (int i = 0; i < Particles.Count; i++)
+                {
+                    Particles[i].Weight /= totalWeight;
+                }
+            }
+
+        
+        }
+        private double resampleNoiseFactor = 5;
+        private double weightScale = 1;
+        public void Resample()
+        {
+            List<Particle> newParticles = new List<Particle>();
+            double[] cumulativeWeights = new double[allParticleCount];
+            Particles.Sort(delegate (Particle x, Particle y)
+            {
+                return y.Weight.CompareTo(x.Weight);
+            });
+            if(Particles.Count > 0)
+            cumulativeWeights[0] = Particles[0].Weight;
+
+            // Build cumulative weight distribution
+            for (int i = 1; i < Particles.Count; i++)
+            {
+                cumulativeWeights[i] = cumulativeWeights[i - 1] + Particles[i].Weight;
+            }
+
+            int quarter = Particles.Count / 4;
+
+            if (enterChaos)
+            {
+                for (int i = 0; i < Particles.Count; i++)
+                {
+                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1,lastEstimatedPos.Item2,lastEstimatedPos.Item3),350,350,90));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < Particles.Count; i++)
+                {
+                    double randomValue = rand.NextDouble() * cumulativeWeights.Last();
+                    int index = Array.BinarySearch(cumulativeWeights, randomValue);
+                    if (index < 0) index = ~index;
+
+                    // newParticles.Add(Particles[index].Clone()); // Add resampled particle
+                    Particle resampledParticle = Particles[index].Clone();
+                    if (index < quarter)
+                    {
+                        weightScale = 1;
+                    }
+                    else if (index < quarter * 2)
+                    {
+                        weightScale = 2;
+                    }
+                    else if (index < quarter * 3)
+                    {
+                        weightScale = 3;
+                    }
+                    else
+                    {
+                        weightScale = 4;
+                    }
+
+                    // Add random noise to the particle's state to maintain diversity
+                    resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
+                    resampledParticle.Y += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
+                    resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor / 2 * weightScale;
+
+                    newParticles.Add(resampledParticle);
+                }
+            }
+
+            Particles = newParticles; // Replace old particles with resampled set
         }
 
+        public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
+        {
+            // Example: We assume observedData contains distance measurements (front, left, right)
+            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, 0, MapMap); // Front
+            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, -90, MapMap); // Left
+            double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, 90, MapMap); // Right
+
+
+            double frontDiff = observedData[0] - predictedFront;
+            double leftDiff = observedData[1] - predictedLeft;
+            double rightDiff = observedData[2] - predictedRight;
+
+            // Use Gaussian probability for each sensor
+            double frontLikelihood = GaussianProbability(frontDiff, sigma);
+            double leftLikelihood = GaussianProbability(leftDiff, sigma);
+            double rightLikelihood = GaussianProbability(rightDiff, sigma);
+
+            // Combine likelihoods (product of independent probabilities)
+            return frontLikelihood * leftLikelihood * rightLikelihood;
+        }
+        public double GaussianProbability(double difference, double sigma)
+        {
+            double exponent = -Math.Pow(difference, 2) / (2 * Math.Pow(sigma, 2));
+            double coefficient = 1.0 / (sigma * Math.Sqrt(2 * Math.PI));
+            return coefficient * Math.Exp(exponent);
+        }
 
         public static double CalculateGaussianProbability(double predicted, double actual, double sigma)
         {
@@ -84,9 +217,9 @@ namespace RobotAppControl
             {
                 return 0.1;
             }
-            else if(predicted == 300 || actual == 300)
+            else if (predicted == 300 || actual == 300)
             {
-                return 0.33;
+                return 0.2;
             }
             /*
             double exponent = -Math.Pow(predicted - actual, 2) / (2 * Math.Pow(sigma, 2));
@@ -142,8 +275,8 @@ namespace RobotAppControl
                 // weight *= MeasureProbability(predictedFront, sensorMeasurements[0], sensorNoise);
                 // weight *= MeasureProbability(predictedLeft, sensorMeasurements[1], sensorNoise);
                 //  weight *= MeasureProbability(predictedRight, sensorMeasurements[2], sensorNoise);         
-                Particles[i].Weight = CalculateParticleWeight([predictedFront,predictedLeft,predictedRight], sensorMeasurements,3.5);
-               
+                Particles[i].Weight = CalculateParticleWeight([predictedFront, predictedLeft, predictedRight], sensorMeasurements, 1.5);
+
             }
             Particles = ResampleParticles();
             for (int i = 0; i < Particles.Count; i++)
@@ -157,7 +290,7 @@ namespace RobotAppControl
                 // weight *= MeasureProbability(predictedFront, sensorMeasurements[0], sensorNoise);
                 // weight *= MeasureProbability(predictedLeft, sensorMeasurements[1], sensorNoise);
                 //  weight *= MeasureProbability(predictedRight, sensorMeasurements[2], sensorNoise);         
-                Particles[i].Weight = CalculateParticleWeight([predictedFront, predictedLeft, predictedRight], sensorMeasurements, 3.5);
+                Particles[i].Weight = CalculateParticleWeight([predictedFront, predictedLeft, predictedRight], sensorMeasurements, 1.5);
 
             }
         }
@@ -181,57 +314,107 @@ namespace RobotAppControl
         }
         public (double X, double Y, double Theta) EstimatePosition()
         {
-            double x = 0.0, y = 0.0, theta = 0.0, totalWeight = 0.0;
+            Particles.Sort(delegate (Particle x, Particle y)
+            {
+                return y.Weight.CompareTo(x.Weight);
+            });//*/
+            int parCount = Particles.Count / 2;
+            double x = 0.0, y = 0.0, theta = 0.0;
 
-            foreach (var p in Particles)
+            for (int i = 0; i < parCount; i++)
             {
-                x += p.X * p.Weight;
-                y += p.Y * p.Weight;
-                theta += p.Theta * p.Weight;
-                totalWeight += p.Weight;
+                x += Particles[i].X;
+                y += Particles[i].Y;
+                theta += Particles[i].Theta;
             }
-            currentEstimateWeight = totalWeight  / Particles.Count();
-            if (totalWeight == 0)
-            {
-                return (1, 1, 1);
-            }
-            else
-            {
-            return (x / totalWeight, y / totalWeight, theta / totalWeight);
-            }
+            //
+            return (x / parCount, y / parCount, theta / parCount);
+
+        }
+        private Particle ParticleMaker(Particle model, int xRange, int yRange, int thetaRange)
+        {
+            Random rand = new Random();
+            int newX = 0;
+            int newY = 0;
+            double newTheta = RecalcDegree(model.Theta, thetaRange);
+
+                newX = (int)(model.X + (rand.NextInt64(-50, 50) / 50) * xRange);
+ 
+                newY = (int)(model.Y + (rand.NextInt64(-50, 50) / 50) * yRange);
+            
+            return new Particle(newX, newY, newTheta);
+
         }
         public List<Particle> ResampleParticles()  // THIS IS BORKED
         {
-           List<Particle> newParticles = new List<Particle>();
-           Random rand = new Random();
-           Particles.Sort(delegate (Particle x, Particle y)
-            {
-                return y.Weight.CompareTo(x.Weight);
-            });
-            int quarter = Particles.Count / 4;
+            List<Particle> newParticles = new List<Particle>();
+            Random rand = new Random();
+            // int quarter = Particles.Count / 4;
+            var estimated = EstimatePosition();
             bool WeDoTwoNow = true;
-            for (int i = 0; i < quarter; i++)
+            for (int i = 0; i < Particles.Count; i++)
             {
+                if (Particles[i].Weight > 0.75)
+                {
+                    newParticles.Add(new Particle(Particles[i].X, Particles[i].Y, RecalcDegree(Particles[i].Theta, 2)));
+                }
+                else if (Particles[i].Weight < 0.1)
+                {
+                    // newParticles.Add(new Particle(rand.NextDouble() * (maxX - 1), rand.NextDouble() * (maxY - 1), RecalcDegree(estimated.Theta, 180)));
+                    //newParticles.Add(ParticleMaker(Particles[i], 5, 5, 5));
+                    newParticles.Add(ParticleMaker(new Particle(estimated.X, estimated.Y, estimated.Theta), 5, 5, 5));
+                }
+                else
+                {
+                    newParticles.Add(ParticleMaker(new Particle(estimated.X, estimated.Y, estimated.Theta), 5, 5, 5));
+                    //  newParticles.Add(ParticleMaker(Particles[i], 5, 5, 5));
+                    // newParticles.Add(new Particle(rand.NextDouble() * (maxX - 1), rand.NextDouble() * (maxY - 1), RecalcDegree(estimated.Theta, 180)));
+                    //  newParticles.Add(ParticleMaker(new Particle(estimated.X, estimated.Y, estimated.Theta), 15, 15, 25));
+                }
+
+
+
+
+
+
+
+
+
+
+
+
+                /*
                 newParticles.Add(new Particle(Particles[i].X, Particles[i].Y, Particles[i].Theta));
                 if (WeDoTwoNow)
                 {
                     WeDoTwoNow = false;
-                    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50,50)/50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Theta));
-                    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Theta));
+
+                    newParticles.Add(ParticleMaker(Particles[i],5,5,15));
+                    // newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50,50)/50) * 15, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 15, RecalcDegree(Particles[i].Theta, 45)));
+
+                    //   newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, RecalcDegree(Particles[i].Theta, 45)));
+                    // newParticles.Add(new Particle((estimated.X + (rand.NextInt64(-50, 50) / 50) * 15) < 1? 1: (estimated.X + (rand.NextInt64(-50, 50) / 50) * 15) > maxX ? maxX - 1: (estimated.X + (rand.NextInt64(-50, 50) / 50) * 15),
+                    //    (estimated.Y + (rand.NextInt64(-50, 50) / 50) * 15) < 1 ? 1 : (estimated.Y + (rand.NextInt64(-50, 50) / 50) * 15) > maxY ? maxY - 1 : (estimated.Y + (rand.NextInt64(-50, 50) / 50) * 15), RecalcDegree(estimated.Theta, 180)));
+                    // newParticles.Add(new Particle(estimated.X + (rand.NextInt64(-50, 50) / 50) * 150, estimated.Y + (rand.NextInt64(-50, 50) / 150) * 150, estimated.Theta));
+
                 }
                 else
                 {
                     WeDoTwoNow = true;
-                    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Theta));
-                    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Theta));
-                    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Theta));                 
-                }
+                    newParticles.Add(ParticleMaker(Particles[i], 5, 5, 15));
+                   // newParticles.Add(ParticleMaker(Particles[i], 5, 5, 45));
+                    //newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 15, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 15, RecalcDegree(Particles[i].Theta, 45)));
+                   // newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 15, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 15, RecalcDegree(Particles[i].Theta, 45)));
+                //    newParticles.Add(new Particle(Particles[i].X + (rand.NextInt64(-50, 50) / 50) * 5, Particles[i].Y + (rand.NextInt64(-50, 50) / 50) * 5, RecalcDegree(Particles[i].Theta, 45)));                 
+                }*/
             }
-            var estimated = EstimatePosition(); 
-            while(newParticles.Count() < Particles.Count())
-            {
-                newParticles.Add(new Particle(estimated.X + (rand.NextInt64(-50, 50) / 50) * 150, estimated.Y + (rand.NextInt64(-50, 50) / 150) * 5, estimated.Theta));
-            }
+            //  while(newParticles.Count() < Particles.Count())
+            //   {
+            //  newParticles.Add(ParticleMaker(new Particle(estimated.X,estimated.Y,estimated.Theta), 15, 15, 25));
+            //newParticles.Add(new Particle(estimated.X + (rand.NextInt64(-50, 50) / 50) * 150, estimated.Y + (rand.NextInt64(-50, 50) / 150) * 150, estimated.Theta));
+            //newParticles.Add(new Particle(estimated.X + (rand.NextInt64(-50, 50) / 50) * 200, estimated.Y + (rand.NextInt64(-50, 50) / 50) * 200, RecalcDegree(estimated.Theta, 180)));
+            // newParticles.Add(new Particle(rand.NextDouble() * (maxX-1), rand.NextDouble() * (maxY-1), RecalcDegree(estimated.Theta, 180)));
+            // }
 
             return newParticles;
         }

@@ -18,7 +18,11 @@ namespace RobotAppControl
             X = x;
             Y = y;
             Theta = theta;
-            Weight = 0.666;
+            Weight = 1;
+        }
+        public Particle Clone()
+        {
+            return new Particle(X, Y, Theta) { Weight = this.Weight };
         }
     }
 }
