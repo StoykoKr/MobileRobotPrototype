@@ -523,7 +523,7 @@ namespace RobotAppControl
                 {
                     if (MonteLocalization != null)
                     {
-                        currentRotation = _robot.getThetaActual();
+                        currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                         MonteLocalization.MoveParticles(1, currentRotation);
                         currentX += 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY += 1 * Math.Sin(currentRotation * Math.PI / 180);
@@ -532,8 +532,8 @@ namespace RobotAppControl
                 }
                 else if (e.KeyCode == Keys.A)
                 {
-                    _robot.setThetaVisual(_robot.getThetaActual() - 1.5);
-                    currentRotation = _robot.getThetaActual();
+                    _robot.setThetaActual(_robot.getThetaActual() - 1.5);
+                    currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                     MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
@@ -541,7 +541,7 @@ namespace RobotAppControl
                 {
                     if (MonteLocalization != null)
                     {
-                        currentRotation = _robot.getThetaActual();
+                        currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                         MonteLocalization.MoveParticles(-1, currentRotation);
                         currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
@@ -551,12 +551,13 @@ namespace RobotAppControl
                 else if (e.KeyCode == Keys.D)
                 {
                     _robot.setThetaActual(_robot.getThetaActual() + 1.5);
-                    currentRotation = _robot.getThetaActual();
+                    currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                     MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
                 if (counter > 0)
                 {
+                   // currentRotation = _robot.getThetaVisual();
                     MonteLocalization.UpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
@@ -571,7 +572,7 @@ namespace RobotAppControl
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                     //   DrawParticles();
+                        DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);

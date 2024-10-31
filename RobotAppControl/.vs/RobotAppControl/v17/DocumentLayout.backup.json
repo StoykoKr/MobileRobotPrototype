@@ -62,8 +62,7 @@
               "RelativeToolTip": "RobotAppControl\\Interpreter.cs",
               "ViewState": "AgIAACUAAAAAAAAAAAAgwDgAAAAjAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T11:25:14.353Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T11:25:14.353Z"
             },
             {
               "$type": "Document",
@@ -75,8 +74,7 @@
               "RelativeToolTip": "RobotAppControl\\Node.cs",
               "ViewState": "AgIAAAgAAAAAAAAAAAA8wBcAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T11:19:54.953Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T11:19:54.953Z"
             },
             {
               "$type": "Document",
@@ -88,8 +86,7 @@
               "RelativeToolTip": "RobotAppControl\\Robot.cs",
               "ViewState": "AgIAAA8AAAAAAAAAAAAmwCQAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T09:13:34.267Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T09:13:34.267Z"
             },
             {
               "$type": "Document",
@@ -111,7 +108,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\MonteCarloLocal.cs",
               "ToolTip": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\MonteCarloLocal.cs",
               "RelativeToolTip": "RobotAppControl\\MonteCarloLocal.cs",
-              "ViewState": "AgIAADkAAAAAAAAAAAAAAEwAAAAUAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEwAAAAUAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-10-15T10:08:35.208Z",
               "EditorCaption": ""
@@ -124,7 +121,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
               "ToolTip": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
               "RelativeToolTip": "RobotAppControl\\Form1.cs",
-              "ViewState": "AgIAAOkDAAAAAAAAAAAhwP0DAAA5AAAAAAAAAA==",
+              "ViewState": "AgIAAAUCAAAAAAAAAAAQwBMCAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-07-01T12:18:37.339Z",
               "EditorCaption": ""
@@ -139,8 +136,7 @@
               "RelativeToolTip": "RobotAppControl\\ThetaStar.cs",
               "ViewState": "AgIAAAsAAAAAAAAAAAAQwBIAAAAaAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T13:14:04.716Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T13:14:04.716Z"
             },
             {
               "$type": "Document",
@@ -152,8 +148,7 @@
               "RelativeToolTip": "RobotAppControl\\Grid.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T15:11:36.631Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T15:11:36.631Z"
             },
             {
               "$type": "Document",
@@ -165,8 +160,7 @@
               "RelativeToolTip": "RobotAppControl\\GridCell.cs",
               "ViewState": "AgIAAAMAAAAAAAAAAAAAABoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-29T15:13:09.854Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-29T15:13:09.854Z"
             },
             {
               "$type": "Document",
@@ -177,8 +171,7 @@
               "ToolTip": "C:\\Users\\Hari\\Data\\projects\\robo\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs [Design]",
               "RelativeToolTip": "RobotAppControl\\Form1.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-29T07:37:26.1Z",
-              "EditorCaption": " [Design]"
+              "WhenOpened": "2024-09-29T07:37:26.1Z"
             }
           ]
         }
