@@ -13,7 +13,7 @@ namespace RobotAppControl
         public int Height { get; }
         public bool[,] Walkable { get; }
         private Tuple<bool,float>[,] GridInfo; 
-        
+        //public 
         public Grid(int width, int height)
         {
             Width = width;

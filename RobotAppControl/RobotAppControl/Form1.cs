@@ -18,13 +18,14 @@ using MQTTnet.Server;
 using Newtonsoft.Json;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 using Microsoft.VisualBasic;
+using static System.Windows.Forms.AxHost;
 
 namespace RobotAppControl
 {
     public partial class Form1 : Form
     {
         public Grid _grid;
-        private Robot _robot;
+        private Robot _robot = null;
 
         private PictureBox PictureBox;
         private int picture_offsetX = 0, picture_offsetY = 0;
@@ -85,7 +86,6 @@ namespace RobotAppControl
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
             // InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
             // server.Start();
-
         }
         private void StartListen()
         {
@@ -305,7 +305,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);
+                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 7, _grid);
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -315,6 +315,10 @@ namespace RobotAppControl
             {
                 startX = coordinates.X - picture_offsetX;
                 startY = coordinates.Y - picture_offsetY;
+                if (_robot == null)
+                {
+                    _robot = new Robot(_grid, custom, startX, startY, this, 16.5);
+                }
                 settingStart = false;
             }
             else if (settingEnd)
@@ -519,6 +523,7 @@ namespace RobotAppControl
                 {
                     if (MonteLocalization != null)
                     {
+                        currentRotation = _robot.getThetaActual();
                         MonteLocalization.MoveParticles(1, currentRotation);
                         currentX += 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY += 1 * Math.Sin(currentRotation * Math.PI / 180);
@@ -527,11 +532,8 @@ namespace RobotAppControl
                 }
                 else if (e.KeyCode == Keys.A)
                 {
-                    currentRotation -= 1.5;
-                    if (currentRotation < 0)
-                    {
-                        currentRotation += 360;
-                    }
+                    _robot.setThetaVisual(_robot.getThetaActual() - 1.5);
+                    currentRotation = _robot.getThetaActual();
                     MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
@@ -539,6 +541,7 @@ namespace RobotAppControl
                 {
                     if (MonteLocalization != null)
                     {
+                        currentRotation = _robot.getThetaActual();
                         MonteLocalization.MoveParticles(-1, currentRotation);
                         currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
@@ -547,11 +550,8 @@ namespace RobotAppControl
                 }
                 else if (e.KeyCode == Keys.D)
                 {
-                    currentRotation += 1.5;
-                    if (currentRotation > 360)
-                    {
-                        currentRotation -= 360;
-                    }
+                    _robot.setThetaActual(_robot.getThetaActual() + 1.5);
+                    currentRotation = _robot.getThetaActual();
                     MonteLocalization.MoveParticles(0, currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
@@ -568,15 +568,10 @@ namespace RobotAppControl
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);
-                    /*  MonteLocalization.UpdateParticleWeights(
-                          [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
-                                     MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-                                      MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-                          _grid, 3);*/
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                        DrawParticles();
+                     //   DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -585,7 +580,7 @@ namespace RobotAppControl
                         {
                             custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
                         }
-                        txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
+                       // txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
                         PictureBox.Invalidate();
                     }
                     catch (Exception)
@@ -700,7 +695,6 @@ namespace RobotAppControl
             var path = thetaStar.FindPath(start, goal);
             //  var path = thetaStar.FindPath(start,goal);
             // Execute path with robot
-            _robot = new Robot(_grid, custom, start.X, start.Y, this);
             if (path != null)
             {
                 finalPath = path;
@@ -902,15 +896,136 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
+        public double CalculateSteeringAngle(Robot robot, Node lookaheadPoint)
+        {
+            double dx = lookaheadPoint.X - robot._currentX;
+            double dy = lookaheadPoint.Y - robot._currentY;
+            double angleToTarget = Math.Atan2(dy, dx);// * 180/Math.PI;
+            double angleinDegree = angleToTarget * 180/Math.PI;
+            double steeringAngle = angleToTarget - robot.getThetaVisual() * Math.PI / 180;
+            return steeringAngle;
+        }
+        public void SetWheelVelocities(Robot robot, double steeringAngle, double baseVelocity)
+        {
+            double radius = robot.WheelBase / (2 * Math.Sin(steeringAngle));
+            robot.LeftWheelVelocity = baseVelocity * (1 - robot.WheelBase / (2 * radius));
+            robot.RightWheelVelocity = baseVelocity * (1 + robot.WheelBase / (2 * radius));
+        }
+        private (double X, double Y, double Theta) estimatedPos;
+        public void UpdatePosition(Robot robot, double dt)
+        {
+            double v = (robot.LeftWheelVelocity + robot.RightWheelVelocity) / 2.0;
+            double omega = (robot.RightWheelVelocity - robot.LeftWheelVelocity) / robot.WheelBase;
+            //getThetaActual
+           // robot.getThetaVisual();
+            robot._currentX += (int)(v * Math.Cos(robot.getThetaVisual() * Math.PI / 180) * dt);
+            robot._currentY += (int)(v * Math.Sin(robot.getThetaVisual() * Math.PI / 180) * dt);
+            currentX = robot._currentX;
+            currentY = robot._currentY;
+            robot.setThetaActual(robot.getThetaActual() + (omega * dt) * 180 / Math.PI);// += (omega * dt) * 180 / Math.PI;
+            
+            currentRotation = robot.getThetaVisual();
+
+            MonteLocalization.MoveParticles(v * dt, currentRotation);
+            
+            MonteLocalization.UpdateWeights(
+                      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
+                      2);
+            MonteLocalization.Resample();
+            MonteLocalization.UpdateWeights(
+                [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
+                2);
+            estimatedPos = MonteLocalization.EstimatePosition();
+            try
+            {
+              //  DrawParticles();
+                if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
+                {
+                    custom.SetPixel((int)currentX, (int)currentY, Color.Green);
+                }
+                if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
+                {
+                    custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
+                }
+              //  txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
+                 PictureBox.Invalidate();
+                SafeUpdate(PictureBox.Invalidate);
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+
+        }
+        bool _end = false;    
+        public void PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
+        {
+            Node currentGoal = path[0];
+            int counter = 0;
+
+            do
+            {
+                //  double lookaheadDistance = CalculateAdaptiveLookahead(robot, nextWaypoint, minLookahead, maxLookahead, thresholdDistance);
+
+                var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
+                currentGoal = SmallGoal_BigGoal.Item2;
+                var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
+                SetWheelVelocities(robot, steeringAngle, baseVelocity);
+                UpdatePosition(robot, dt);
+                counter++;
+
+            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 && counter < 500);
+
+        }
+        public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
+        {
+            // Calculate the vector from the current point to the next point
+            double dx = nextPoint.X - robot._currentX;
+            double dy = nextPoint.Y - robot._currentY;
+            double segmentLength = Math.Sqrt(dx * dx + dy * dy);
+            var next = nextPoint;
+            while (segmentLength <= lookaheadDistance)
+            {
+                if (next == path.Last())
+                {
+                    return (next, next);
+                }
+                else
+                {
+                    dx += path[path.IndexOf(next) + 1].X - next.X;
+                    dy += path[path.IndexOf(next) + 1].Y - next.Y;
+                    segmentLength = Math.Sqrt(dx * dx + dy * dy);
+                    next = path[path.IndexOf(next) + 1];
+                }
+            }
+
+            // Interpolate along the segment to create a virtual lookahead point
+            double interpolationFactor = lookaheadDistance / segmentLength;
+            double lookaheadX = robot._currentX + interpolationFactor * dx;
+            double lookaheadY = robot._currentY + interpolationFactor * dy;
+
+            return (new Node((int)lookaheadX, (int)lookaheadY), next);
+        }
+
         private async void ExecutePlan()
         {
             // ExecutePath(CookedPath(finalPath));
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
+
+            PurePursuitControlAdaptive(_robot, finalPath,10,1.5,2);
+            /*
             var output = goodPath();
             foreach (var item in output)
             {
                 await PublishJsonMessageAsync("Movement", item);
-            }
+            } */
         }
         private void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
@@ -1199,6 +1314,11 @@ namespace RobotAppControl
             };
 
             await PublishJsonMessageAsync("HandServoControl", message);
+        }
+
+        private void btnExplode_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }

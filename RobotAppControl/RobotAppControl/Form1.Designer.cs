@@ -52,6 +52,7 @@
             btnGrab = new Button();
             btnRelease = new Button();
             txtBoxWeight = new TextBox();
+            btnExplode = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -289,11 +290,22 @@
             txtBoxWeight.Size = new Size(67, 23);
             txtBoxWeight.TabIndex = 34;
             // 
+            // btnExplode
+            // 
+            btnExplode.Location = new Point(973, 115);
+            btnExplode.Name = "btnExplode";
+            btnExplode.Size = new Size(75, 23);
+            btnExplode.TabIndex = 35;
+            btnExplode.Text = "Explode";
+            btnExplode.UseVisualStyleBackColor = true;
+            btnExplode.Click += btnExplode_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnExplode);
             Controls.Add(txtBoxWeight);
             Controls.Add(btnRelease);
             Controls.Add(btnGrab);
@@ -354,5 +366,6 @@
         private Button btnGrab;
         private Button btnRelease;
         private TextBox txtBoxWeight;
+        private Button btnExplode;
     }
 }
