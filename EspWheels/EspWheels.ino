@@ -9,11 +9,11 @@
 
 #define signalOutputInterruptPinRight 23
 #define signalOutputInterruptPinLeft 5
-#define analogOutputLeftPin 26   //17   //33
-#define analogOutputRightPin 16  //14
+#define analogOutputLeftPin 32   //17   //33
+#define analogOutputRightPin 26  //14
 #define trigPin 33               //26
 #define echoMidPin 18
-#define echoLeftPin vr/pw19   //17
+#define echoLeftPin 19   //17
 #define echoRightPin 17  //16
 
 #define WHEEL_DIAM 203.2
@@ -32,9 +32,11 @@ const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
 const char* publishTopicMagCalibration = "CaliberationMagData";
+const char* publishWantedDirChange = "wantedDirChangedTo";
 const char* publishTopicServoControl = "FrontServoControl";
 const char* subTopicMovement = "Movement";
 const char* subTopicConfirmation = "ServoPosConfirm";
+const char* supDirTemp = "movingForwardDir";
 
 WiFiClient EspWiFiclient;
 PubSubClient client(EspWiFiclient);
@@ -236,7 +238,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
 
-  if (millis() - timeOfLastTrigger >= 75) {
+  if (millis() - timeOfLastTrigger >= 175) {
     canPingLeft = true;
     canPingMid = true;
     canPingRight = true;
@@ -307,7 +309,6 @@ void GetUltrasoundData(float dir, bool sendMove) {
       previousTimeThereWasAnObstacle = millis();
     }
   }
-
   if (newLeftData) {
     newLeftData = false;
     distanceLeft = (microSecLeftEndDuration * 0.0343) / 2;
@@ -379,14 +380,15 @@ float PidControllerSpeedRight(float target, float kp, float current) {
   float u = (kp * e);
   return u * -1;
 }
+bool movingDirection = false;
 void ManualMovement(String signal) {
   ResetEncoderValues();
   if (signal == "w" || signal == "W") {
-    justForward();
+    justForward(false);
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
   } else if (signal == "s" || signal == "S") {
-    StopMovement();
+    justForward(true);
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
   } else if (signal == "none" || signal == "None") {
@@ -491,7 +493,8 @@ void AdjustPosTo(int wanted, bool waitAnswer) {
     client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
   }
 }
-void justForward() {
+
+void justForward(bool dir) {
   speedTimer = millis();
   speedAdjustTimer = millis();
   rightthing = 0;
@@ -511,11 +514,14 @@ void justForward() {
       turnedLeft = false;
       turnedRight = false;
     }
-    if (startingServoPosReached) {
+    delay(50);
+    // GetUltrasoundData(0, true);
+    GetUltrasoundData(MagneticSensorReading(), true);
+    if (/*startingServoPosReached && */ movingDirection == dir) {
 
-      GetUltrasoundData(MagneticSensorReading(), true);
+      // GetUltrasoundData(MagneticSensorReading(), true);
       // GetUltrasoundData(0, true);
-
+      /*
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
           timeIntervalIndexCounter = 0;
@@ -542,26 +548,38 @@ void justForward() {
           if (PWMRightCoefficient + changeRight < 1.9 && PWMRightCoefficient + changeRight > 0.1) {
             PWMRightCoefficient += changeRight;
           }
-        }
-        if (millis() - previousTimeThereWasAnObstacle <= 250) {
+        }*/
+      setPWMRight(0.3);  //* PWMLeftCoefficient);
+      setPWMLeft(0.3);   //* PWMLeftCoefficient);
+                         /*if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
           // setPWMRight(0.5 * PWMRightCoefficient);
-          setPWMRight(0.5 * PWMLeftCoefficient);
-          setPWMLeft(0.5 * PWMLeftCoefficient);
           keepDirection();
-        }
-        speedAdjustTimer = millis();
-      }
-      //*/
+        }*/
+                         //speedAdjustTimer = millis();
+                         // }
+      //
       //setPWMRight(0.5);
       //setPWMLeft(0.5);
+    } else {
+      setPWMRight(0);
+      setPWMLeft(0);
+      SendDirSignal(dir);
     }
   }
   StopMovement();
   goingForward = false;
   turnedLeft = false;
   turnedRight = false;
+}
+void SendDirSignal(bool signal) {
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["dir"] = signal;
+  char jsonBuffer[256];
+  serializeJson(jsonDoc, jsonBuffer);
+  client.publish(publishWantedDirChange, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
+  delay(150);
 }
 void forward(int mm) {
   speedTimer = millis();
@@ -740,6 +758,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     String signal = jsonDoc["manualCommand"];
     ManualMovement(signal);
   }
+  if (jsonDoc.containsKey("wantedDirReached")) {
+    String tempAnswer = jsonDoc["wantedDirReached"];
+    if (tempAnswer == "true") {
+      movingDirection = true;
+    } else {
+      movingDirection = false;
+    }
+  }
   if (jsonDoc.containsKey("wantedPosReached")) {
     String tempAnswer = jsonDoc["wantedPosReached"];
     if (tempAnswer == "true") {
@@ -760,6 +786,7 @@ void CheckConnections() {
     if (client.connect("ESP32ClientWheels")) {
       client.subscribe(subTopicMovement, 1);
       client.subscribe(subTopicConfirmation, 1);
+      client.subscribe(supDirTemp, 1);
     } else {
       delay(2000);
     }
@@ -775,7 +802,7 @@ void CheckWiFiConnection() {
 }
 
 void loop() {
-  /* CheckConnections();
+  CheckConnections();
   client.loop();  // must be called constantly to check for new data
   delay(100);
   //*/

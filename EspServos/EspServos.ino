@@ -4,15 +4,15 @@
 #include <ArduinoJson.h>
 
 
-#define frontServoPin 19
+#define frontServoPin 33
 #define ArmServoPinOne 26
 #define ArmServoPinTwo 27
-//#define ArmServoPinThree 999
+#define ArmServoPinThree 4
 //#define ArmServoPinFour 999
-#define RelayOne 21
-#define RelayTwo 22
-#define RelayDirOne 23
-#define RelayDirTwo 16
+#define RelayOne 23     // wheel one
+#define RelayTwo 16     //22 //todo change //temp for testing needs to be changed
+#define RelayDirOne 21  //todo change
+//#define RelayDirTwo 16 //todo change
 // ultrasonic echo 18
 // ultrasonic trig 33
 // force sensor 17
@@ -23,6 +23,7 @@ const char* mqtt_server = "192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicConfirmation = "ServoPosConfirm";
+const char* subListenWantedDir = "wantedDirChangedTo";
 const char* subTopicServoWantedPos = "FrontServoControl";
 const char* subTopicActuator = "Actuator";
 const char* subTopicHandServos = "HandServoControl";
@@ -32,31 +33,32 @@ PubSubClient client(EspWiFiclient);
 Servo frontMovementServo;
 Servo servo1;
 Servo servo2;
-//Servo servo3;
+Servo servo3;
 //Servo servo4;
 ESP32PWM pwm;
 int WantedposFrontServo = 0;
 int WantedposArmOne = 0;
 int WantedposArmTwo = 130;
-//int WantedposArmThree = 0;
+int WantedposArmThree = 0;
 //int WantedposArmFour = 0;
 int posFrontServo = 90;
 int posArmOne = 0;
 int posArmTwo = 130;
-//int posArmThree = 0;
+int posArmThree = 0;
 //int posArmFour = 0;
 bool sendFrontServoConfirm = false;
 int relayAction = 0;  // 0 is stop(default), 1 is forward, 2 is back
 bool stoppedServos = false;
 void CheckConnections() {
   while (!client.connected()) {
-    StopRelay();
+   // StopRelay();
     StopServos();
     CheckWiFiConnection();
     if (client.connect("ESP32ClientServos")) {
       client.subscribe(subTopicServoWantedPos, 1);  //subscribes here
       client.subscribe(subTopicActuator, 1);
       client.subscribe(subTopicHandServos, 1);
+      client.subscribe(subListenWantedDir, 1);
 
     } else {
       delay(2000);
@@ -82,8 +84,8 @@ void setup() {
   servo1.attach(ArmServoPinOne);
   servo2.setPeriodHertz(50);
   servo2.attach(ArmServoPinTwo);
-  // servo3.setPeriodHertz(50);
-  // servo3.attach(ArmServoPinThree);
+  servo3.setPeriodHertz(50);
+  servo3.attach(ArmServoPinThree);
   // servo4.setPeriodHertz(50);
   // servo4.attach(ArmServoPinFour);
   pinMode(RelayOne, OUTPUT);
@@ -99,6 +101,7 @@ void resetConnectionParams() {
   WiFi.disconnect();
 }
 
+bool partyStarted = false;
 void callback(char* topic, byte* payload, unsigned int length) {
   String message;
   for (unsigned int i = 0; i < length; i++) {
@@ -129,10 +132,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
       sendFrontServoConfirm = false;
     }
   }
-  if (jsonDoc.containsKey("wantedDirection")) {
-    WantedposFrontServo = jsonDoc["wantedDirection"];
-    AdjustFrontServoToPos();
-  }
   if (jsonDoc.containsKey("posArmOne")) {
     WantedposArmOne = jsonDoc["posArmOne"];
     AdjustArmOneServoToPos();
@@ -140,6 +139,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (jsonDoc.containsKey("posArmTwo")) {
     WantedposArmTwo = jsonDoc["posArmTwo"];
     AdjustArmTwoServoToPos();
+  }
+  if (jsonDoc.containsKey("dir")) {
+    String tempAnswer = jsonDoc["dir"];
+    if (tempAnswer == "true") {
+      SwapDir(true);
+    } else {
+      SwapDir(false);
+    }
   }
   // if (jsonDoc.containsKey("posArmThree")) {
   //   WantedposArmThree = jsonDoc["posArmThree"];
@@ -149,10 +156,46 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // }
   if (jsonDoc.containsKey("relayActionToTake")) {
     relayAction = jsonDoc["relayActionToTake"];
-    updateRelay();
+    //  updateRelay();
+  }
+  if (jsonDoc.containsKey("wantedDirection")) {
+    WantedposFrontServo = jsonDoc["wantedDirection"];
+    AdjustFrontServoToPos();
+    if (!partyStarted) {
+      partyStarted = true;
+      // ServoParty();
+    }
+  }
+}
+int servoPartyWanted = 0;
+int servoPartyNow = 0;
+void ServoParty() {
+  while (true) {
+    if (servoPartyNow <= 10) {
+      servoPartyWanted = 160;
+    }
+    if (servoPartyNow >= 160) {
+      servoPartyWanted = 10;
+    }
+    if (servoPartyWanted > servoPartyNow) {
+      servo1.write(servoPartyNow);
+      servo2.write(servoPartyNow);
+      servo3.write(servoPartyNow);
+      servoPartyNow++;
+    } else {
+      servo1.write(servoPartyNow);
+      servo2.write(servoPartyNow);
+      servo3.write(servoPartyNow);
+      servoPartyNow--;
+    }
+    CheckConnections();
+    client.loop();  // must be called constantly to check for new data
+    delay(100);
   }
 }
 void AdjustFrontServoToPos() {
+  ServoParty();
+  /*
   while (!stoppedServos && WantedposFrontServo != posFrontServo) {
     CheckConnections();
     client.loop();
@@ -168,7 +211,7 @@ void AdjustFrontServoToPos() {
   }
   if (sendFrontServoConfirm && !stoppedServos && WantedposFrontServo == posFrontServo) {
     publishAnswerForFrontWheel();
-  }
+  }*/
 }
 void AdjustArmOneServoToPos() {
   while (!stoppedServos && WantedposArmOne != posArmOne) {
@@ -203,6 +246,26 @@ void AdjustArmTwoServoToPos() {
 void StopRelay() {  // to be called during other operations to ensure no bad things happen :)
   relayAction = 0;
   updateRelay();
+}
+bool movingForwardDir = false;
+void SwapDir(bool dir) {
+  if (dir) {
+    movingForwardDir = true;
+    digitalWrite(RelayOne, HIGH);
+    digitalWrite(RelayTwo, HIGH);
+  } else {
+    movingForwardDir = false;
+    digitalWrite(RelayOne, LOW);
+    digitalWrite(RelayTwo, LOW);
+  }
+  publishAnswerForDir();
+}
+void publishAnswerForDir() {
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["wantedDirReached"] = movingForwardDir;
+  char jsonBuffer[256];
+  serializeJson(jsonDoc, jsonBuffer);
+  client.publish(publishTopicConfirmation, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);  //topic is a bit wrong but no matter
 }
 void StopServos() {
   stoppedServos = true;

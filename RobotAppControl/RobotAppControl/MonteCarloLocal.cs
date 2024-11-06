@@ -116,7 +116,7 @@ namespace RobotAppControl
 
         
         }
-        private double resampleNoiseFactor = 15;
+        private double resampleNoiseFactor = 7;
         private double weightScale = 1;
         public void Resample()
         {

@@ -84,7 +84,7 @@ namespace RobotAppControl
             myDelagate = new RefreshTheImg(RefreshPicture);
             // server = new TcpListener(localAddr, port);
             selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
-            // InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
+             InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
             // server.Start();
         }
         private void StartListen()
@@ -305,7 +305,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 7, _grid);
+                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -557,7 +557,7 @@ namespace RobotAppControl
                 }
                 if (counter > 0)
                 {
-                   // currentRotation = _robot.getThetaVisual();
+                    //currentRotation = _robot.getThetaVisual();
                     MonteLocalization.UpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
@@ -572,7 +572,7 @@ namespace RobotAppControl
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                        DrawParticles();
+                       // DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -581,7 +581,7 @@ namespace RobotAppControl
                         {
                             custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
                         }
-                       // txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
+                        txtBoxWeight.Text = estimatedPos.Theta.ToString();
                         PictureBox.Invalidate();
                     }
                     catch (Exception)
@@ -917,8 +917,7 @@ namespace RobotAppControl
         {
             double v = (robot.LeftWheelVelocity + robot.RightWheelVelocity) / 2.0;
             double omega = (robot.RightWheelVelocity - robot.LeftWheelVelocity) / robot.WheelBase;
-            //getThetaActual
-           // robot.getThetaVisual();
+          
             robot._currentX += (int)(v * Math.Cos(robot.getThetaVisual() * Math.PI / 180) * dt);
             robot._currentY += (int)(v * Math.Sin(robot.getThetaVisual() * Math.PI / 180) * dt);
             currentX = robot._currentX;
@@ -927,8 +926,7 @@ namespace RobotAppControl
             
             currentRotation = robot.getThetaVisual();
 
-            MonteLocalization.MoveParticles(v * dt, currentRotation);
-            
+            MonteLocalization.MoveParticles(v * dt, currentRotation);            
             MonteLocalization.UpdateWeights(
                       [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
@@ -941,9 +939,11 @@ namespace RobotAppControl
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                 2);
             estimatedPos = MonteLocalization.EstimatePosition();
+
+
             try
             {
-              //  DrawParticles();
+                DrawParticles();
                 if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                 {
                     custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -970,6 +970,7 @@ namespace RobotAppControl
         {
             Node currentGoal = path[0];
             int counter = 0;
+            Node lastReachedGoal = null;
 
             do
             {
@@ -981,8 +982,16 @@ namespace RobotAppControl
                 SetWheelVelocities(robot, steeringAngle, baseVelocity);
                 UpdatePosition(robot, dt);
                 counter++;
-
-            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 && counter < 500);
+                //if ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y))>10 && (lastReachedGoal == null || lastReachedGoal == currentGoal))
+                //{
+                //    counter++;
+                //    lastReachedGoal = currentGoal;
+                //}
+                if(counter > 1500)
+                {
+                    break;
+                }
+            } while /*(counter < path.Count());*/((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
 
         }
         public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
@@ -1126,8 +1135,9 @@ namespace RobotAppControl
             {
                 stringsToBeInterpreted.Enqueue(("mapPoint", message));
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
-                addToTextBox($"{message.direction}\n");
-                addToTextBox($"   ");
+                //addToTextBox($"{(message.leftSensor," ", message.rightSensor," ", message.midSensor)} \n");
+                addToTextBox($"{message.direction}|");
+                addToTextBox($"");
             }
         }
 
