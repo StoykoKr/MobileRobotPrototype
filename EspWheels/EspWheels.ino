@@ -16,6 +16,9 @@
 #define echoLeftPin 19   //17
 #define echoRightPin 17  //16
 
+#define LEFTDIRWHEEL 0  //just so its not that confusing.. or to make it more?
+#define RIGHTDIRWHEEL 1
+
 #define WHEEL_DIAM 203.2
 //#define distance_Wheels 140   // TO BE UPDATED?
 #define TICKS_PER_REV 42
@@ -234,7 +237,7 @@ void GetUltrasoundData(float dir, bool sendMove) {
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
   double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  weMoved = /* (rightDistanceMoved + */ leftDistanceMoved;  //); /// 2.0;
+  weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
 
@@ -380,7 +383,8 @@ float PidControllerSpeedRight(float target, float kp, float current) {
   float u = (kp * e);
   return u * -1;
 }
-bool movingDirection = false;
+bool movingDirectionLeft = false;
+bool movingDirectionRight = false;
 void ManualMovement(String signal) {
   ResetEncoderValues();
   if (signal == "w" || signal == "W") {
@@ -411,9 +415,16 @@ void justLeftRight(int direction) {
         goingForward = false;
         turnedRight = false;
       }
-      if (startingServoPosReached) {
+
+      if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == false) {
+        setPWMLeft(0.3);
+        setPWMRight(0.3);
+      } else {
+        setPWMRight(0);
         setPWMLeft(0);
-        setPWMRight(0.6);
+        SendDirSignal(true, LEFTDIRWHEEL);
+        SendDirSignal(false, RIGHTDIRWHEEL);
+        delay(50);
       }
     } else {
       if (!turnedRight) {
@@ -423,9 +434,15 @@ void justLeftRight(int direction) {
         goingForward = false;
         turnedRight = true;
       }
-      if (startingServoPosReached) {
-        setPWMLeft(0.6);
+      if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == true) {
+        setPWMLeft(0.3);
+        setPWMRight(0.3);
+      } else {
         setPWMRight(0);
+        setPWMLeft(0);
+        SendDirSignal(false, LEFTDIRWHEEL);
+        SendDirSignal(true, RIGHTDIRWHEEL);
+        delay(50);
       }
     }
   }
@@ -493,7 +510,6 @@ void AdjustPosTo(int wanted, bool waitAnswer) {
     client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
   }
 }
-
 void justForward(bool dir) {
   speedTimer = millis();
   speedAdjustTimer = millis();
@@ -514,12 +530,11 @@ void justForward(bool dir) {
       turnedLeft = false;
       turnedRight = false;
     }
-    delay(50);
     // GetUltrasoundData(0, true);
-    GetUltrasoundData(MagneticSensorReading(), true);
-    if (/*startingServoPosReached && */ movingDirection == dir) {
+    //GetUltrasoundData(MagneticSensorReading(), true);
+    if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == dir) {
 
-      // GetUltrasoundData(MagneticSensorReading(), true);
+      GetUltrasoundData(MagneticSensorReading(), true);
       // GetUltrasoundData(0, true);
       /*
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
@@ -565,7 +580,8 @@ void justForward(bool dir) {
     } else {
       setPWMRight(0);
       setPWMLeft(0);
-      SendDirSignal(dir);
+      SendDirSignal(dir, LEFTDIRWHEEL);
+      SendDirSignal(dir, RIGHTDIRWHEEL);
     }
   }
   StopMovement();
@@ -573,9 +589,14 @@ void justForward(bool dir) {
   turnedLeft = false;
   turnedRight = false;
 }
-void SendDirSignal(bool signal) {
+void SendDirSignal(bool signal, int whichOneToSwitchDir) {
   StaticJsonDocument<200> jsonDoc;
-  jsonDoc["dir"] = signal;
+  if (whichOneToSwitchDir == LEFTDIRWHEEL) {
+    jsonDoc["dirLeft"] = signal;
+  }
+  if (whichOneToSwitchDir == RIGHTDIRWHEEL) {
+    jsonDoc["dirRight"] = signal;
+  }
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
   client.publish(publishWantedDirChange, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
@@ -758,12 +779,21 @@ void callback(char* topic, byte* payload, unsigned int length) {
     String signal = jsonDoc["manualCommand"];
     ManualMovement(signal);
   }
-  if (jsonDoc.containsKey("wantedDirReached")) {
-    String tempAnswer = jsonDoc["wantedDirReached"];
+
+  if (jsonDoc.containsKey("wantedDirLeftReached")) {
+    String tempAnswer = jsonDoc["wantedDirLeftReached"];
     if (tempAnswer == "true") {
-      movingDirection = true;
+      movingDirectionLeft = true;
     } else {
-      movingDirection = false;
+      movingDirectionLeft = false;
+    }
+  }
+  if (jsonDoc.containsKey("wantedDirRightReached")) {
+    String tempAnswer = jsonDoc["wantedDirRightReached"];
+    if (tempAnswer == "true") {
+      movingDirectionRight = true;
+    } else {
+      movingDirectionRight = false;
     }
   }
   if (jsonDoc.containsKey("wantedPosReached")) {

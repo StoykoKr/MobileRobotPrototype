@@ -140,12 +140,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
     WantedposArmTwo = jsonDoc["posArmTwo"];
     AdjustArmTwoServoToPos();
   }
-  if (jsonDoc.containsKey("dir")) {
-    String tempAnswer = jsonDoc["dir"];
+  if (jsonDoc.containsKey("dirLeft")) {
+    String tempAnswer = jsonDoc["dirLeft"];
     if (tempAnswer == "true") {
-      SwapDir(true);
+      SwapDirLeft(true);
     } else {
-      SwapDir(false);
+      SwapDirLeft(false);
+    }
+  }
+   if (jsonDoc.containsKey("dirRight")) {
+    String tempAnswer = jsonDoc["dirRight"];
+    if (tempAnswer == "true") {
+      SwapDirRight(true);
+    } else {
+      SwapDirRight(false);
     }
   }
   // if (jsonDoc.containsKey("posArmThree")) {
@@ -194,8 +202,8 @@ void ServoParty() {
   }
 }
 void AdjustFrontServoToPos() {
-  ServoParty();
-  /*
+  //ServoParty();
+  ///*
   while (!stoppedServos && WantedposFrontServo != posFrontServo) {
     CheckConnections();
     client.loop();
@@ -211,7 +219,7 @@ void AdjustFrontServoToPos() {
   }
   if (sendFrontServoConfirm && !stoppedServos && WantedposFrontServo == posFrontServo) {
     publishAnswerForFrontWheel();
-  }*/
+  }//*/
 }
 void AdjustArmOneServoToPos() {
   while (!stoppedServos && WantedposArmOne != posArmOne) {
@@ -247,22 +255,38 @@ void StopRelay() {  // to be called during other operations to ensure no bad thi
   relayAction = 0;
   updateRelay();
 }
-bool movingForwardDir = false;
-void SwapDir(bool dir) {
+bool LeftWheelmovingForwardDir = false;
+bool RightWheelmovingForwardDir = false;
+void SwapDirLeft(bool dir) {
   if (dir) {
-    movingForwardDir = true;
+    LeftWheelmovingForwardDir = true;
     digitalWrite(RelayOne, HIGH);
+  } else {
+    LeftWheelmovingForwardDir = false;
+    digitalWrite(RelayOne, LOW);
+  }
+  publishAnswerForDirLeft();
+}
+void SwapDirRight(bool dir) {
+  if (dir) {
+    RightWheelmovingForwardDir = true;
     digitalWrite(RelayTwo, HIGH);
   } else {
-    movingForwardDir = false;
-    digitalWrite(RelayOne, LOW);
+    RightWheelmovingForwardDir = false;
     digitalWrite(RelayTwo, LOW);
   }
-  publishAnswerForDir();
+  publishAnswerForDirRight();
 }
-void publishAnswerForDir() {
+void publishAnswerForDirLeft() {
   StaticJsonDocument<200> jsonDoc;
-  jsonDoc["wantedDirReached"] = movingForwardDir;
+  jsonDoc["wantedDirLeftReached"] = LeftWheelmovingForwardDir;
+  char jsonBuffer[256];
+  serializeJson(jsonDoc, jsonBuffer);
+  client.publish(publishTopicConfirmation, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);  //topic is a bit wrong but no matter
+}
+void publishAnswerForDirRight() {
+  StaticJsonDocument<200> jsonDoc;
+  jsonDoc["wantedDirRightReached"] = RightWheelmovingForwardDir;
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
   client.publish(publishTopicConfirmation, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);  //topic is a bit wrong but no matter
