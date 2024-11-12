@@ -53,6 +53,7 @@
             btnRelease = new Button();
             txtBoxWeight = new TextBox();
             btnExplode = new Button();
+            btnSendImage = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -300,11 +301,22 @@
             btnExplode.UseVisualStyleBackColor = true;
             btnExplode.Click += btnExplode_Click;
             // 
+            // btnSendImage
+            // 
+            btnSendImage.Location = new Point(1143, 591);
+            btnSendImage.Name = "btnSendImage";
+            btnSendImage.Size = new Size(75, 23);
+            btnSendImage.TabIndex = 36;
+            btnSendImage.Text = "SendImage";
+            btnSendImage.UseVisualStyleBackColor = true;
+            btnSendImage.Click += btnSendImage_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnSendImage);
             Controls.Add(btnExplode);
             Controls.Add(txtBoxWeight);
             Controls.Add(btnRelease);
@@ -367,5 +379,6 @@
         private Button btnRelease;
         private TextBox txtBoxWeight;
         private Button btnExplode;
+        private Button btnSendImage;
     }
 }

@@ -16,7 +16,6 @@ using MQTTnet.Client;
 using System.Collections;
 using MQTTnet.Server;
 using Newtonsoft.Json;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.ProgressBar;
 using Microsoft.VisualBasic;
 using static System.Windows.Forms.AxHost;
 
@@ -25,6 +24,7 @@ namespace RobotAppControl
     public partial class Form1 : Form
     {
         public Grid _grid;
+        public Grid _MCL_grid;
         private Robot _robot = null;
 
         private PictureBox PictureBox;
@@ -37,23 +37,16 @@ namespace RobotAppControl
         private CustomBitmap occupancyMap;
         ConcurrentQueue<(string key, object value)> stringsToBeInterpreted;
         ConcurrentQueue<(float, float, float)> TotalRevievedStrings = new ConcurrentQueue<(float, float, float)>();
-        // TcpListener? server = null;
         Listener? listener;
         Interpreter? interpreter;
         Thread listenThread;
         Thread interpreterThread;
-        // NetworkStream stream;
         double currentX = 0;
         double currentY = 0;
         double currentRotation = 0;
         Keys currentlyPressedKey = Keys.None;
         private bool currentlyControlling = false;
-        Int32 port = 13000;
-        IPAddress localAddr = IPAddress.Parse("192.168.43.144");
-        private Pen pen = new Pen(Brushes.Black);
         private Rectangle rectangle;
-        //TcpClient client;
-        //MqttServer mqttServer = null;
         public delegate void RefreshTheImg();
         public RefreshTheImg myDelagate;
         private bool settingStart = false;
@@ -64,28 +57,22 @@ namespace RobotAppControl
         private int endY = 0;
         private List<Node> finalPath = null;
         private MqttFactory mqttFactory = new MqttFactory();
-        // private IMqttClient mqttClient = null;
+        private bool newInfoForAutoMovement_FLAG = false;
         ConcurrentQueue<string> rawMagDataToBeWorkedOn;
         List<double> segments = new List<double>();
         List<double> turns = new List<double>();
         List<bool> turnsss = new List<bool>();
-        private Form1 selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway;
         private IMqttClient? imagePublisherClient = null;
         private MonteCarloLocal MonteLocalization = null;
         public Form1()
         {
             InitializeComponent();
             stringsToBeInterpreted = new ConcurrentQueue<(string key, object value)>();
-            //TotalRevievedStrings = new ConcurrentQueue<string>();
             rawMagDataToBeWorkedOn = new ConcurrentQueue<string>();
             PictureBox = this.pBox_Area;
-            // this.KeyDown += new KeyEventHandler(Form1_KeyDown);
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
-            // server = new TcpListener(localAddr, port);
-            selfWTFAmIEvenDoingThisIsSoClearlyWrongButIWillDoIAnyway = this;
-             InitMQTTClient();   // MQTT IS OFF FOR NOW due to developing on pc with no mqtt
-            // server.Start();
+            InitMQTTClient();
         }
         private void StartListen()
         {
@@ -96,9 +83,9 @@ namespace RobotAppControl
                 //  listenThread.Start();
             }
         }
-        private void SetObstaclesFromMap(CustomBitmap map)
+        private void SetObstaclesFromMap(CustomBitmap map, Grid gridToBeSet)
         {
-            _grid = new Grid(map.Width, map.Height);
+            gridToBeSet = new Grid(map.Width, map.Height);
 
             for (int x = 0; x < map.Width; x++)
             {
@@ -107,7 +94,7 @@ namespace RobotAppControl
                     Color pixelColor = map.GetPixel(x, y);
                     if (IsObstacle(pixelColor))
                     {
-                        _grid.SetWalkable(x, y, false);
+                        gridToBeSet.SetWalkable(x, y, false);
                     }
                 }
             }
@@ -115,18 +102,18 @@ namespace RobotAppControl
             {
                 for (int y = 0; y < map.Height; y++)
                 {
-                    if (_grid.IsWalkable(x, y) == false)
+                    if (gridToBeSet.IsWalkable(x, y) == false)
                     {
                         for (int i = -8; i <= 8; i++)
                         {
                             for (int j = -8; j <= 8; j++)
                             {
-                                if (_grid.IsWalkable(x + i, y + j) == true)
+                                if (gridToBeSet.IsWalkable(x + i, y + j) == true)
                                 {
                                     float tentativeCost = 1 + (20 - Math.Abs(i) - Math.Abs(j)) / 2;
-                                    if (_grid.GetCost(x + i, y + j) < tentativeCost)
+                                    if (gridToBeSet.GetCost(x + i, y + j) < tentativeCost)
                                     {
-                                        _grid.SetCost(x + i, y + j, tentativeCost);
+                                        gridToBeSet.SetCost(x + i, y + j, tentativeCost);
                                     }
                                 }
                             }
@@ -305,7 +292,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);
+                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);// grid is new
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -673,7 +660,7 @@ namespace RobotAppControl
         }
         private void SetObstacles()
         {
-            SetObstaclesFromMap(custom);
+            SetObstaclesFromMap(custom,_grid);
         }
         private void button1_Click(object sender, EventArgs e)
         {
@@ -902,7 +889,7 @@ namespace RobotAppControl
             double dx = lookaheadPoint.X - robot._currentX;
             double dy = lookaheadPoint.Y - robot._currentY;
             double angleToTarget = Math.Atan2(dy, dx);// * 180/Math.PI;
-            double angleinDegree = angleToTarget * 180/Math.PI;
+            double angleinDegree = angleToTarget * 180 / Math.PI;
             double steeringAngle = angleToTarget - robot.getThetaVisual() * Math.PI / 180;
             return steeringAngle;
         }
@@ -911,39 +898,36 @@ namespace RobotAppControl
             double radius = robot.WheelBase / (2 * Math.Sin(steeringAngle));
             robot.LeftWheelVelocity = baseVelocity * (1 - robot.WheelBase / (2 * radius));
             robot.RightWheelVelocity = baseVelocity * (1 + robot.WheelBase / (2 * radius));
+            var message = new
+            {
+                stopSignal = "false",
+                leftVelocity = robot.LeftWheelVelocity,
+                rightSpeed = robot.RightWheelVelocity
+            };
+            PublishJsonMessageAsync("LeftRightSpeed", message);
         }
         private (double X, double Y, double Theta) estimatedPos;
         public void UpdatePosition(Robot robot, double dt)
         {
             double v = (robot.LeftWheelVelocity + robot.RightWheelVelocity) / 2.0;
             double omega = (robot.RightWheelVelocity - robot.LeftWheelVelocity) / robot.WheelBase;
-          
-            robot._currentX += (int)(v * Math.Cos(robot.getThetaVisual() * Math.PI / 180) * dt);
-            robot._currentY += (int)(v * Math.Sin(robot.getThetaVisual() * Math.PI / 180) * dt);
+
+            //robot._currentX += (int)(v * Math.Cos(robot.getThetaVisual() * Math.PI / 180) * dt);
+            //robot._currentY += (int)(v * Math.Sin(robot.getThetaVisual() * Math.PI / 180) * dt);
+
+            estimatedPos = MonteLocalization.EstimatePosition();
+            robot._currentX = (int)estimatedPos.X;
+            robot._currentY = (int)estimatedPos.Y;
+            robot.setThetaActual(estimatedPos.Theta);
+
             currentX = robot._currentX;
             currentY = robot._currentY;
-            robot.setThetaActual(robot.getThetaActual() + (omega * dt) * 180 / Math.PI);// += (omega * dt) * 180 / Math.PI;
-            
             currentRotation = robot.getThetaVisual();
-
-            MonteLocalization.MoveParticles(v * dt, currentRotation);            
-            MonteLocalization.UpdateWeights(
-                      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
-                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-                      2);
-            MonteLocalization.Resample();
-            MonteLocalization.UpdateWeights(
-                [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
-                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-                2);
-            estimatedPos = MonteLocalization.EstimatePosition();
 
 
             try
             {
-                DrawParticles();
+                //DrawParticles();
                 if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                 {
                     custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -952,10 +936,6 @@ namespace RobotAppControl
                 {
                     custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
                 }
-              //  txtBoxWeight.Text = MonteLocalization.currentEstimateWeight.ToString();
-                 PictureBox.Invalidate();
-                SafeUpdate(PictureBox.Invalidate);
-
             }
             catch (Exception)
             {
@@ -965,33 +945,34 @@ namespace RobotAppControl
 
 
         }
-        bool _end = false;    
-        public void PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
+        public List<(double, double)> tempAngles = new List<(double, double)>();
+        public async void PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
         {
             Node currentGoal = path[0];
-            int counter = 0;
-            Node lastReachedGoal = null;
 
             do
             {
                 //  double lookaheadDistance = CalculateAdaptiveLookahead(robot, nextWaypoint, minLookahead, maxLookahead, thresholdDistance);
-
-                var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
-                currentGoal = SmallGoal_BigGoal.Item2;
-                var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
-                SetWheelVelocities(robot, steeringAngle, baseVelocity);
-                UpdatePosition(robot, dt);
-                counter++;
-                //if ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y))>10 && (lastReachedGoal == null || lastReachedGoal == currentGoal))
-                //{
-                //    counter++;
-                //    lastReachedGoal = currentGoal;
-                //}
-                if(counter > 1500)
+                if (newInfoForAutoMovement_FLAG)
                 {
-                    break;
+                    newInfoForAutoMovement_FLAG = false;
+                    var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
+                    currentGoal = SmallGoal_BigGoal.Item2;
+                    var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
+                    SetWheelVelocities(robot, steeringAngle, baseVelocity);
+                    tempAngles.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity));
+                    UpdatePosition(robot, dt);
+
                 }
-            } while /*(counter < path.Count());*/((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
+
+            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
+            var message = new
+            {
+                stopSignal = "false",
+                leftVelocity = robot.LeftWheelVelocity,
+                rightSpeed = robot.RightWheelVelocity
+            };
+            await PublishJsonMessageAsync("LeftRightSpeed", message);
 
         }
         public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
@@ -1029,7 +1010,7 @@ namespace RobotAppControl
             // ExecutePath(CookedPath(finalPath));
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
 
-            PurePursuitControlAdaptive(_robot, finalPath,10,1.5,2);
+            PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
             /*
             var output = goodPath();
             foreach (var item in output)
@@ -1070,6 +1051,12 @@ namespace RobotAppControl
                         case "ServoPosConfirm":
                             HandleTopicThree(str);
                             break;
+                        case "location/commands":
+                            HandleTopicLocationCommands(str);
+                            break;
+                        case "location/markers":
+                            HandleTopicLocationMarker(str);
+                            break;
                         default:
                             addToTextBox($"Unknown topic: {topic}");
                             break;
@@ -1096,6 +1083,8 @@ namespace RobotAppControl
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("DataForMapping").Build());
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("CaliberationMagData").Build());
                 await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("Movement").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("location/commands").Build());
+                await imagePublisherClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("location/markers").Build());
 
             }
         }
@@ -1133,11 +1122,18 @@ namespace RobotAppControl
             JsonMessageClass? message = JsonConvert.DeserializeObject<JsonMessageClass>(payload);
             if (message != null)
             {
-                stringsToBeInterpreted.Enqueue(("mapPoint", message));
+                if (message.mappingFlag == 1)
+                {
+                    stringsToBeInterpreted.Enqueue(("mapPoint", message));
+                }
+                else
+                {
+                    MonteLocalization.MoveParticles(message.movement, message.direction);
+                    MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                    MonteLocalization.Resample();
+                    MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
-                //addToTextBox($"{(message.leftSensor," ", message.rightSensor," ", message.midSensor)} \n");
-                addToTextBox($"{message.direction}|");
-                addToTextBox($"");
             }
         }
 
@@ -1151,9 +1147,28 @@ namespace RobotAppControl
             addToTextBox($"{payload}\n");
         }
 
-        private void SendImage()
+        private void HandleTopicLocationMarker(string payload)
         {
-            PublishImageChunks();
+            // meh get the info and put markers
+        }
+        private void HandleTopicLocationCommands(string payload)
+        {
+            JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
+            if (message != null)
+            {
+                if (message.pressed == "W" || message.pressed == "A" || message.pressed == "S" || message.pressed == "D")
+                {
+                    var jsonMessage = new
+                    {
+                        stopSignal = "false",
+                        manualCommand = message.pressed
+                    };
+                    txtBox_TextOutput.AppendText(message.pressed);
+                    PublishJsonMessageAsync("Movement", jsonMessage);
+
+                }
+
+            }
         }
         private async Task PublishJsonMessageAsync(string topic, object message)
         {
@@ -1171,9 +1186,8 @@ namespace RobotAppControl
 
         private async void PublishImageChunks()
         {
-            // Read and split the image into chunks
-            byte[] imageBytes = ImageToByte(custom.Bitmap);    // Will use the current image on screen
-            int chunkSize = 128 * 1024; // 256 KB per chunk
+            byte[] imageBytes = ImageToByte(custom.Bitmap);
+            int chunkSize = 500 * 1024;
             int numberOfChunks = (int)Math.Ceiling((double)imageBytes.Length / chunkSize);
 
             for (int i = 0; i < numberOfChunks; i++)
@@ -1184,12 +1198,12 @@ namespace RobotAppControl
 
                 var message = new
                 {
-                    chunkNumber = i + 1,
+                    chunkNumber = i,
                     totalChunks = numberOfChunks,
                     data = chunk
                 };
 
-                await PublishJsonMessageAsync("topic", message);
+                await PublishJsonMessageAsync("location/image", message);
             }
         }
 
@@ -1330,6 +1344,11 @@ namespace RobotAppControl
         private void btnExplode_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnSendImage_Click(object sender, EventArgs e)
+        {
+            PublishImageChunks();
         }
     }
 }
