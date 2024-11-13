@@ -17,10 +17,11 @@
 // ultrasonic trig 33
 // force sensor 17
 
-const char* ssid = "Miyagi";
-const char* password = "$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "192.168.43.144";
+const char* ssid = "TP-Link_74CA";//"Miyagi";
+const char* password = "edidani1";//"$;)_eo73,,.5dhWLd*@";
+const char* mqtt_server = "192.168.0.26";//"192.168.43.144";
 const int mqtt_port = 1883;
+
 
 const char* publishTopicConfirmation = "ServoPosConfirm";
 const char* subListenWantedDir = "wantedDirChangedTo";
@@ -169,41 +170,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (jsonDoc.containsKey("wantedDirection")) {
     WantedposFrontServo = jsonDoc["wantedDirection"];
     AdjustFrontServoToPos();
-    if (!partyStarted) {
-      partyStarted = true;
-      // ServoParty();
-    }
-  }
-}
-int servoPartyWanted = 0;
-int servoPartyNow = 0;
-void ServoParty() {
-  while (true) {
-    if (servoPartyNow <= 10) {
-      servoPartyWanted = 160;
-    }
-    if (servoPartyNow >= 160) {
-      servoPartyWanted = 10;
-    }
-    if (servoPartyWanted > servoPartyNow) {
-      servo1.write(servoPartyNow);
-      servo2.write(servoPartyNow);
-      servo3.write(servoPartyNow);
-      servoPartyNow++;
-    } else {
-      servo1.write(servoPartyNow);
-      servo2.write(servoPartyNow);
-      servo3.write(servoPartyNow);
-      servoPartyNow--;
-    }
-    CheckConnections();
-    client.loop();  // must be called constantly to check for new data
-    delay(100);
   }
 }
 void AdjustFrontServoToPos() {
-  //ServoParty();
-  ///*
   while (!stoppedServos && WantedposFrontServo != posFrontServo) {
     CheckConnections();
     client.loop();
@@ -219,7 +188,7 @@ void AdjustFrontServoToPos() {
   }
   if (sendFrontServoConfirm && !stoppedServos && WantedposFrontServo == posFrontServo) {
     publishAnswerForFrontWheel();
-  }//*/
+  }
 }
 void AdjustArmOneServoToPos() {
   while (!stoppedServos && WantedposArmOne != posArmOne) {

@@ -34,6 +34,7 @@ namespace RobotAppControl
         private bool _dragging = false;
         private Rectangle _imgRect = new Rectangle(0, 0, 0, 0);
         private CustomBitmap custom;
+        private CustomBitmap customMCL;
         private CustomBitmap occupancyMap;
         ConcurrentQueue<(string key, object value)> stringsToBeInterpreted;
         ConcurrentQueue<(float, float, float)> TotalRevievedStrings = new ConcurrentQueue<(float, float, float)>();
@@ -72,7 +73,7 @@ namespace RobotAppControl
             PictureBox = this.pBox_Area;
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
-            InitMQTTClient();
+           // InitMQTTClient();
         }
         private void StartListen()
         {
@@ -83,7 +84,7 @@ namespace RobotAppControl
                 //  listenThread.Start();
             }
         }
-        private void SetObstaclesFromMap(CustomBitmap map, Grid gridToBeSet)
+        private Grid SetObstaclesFromMap(CustomBitmap map, Grid gridToBeSet)
         {
             gridToBeSet = new Grid(map.Width, map.Height);
 
@@ -121,6 +122,7 @@ namespace RobotAppControl
                     }
                 }
             }
+            return gridToBeSet;
         }
         public List<string> ConvertPathToCommands(List<Node> path)
         {
@@ -232,6 +234,7 @@ namespace RobotAppControl
 
 
                     custom = LoadImageAsCustomBitmap(dlg.FileName);
+
                     _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
                     PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
 
@@ -239,7 +242,43 @@ namespace RobotAppControl
 
 
             }
-        }// TODO add MQTT call
+        }
+        private void MultiLoadLoadImageAsMap()
+        {
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Open Image";
+                dlg.Filter = "Image Files | *.jpg; *.jpeg; *.png; *.gif; *.tif";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    // bmp = new Bitmap(dlg.FileName);
+
+
+                    custom = LoadImageAsCustomBitmap(dlg.FileName);
+
+                    var mclName = dlg.FileName;
+                    var split = mclName.Split("\\");
+                    var theOne = split.Last().Split(".");
+                    StringBuilder newOne = new StringBuilder();
+                    for (int i = 0; i < split.Length - 1; i++)
+                    {
+                        newOne.Append(split[i]);
+                        newOne.Append("\\\\");
+                    }
+                    newOne.Append(theOne[0]);
+                    newOne.Append("_mcl.");
+                    newOne.Append(theOne[1]);
+                    customMCL = LoadImageAsCustomBitmap(newOne.ToString());
+
+                    _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
+                    PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+
+                }
+
+
+            }
+        }
         private void btn_LoadImageAsMap_Click(object sender, EventArgs e)
         {
             LoadImageAsMap();
@@ -292,7 +331,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 10, _grid);// grid is new
+                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, _grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -406,7 +445,9 @@ namespace RobotAppControl
                 return sfd;
             }
         }
-        private void ConvertToOccMap()
+        private string filelocationToSaveOccMap;
+        private int filterOption = 0;
+        private void ConvertToOccMap(int size, bool is_MCL_map)
         {
             occupancyMap = new CustomBitmap(custom.Width, custom.Height);
             using (occupancyMap)
@@ -426,16 +467,57 @@ namespace RobotAppControl
                     if (item.Value > 10)
                     {
                         rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
-                        rectangle.Inflate(25, 25);    // adds x to the size in EACH direction so 25 * 2  with 30 it looks a bit too much but logic says it should be more correct?
+                        rectangle.Inflate(size, size);    // adds x to the size in EACH direction so 25 * 2  with 30 it looks a bit too much but logic says it should be more correct?
                         g.FillRectangle(Brushes.Black, rectangle);
                     }
                 }
-                SaveFileDialog saveFileDialog1 = AskSaveFile();
-                if (saveFileDialog1.FileName != "")
+                if (String.IsNullOrEmpty(filelocationToSaveOccMap))
                 {
-                    System.IO.FileStream fs =
-                       (System.IO.FileStream)saveFileDialog1.OpenFile();
-                    switch (saveFileDialog1.FilterIndex)
+                    SaveFileDialog saveFileDialog1 = AskSaveFile();
+                    if (saveFileDialog1.FileName != "")
+                    {
+                        filelocationToSaveOccMap = saveFileDialog1.FileName;
+                        System.IO.FileStream fs =
+                           (System.IO.FileStream)saveFileDialog1.OpenFile();
+                        filterOption = saveFileDialog1.FilterIndex;
+                        switch (saveFileDialog1.FilterIndex)
+                        {
+                            case 1:
+                                occupancyMap.Bitmap.Save(fs,
+                                  ImageFormat.Jpeg);
+                                break;
+
+                            case 2:
+                                occupancyMap.Bitmap.Save(fs,
+                                   ImageFormat.Bmp);
+                                break;
+
+                            case 3:
+                                occupancyMap.Bitmap.Save(fs,
+                                   ImageFormat.Gif);
+                                break;
+                        }
+
+                        fs.Close();
+                    }
+                }
+                else
+                {
+                    string path = filelocationToSaveOccMap;
+                    var mclName = path;
+                    var split = mclName.Split("\\");
+                    var theOne = split.Last().Split(".");
+                    StringBuilder newOne = new StringBuilder();
+                    for (int i = 0; i < split.Length - 1; i++)
+                    {
+                        newOne.Append(split[i]);
+                        newOne.Append("\\\\");
+                    }
+                    newOne.Append(theOne[0]);
+                    newOne.Append("_mcl.");
+                    newOne.Append(theOne[1]);
+                    FileStream fs = new System.IO.FileStream(newOne.ToString(), System.IO.FileMode.Append, System.IO.FileAccess.Write);
+                    switch (filterOption)
                     {
                         case 1:
                             occupancyMap.Bitmap.Save(fs,
@@ -454,13 +536,18 @@ namespace RobotAppControl
                     }
 
                     fs.Close();
+
                 }
             }
-            MessageBox.Show("Success! Image converted and saved.");
+            if (is_MCL_map == false)
+            {
+                ConvertToOccMap(3, true);
+            }
         }
+
         private void StartConvertingToOcccupancyThread()
         {
-            Thread thread = new Thread(() => ConvertToOccMap());
+            Thread thread = new Thread(() => ConvertToOccMap(25, false));
             thread.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
@@ -544,9 +631,9 @@ namespace RobotAppControl
                 }
                 if (counter > 0)
                 {
-                    //currentRotation = _robot.getThetaVisual();
+                  //  currentRotation = _robot.getThetaVisual();
                     MonteLocalization.UpdateWeights(
-                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
+                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid), //_MCL_grid
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);
@@ -559,7 +646,7 @@ namespace RobotAppControl
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                        DrawParticles();
+                       // DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -660,7 +747,8 @@ namespace RobotAppControl
         }
         private void SetObstacles()
         {
-            SetObstaclesFromMap(custom,_grid);
+            _grid = SetObstaclesFromMap(custom, _grid);
+           // _MCL_grid = SetObstaclesFromMap(customMCL, _MCL_grid);
         }
         private void button1_Click(object sender, EventArgs e)
         {
@@ -1153,17 +1241,27 @@ namespace RobotAppControl
         }
         private void HandleTopicLocationCommands(string payload)
         {
+
             JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
             if (message != null)
             {
-                if (message.pressed == "W" || message.pressed == "A" || message.pressed == "S" || message.pressed == "D")
+                if (message.command == "W" || message.command == "A" || message.command == "S" || message.command == "D")
                 {
                     var jsonMessage = new
                     {
                         stopSignal = "false",
-                        manualCommand = message.pressed
+                        manualCommand = message.command
                     };
-                    txtBox_TextOutput.AppendText(message.pressed);
+                    PublishJsonMessageAsync("Movement", jsonMessage);
+
+                }
+                if (message.command == "stop")
+                {
+                    var jsonMessage = new
+                    {
+                        stopSignal = "true",
+                        manualCommand = "None"
+                    };
                     PublishJsonMessageAsync("Movement", jsonMessage);
 
                 }
@@ -1349,6 +1447,11 @@ namespace RobotAppControl
         private void btnSendImage_Click(object sender, EventArgs e)
         {
             PublishImageChunks();
+        }
+
+        private void btnLoadTwo_Click(object sender, EventArgs e)
+        {
+            MultiLoadLoadImageAsMap();
         }
     }
 }

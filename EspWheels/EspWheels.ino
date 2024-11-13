@@ -28,9 +28,9 @@
 //#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
-const char* ssid = "Miyagi";
-const char* password = "$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "192.168.43.144";
+const char* ssid = "TP-Link_74CA";         //"Miyagi";
+const char* password = "edidani1";         //"$;)_eo73,,.5dhWLd*@";
+const char* mqtt_server = "192.168.0.26";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -106,6 +106,7 @@ float changeKeepDir = 0;
 float degreeChangeFromStartKeepDir = 0;
 bool stopSignal = false;
 bool startingServoPosReached = false;
+bool alreadySendDirSignal = false;
 const float hard_iron[3] = {  // with magneto the values are new
   -107.431847, 122.222755, 220.246822
 };
@@ -402,10 +403,10 @@ void ManualMovement(String signal) {
 void justLeftRight(int direction) {
   turnedRight = false;
   turnedLeft = false;
+  alreadySendDirSignal = false;
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    GetUltrasoundData(MagneticSensorReading(), true,true);
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
@@ -413,16 +414,16 @@ void justLeftRight(int direction) {
         turnedLeft = true;
         goingForward = false;
         turnedRight = false;
-      }
-
-      if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == false) {
-        setPWMLeft(0.3);
-        setPWMRight(0.3);
-      } else {
+      } else if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == false) {
+        setPWMLeft(0.25);
+        setPWMRight(0.25);
+        GetUltrasoundData(MagneticSensorReading(), true, true);
+      } else if (!alreadySendDirSignal) {
         setPWMRight(0);
         setPWMLeft(0);
-        SendDirSignal(true, LEFTDIRWHEEL);
+        SendDirSignal(false, LEFTDIRWHEEL);
         SendDirSignal(false, RIGHTDIRWHEEL);
+        alreadySendDirSignal = true;
       }
     } else {
       if (!turnedRight) {
@@ -431,15 +432,16 @@ void justLeftRight(int direction) {
         turnedLeft = false;
         goingForward = false;
         turnedRight = true;
-      }
-      if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
+      } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
         setPWMLeft(0.3);
         setPWMRight(0.3);
-      } else {
+        GetUltrasoundData(MagneticSensorReading(), true, true);
+      } else if (!alreadySendDirSignal) {
         setPWMRight(0);
         setPWMLeft(0);
-        SendDirSignal(false, LEFTDIRWHEEL);
+        SendDirSignal(true, LEFTDIRWHEEL);
         SendDirSignal(true, RIGHTDIRWHEEL);
+        alreadySendDirSignal = true;
       }
     }
   }
@@ -501,15 +503,12 @@ void AdjustPosTo(int wanted, bool waitAnswer) {
   jsonDoc["answer"] = waitAnswer;
   char jsonBuffer[256];
   serializeJson(jsonDoc, jsonBuffer);
-  if (waitAnswer) {
-    client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
-  } else {
-    client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
-  }
+  client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
 }
 void justForward(bool dir) {  //true for forward
   speedTimer = millis();
   speedAdjustTimer = millis();
+  alreadySendDirSignal = false;
   rightthing = 0;
   lastRight = 0;
   PWMLeftCoefficient = 1;
@@ -526,11 +525,9 @@ void justForward(bool dir) {  //true for forward
       goingForward = true;
       turnedLeft = false;
       turnedRight = false;
-    }
+    } else if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
 
-    if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
-
-      GetUltrasoundData(MagneticSensorReading(), true,true);
+      GetUltrasoundData(MagneticSensorReading(), true, true);
 
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
@@ -547,30 +544,31 @@ void justForward(bool dir) {  //true for forward
         float changeRight = PidControllerSpeedRight(3, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 2.9 && PWMLeftCoefficient + changeLEft > 0.1) {
+          if (PWMLeftCoefficient + changeLEft < 1.9 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
           }
         }
         if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 2.9 && PWMRightCoefficient + changeRight > 0.1) {
+          if (PWMRightCoefficient + changeRight < 1.9 && PWMRightCoefficient + changeRight > 0.1) {
             PWMRightCoefficient += changeRight;
           }
         }
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-          setPWMRight(0.3 * PWMLeftCoefficient);
-          setPWMLeft(0.3 * PWMLeftCoefficient);
+          setPWMRight(0.1 * PWMLeftCoefficient);
+          setPWMLeft(0.1 * PWMLeftCoefficient);
           keepDirection();
         }
         speedAdjustTimer = millis();
       }
 
-    } else {
+    } else if (!alreadySendDirSignal) {
       setPWMRight(0);
       setPWMLeft(0);
       SendDirSignal(dir, LEFTDIRWHEEL);
       SendDirSignal(!dir, RIGHTDIRWHEEL);
+      alreadySendDirSignal = true;
     }
   }
   StopMovement();
@@ -696,8 +694,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println(error.c_str());
     return;
   }
-  //if() Check if this is the correct topic and do something accordingly
-  // example way to handle keys
   if (jsonDoc.containsKey("stopSignal")) {
     String tempAnswer = jsonDoc["stopSignal"];
     if (tempAnswer == "true") {

@@ -54,6 +54,7 @@
             txtBoxWeight = new TextBox();
             btnExplode = new Button();
             btnSendImage = new Button();
+            btnLoadTwo = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -311,11 +312,22 @@
             btnSendImage.UseVisualStyleBackColor = true;
             btnSendImage.Click += btnSendImage_Click;
             // 
+            // btnLoadTwo
+            // 
+            btnLoadTwo.Location = new Point(985, 24);
+            btnLoadTwo.Name = "btnLoadTwo";
+            btnLoadTwo.Size = new Size(75, 23);
+            btnLoadTwo.TabIndex = 37;
+            btnLoadTwo.Text = "DualLoad";
+            btnLoadTwo.UseVisualStyleBackColor = true;
+            btnLoadTwo.Click += btnLoadTwo_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnLoadTwo);
             Controls.Add(btnSendImage);
             Controls.Add(btnExplode);
             Controls.Add(txtBoxWeight);
@@ -380,5 +392,6 @@
         private TextBox txtBoxWeight;
         private Button btnExplode;
         private Button btnSendImage;
+        private Button btnLoadTwo;
     }
 }

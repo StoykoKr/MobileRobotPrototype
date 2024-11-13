@@ -8,6 +8,6 @@ namespace RobotAppControl
 {
     public class JsonLocationCommandsClass
     {
-        public string pressed { get; set; }
+        public string command { get; set; }
     }
 }
