@@ -73,7 +73,7 @@ namespace RobotAppControl
             PictureBox = this.pBox_Area;
             this.KeyPreview = true;
             myDelagate = new RefreshTheImg(RefreshPicture);
-           // InitMQTTClient();
+            InitMQTTClient();
         }
         private void StartListen()
         {
@@ -316,6 +316,15 @@ namespace RobotAppControl
             }
 
         }
+        private async void RequestDataFromBot()
+        {
+            var message = new
+            {
+                requestMapData = 5
+            };
+
+            await PublishJsonMessageAsync("MapDataRequest", message, 1);
+        }
         public void RefreshPicture()
         {
             PictureBox.Invalidate();
@@ -331,7 +340,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(180, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, _grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(1000, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, _grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -464,7 +473,7 @@ namespace RobotAppControl
                 }
                 foreach (var item in AffectedCells)
                 {
-                    if (item.Value > 10)
+                    if (item.Value > 5)
                     {
                         rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
                         rectangle.Inflate(size, size);    // adds x to the size in EACH direction so 25 * 2  with 30 it looks a bit too much but logic says it should be more correct?
@@ -547,8 +556,8 @@ namespace RobotAppControl
 
         private void StartConvertingToOcccupancyThread()
         {
-            Thread thread = new Thread(() => ConvertToOccMap(25, false));
-            thread.Start();
+            Task task = new Task(() => ConvertToOccMap(25, false));
+            task.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
         {
@@ -589,7 +598,7 @@ namespace RobotAppControl
                     manualCommand = currentlyPressedKey.ToString()
                 };
 
-                await PublishJsonMessageAsync("Movement", message);
+                await PublishJsonMessageAsync("Movement", message, 2);
             }
             else if (!currentlyControlling)
             {
@@ -631,7 +640,7 @@ namespace RobotAppControl
                 }
                 if (counter > 0)
                 {
-                  //  currentRotation = _robot.getThetaVisual();
+                    //  currentRotation = _robot.getThetaVisual();
                     MonteLocalization.UpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid), //_MCL_grid
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
@@ -646,7 +655,7 @@ namespace RobotAppControl
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                       // DrawParticles();
+                        DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -657,6 +666,11 @@ namespace RobotAppControl
                         }
                         txtBoxWeight.Text = estimatedPos.Theta.ToString();
                         PictureBox.Invalidate();
+                        /* foreach (var item in MonteLocalization.Particles)
+                         {
+                         addToTextBox($"Point: { item.X} + {item.Y} ");
+
+                         }*/
                     }
                     catch (Exception)
                     {
@@ -693,7 +707,7 @@ namespace RobotAppControl
                     manualCommand = currentlyPressedKey.ToString()
                 };
 
-                await PublishJsonMessageAsync("Movement", message);
+                await PublishJsonMessageAsync("Movement", message, 1);
             }
         }
         private void ControlRobotLogic()
@@ -748,7 +762,7 @@ namespace RobotAppControl
         private void SetObstacles()
         {
             _grid = SetObstaclesFromMap(custom, _grid);
-           // _MCL_grid = SetObstaclesFromMap(customMCL, _MCL_grid);
+            // _MCL_grid = SetObstaclesFromMap(customMCL, _MCL_grid);
         }
         private void button1_Click(object sender, EventArgs e)
         {
@@ -992,7 +1006,7 @@ namespace RobotAppControl
                 leftVelocity = robot.LeftWheelVelocity,
                 rightSpeed = robot.RightWheelVelocity
             };
-            PublishJsonMessageAsync("LeftRightSpeed", message);
+            //   PublishJsonMessageAsync("LeftRightSpeed", message);
         }
         private (double X, double Y, double Theta) estimatedPos;
         public void UpdatePosition(Robot robot, double dt)
@@ -1036,31 +1050,57 @@ namespace RobotAppControl
         public List<(double, double)> tempAngles = new List<(double, double)>();
         public async void PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
         {
+            RequestDataFromBot();
             Node currentGoal = path[0];
-
+            Stopwatch sw = Stopwatch.StartNew();
+            int firstInstance = 1;
             do
             {
-                //  double lookaheadDistance = CalculateAdaptiveLookahead(robot, nextWaypoint, minLookahead, maxLookahead, thresholdDistance);
-                if (newInfoForAutoMovement_FLAG)
-                {
-                    newInfoForAutoMovement_FLAG = false;
-                    var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
-                    currentGoal = SmallGoal_BigGoal.Item2;
-                    var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
-                    SetWheelVelocities(robot, steeringAngle, baseVelocity);
-                    tempAngles.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity));
-                    UpdatePosition(robot, dt);
 
+                //  double lookaheadDistance = CalculateAdaptiveLookahead(robot, nextWaypoint, minLookahead, maxLookahead, thresholdDistance);
+                //    if (newInfoForAutoMovement_FLAG)
+                //    {
+                // newInfoForAutoMovement_FLAG = false;
+                var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
+                currentGoal = SmallGoal_BigGoal.Item2;
+                var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
+                SetWheelVelocities(robot, steeringAngle, baseVelocity);
+                //tempAngles.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity));
+                // UpdatePosition(robot, dt);
+                var message = new
+                {
+                    stopSignal = "false",
+                    firstInstance = firstInstance,
+                    leftVelocity = robot.LeftWheelVelocity,
+                    rightSpeed = robot.RightWheelVelocity
+                };
+                // SafeUpdate(()=>DrawParticles());
+                /* SafeUpdate(() =>
+                 {
+                     if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
+                     {
+                         custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
+                     }
+                 });*/
+                if (sw.ElapsedMilliseconds > 750)
+                {
+                    if (firstInstance == 1)
+                    {
+                        await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                        firstInstance = 0;
+                    }
+                    else
+                    {
+                        PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                    }
+                    // addToTextBox($"Velocity: {robot.LeftWheelVelocity}/{robot.RightWheelVelocity}");
+                    sw.Restart();
                 }
 
+                // }
+
             } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
-            var message = new
-            {
-                stopSignal = "false",
-                leftVelocity = robot.LeftWheelVelocity,
-                rightSpeed = robot.RightWheelVelocity
-            };
-            await PublishJsonMessageAsync("LeftRightSpeed", message);
+
 
         }
         public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
@@ -1098,7 +1138,9 @@ namespace RobotAppControl
             // ExecutePath(CookedPath(finalPath));
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
 
-            PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
+            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2));
+            purePursuitTask.Start();
+            //PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
             /*
             var output = goodPath();
             foreach (var item in output)
@@ -1176,10 +1218,11 @@ namespace RobotAppControl
 
             }
         }
-        private void addToTextBox(string messageToAdd)
+        public void addToTextBox(string messageToAdd)
         {
             SafeUpdate(() => txtBox_TextOutput.AppendText(messageToAdd));
         }
+
         private void SafeUpdate(Action action)
         {
             if (this.InvokeRequired)
@@ -1216,10 +1259,13 @@ namespace RobotAppControl
                 }
                 else
                 {
-                    MonteLocalization.MoveParticles(message.movement, message.direction);
-                    MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                    MonteLocalization.Resample();
-                    MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                   // _robot.setThetaActual(message.direction);
+                   // currentRotation = message.direction;
+                   // MonteLocalization.MoveParticles(message.movement, message.direction);
+                   // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                  //  MonteLocalization.Resample();
+                   // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                    addToTextBox($"<left = {message.rightSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
             }
@@ -1232,7 +1278,11 @@ namespace RobotAppControl
 
         private void HandleTopicThree(string payload)
         {
-            addToTextBox($"{payload}\n");
+            magDataMessage? message = JsonConvert.DeserializeObject<magDataMessage>(payload);
+            if (message != null)
+            {
+                stringsToBeInterpreted.Enqueue(("calib", message));
+            }
         }
 
         private void HandleTopicLocationMarker(string payload)
@@ -1252,7 +1302,7 @@ namespace RobotAppControl
                         stopSignal = "false",
                         manualCommand = message.command
                     };
-                    PublishJsonMessageAsync("Movement", jsonMessage);
+                    PublishJsonMessageAsync("Movement", jsonMessage, 2);
 
                 }
                 if (message.command == "stop")
@@ -1262,19 +1312,19 @@ namespace RobotAppControl
                         stopSignal = "true",
                         manualCommand = "None"
                     };
-                    PublishJsonMessageAsync("Movement", jsonMessage);
+                    PublishJsonMessageAsync("Movement", jsonMessage, 1);
 
                 }
 
             }
         }
-        private async Task PublishJsonMessageAsync(string topic, object message)
+        private async Task PublishJsonMessageAsync(string topic, object message, int qosLevel)
         {
             var payload = JsonConvert.SerializeObject(message);
             var mqttMessage = new MqttApplicationMessageBuilder()
                 .WithTopic(topic)  // Specify the topic
                 .WithPayload(Encoding.UTF8.GetBytes(payload))
-                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce)
+                .WithQualityOfServiceLevel(qosLevel == 0 ? MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce : qosLevel == 1 ? MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce : qosLevel == 2 ? MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce : throw new Exception())
                 .WithRetainFlag(false)
                 .Build();
 
@@ -1301,7 +1351,7 @@ namespace RobotAppControl
                     data = chunk
                 };
 
-                await PublishJsonMessageAsync("location/image", message);
+                await PublishJsonMessageAsync("location/image", message, 1);
             }
         }
 
@@ -1341,7 +1391,7 @@ namespace RobotAppControl
                     calMag = 1
 
                 };
-                await PublishJsonMessageAsync("Movement", message);
+                await PublishJsonMessageAsync("Movement", message, 2);
 
                 isTakingMagData = true;
                 MessageBox.Show("We are collecting data.");
@@ -1354,35 +1404,7 @@ namespace RobotAppControl
         }
         private void button3_Click(object sender, EventArgs e)
         {
-
-            for (int i = 0; i <= 360; i++)
-            {
-                //  stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{40}|-90|{40}|`");
-            }
-            for (int i = 360; i >= 0; i--)
-            {
-                // stringsToBeInterpreted.Enqueue($"mapPoint|{30}|{i}|0|{0}|90|{-40}|-90|{-40}|`");
-            }
-            for (int i = 180; i < 360; i++)
-            {
-                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{180}|0|{0}|90|{-0}|-90|{-0}|`");
-            }
-            for (int i = 1; i < 40; i++)
-            {
-                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{90}|0|{0}|90|{-0}|-90|{-0}|`");
-            }
-            for (int i = 1; i < 40; i++)
-            {
-                //   stringsToBeInterpreted.Enqueue($"mapPoint|{24}|{135}|0|{0}|90|{-0}|-90|{-0}|`");
-            }
-            for (int i = 360; i > 180; i--)
-            {
-                //   stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{i}|0|{0}|90|{-10}|-90|{-10}|`");
-            }
-            for (int i = 1; i < 40; i++)
-            {
-                // stringsToBeInterpreted.Enqueue($"mapPoint|{25}|{45}|0|{0}|90|{-0}|-90|{-0}|`");
-            }
+            RequestDataFromBot();
 
         }
 
@@ -1402,7 +1424,7 @@ namespace RobotAppControl
                 //  wantedDirection = 90
             };
 
-            await PublishJsonMessageAsync("HandServoControl", message);
+            await PublishJsonMessageAsync("HandServoControl", message, 2);
             // await PublishJsonMessageAsync("wantedDirection", message);
         }
 
@@ -1414,7 +1436,7 @@ namespace RobotAppControl
                 posArmOne = 0
             };
 
-            await PublishJsonMessageAsync("HandServoControl", message);
+            await PublishJsonMessageAsync("HandServoControl", message, 2);
         }
 
         private async void btnGrab_Click(object sender, EventArgs e)
@@ -1425,7 +1447,7 @@ namespace RobotAppControl
                 posArmTwo = 150
             };
 
-            await PublishJsonMessageAsync("HandServoControl", message);
+            await PublishJsonMessageAsync("HandServoControl", message, 2);
         }
 
         private async void btnRelease_Click(object sender, EventArgs e)
@@ -1436,7 +1458,7 @@ namespace RobotAppControl
                 posArmTwo = 130
             };
 
-            await PublishJsonMessageAsync("HandServoControl", message);
+            await PublishJsonMessageAsync("HandServoControl", message, 2);
         }
 
         private void btnExplode_Click(object sender, EventArgs e)

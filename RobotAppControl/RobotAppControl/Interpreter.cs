@@ -25,11 +25,10 @@ namespace RobotAppControl
         private double currentDegrees = 0;
         private int degreeOffsetMid = 0;
         private int degreeOffsetLeft = 90;
-        private int degreeOffsetRight = -90;
-
-        private double MidDegrees = Math.Atan2(5, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
-        private double LeftDegrees = Math.Atan2(-22, 16) * (180.0 / Math.PI);  //left
-        private double RightDegrees = Math.Atan2(23, 15) * (180.0 / Math.PI);  //right
+        private int degreeOffsetRight = -90;      
+        private double MidDegrees = Math.Atan2(0, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
+        private double LeftDegrees = Math.Atan2(-24, 17) * (180.0 / Math.PI);  //left
+        private double RightDegrees = Math.Atan2(26, 20) * (180.0 / Math.PI);  //right
 
         public Interpreter(ref ConcurrentQueue<(string key, object value)> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
         {
@@ -49,7 +48,6 @@ namespace RobotAppControl
         {
             if (bitmap != null)
             {
-
                 try
                 {
                     int tempY = bitmap.Height / 2;
@@ -68,20 +66,20 @@ namespace RobotAppControl
 
 
                     offsedY = -30;
-                    offsedX = 5;
+                    offsedX = 0;
                     newColor = Color.Red;
                     currentDegrees = MidDegrees;
                     nehsto = 1;
-                    int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((degreeOffsetMid + currentRotation) * Math.PI / 180));
-                    int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
+                    int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((degreeOffsetLeft/*degreeOffsetMid*/ + currentRotation) * Math.PI / 180));
+                    int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetLeft/*degreeOffsetMid*/ + currentRotation) * Math.PI / 180));
                     bitmap.SetPixel(
                  centralPixelX,
                  centralPixelY, newColor);
 
 
 
-                    offsedY = -16;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                    offsedX = -22;
+                    offsedY = -17;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                    offsedX = -24;
                     newColor = Color.Green;
                     currentDegrees = LeftDegrees;
                     nehsto = -1;
@@ -92,8 +90,8 @@ namespace RobotAppControl
                  centralPixelY, newColor);
 
 
-                    offsedY = -15;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                    offsedX = 23;
+                    offsedY = -20;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                    offsedX = 26;
                     newColor = Color.Blue;
                     currentDegrees = RightDegrees;
                     nehsto = -1;
@@ -132,8 +130,10 @@ namespace RobotAppControl
                         {
                             if (entry.key == "mapPoint")
                             {
-                                MakeMap((JsonMessageClass)entry.value);
-                                counter++;
+                                 MakeMap((JsonMessageClass)entry.value);
+                               // JsonMessageClass mes = (JsonMessageClass)entry.value;
+                               // formControl.addToTextBox(mes.direction.ToString() + "  |  ");
+                                 counter++;
                                 if (counter > 2)
                                 {
                                     counter = 0;
