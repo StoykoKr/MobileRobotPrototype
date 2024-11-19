@@ -17,9 +17,9 @@
 // ultrasonic trig 33
 // force sensor 17
 
-const char* ssid = "TP-Link_74CA";//"Miyagi";
-const char* password = "edidani1";//"$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "192.168.0.26";//"192.168.43.144";
+const char* ssid = "Miyagi";//"Miyagi";
+const char* password = "$;)_eo73,,.5dhWLd*@";//"$;)_eo73,,.5dhWLd*@";
+const char* mqtt_server = "192.168.43.144";//"192.168.43.144";
 const int mqtt_port = 1883;
 
 

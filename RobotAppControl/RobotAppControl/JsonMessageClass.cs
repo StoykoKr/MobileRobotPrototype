@@ -13,6 +13,7 @@ namespace RobotAppControl
         public float leftSensor { get; set; }
         public float midSensor { get; set; }
         public float rightSensor { get; set; }
+        public float handSensor { get; set; }
         public int mappingFlag { get; set; }
     }
 }

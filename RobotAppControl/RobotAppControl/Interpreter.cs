@@ -70,8 +70,8 @@ namespace RobotAppControl
                     newColor = Color.Red;
                     currentDegrees = MidDegrees;
                     nehsto = 1;
-                    int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((degreeOffsetLeft/*degreeOffsetMid*/ + currentRotation) * Math.PI / 180));
-                    int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetLeft/*degreeOffsetMid*/ + currentRotation) * Math.PI / 180));
+                    int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((/*degreeOffsetLeft*/degreeOffsetMid + currentRotation) * Math.PI / 180));
+                    int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
                     bitmap.SetPixel(
                  centralPixelX,
                  centralPixelY, newColor);

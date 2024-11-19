@@ -318,12 +318,21 @@ namespace RobotAppControl
         }
         private async void RequestDataFromBot()
         {
-            var message = new
+            int counterForRequest = 0;
+            Stopwatch sw = Stopwatch.StartNew();
+            while (counterForRequest < 30)
             {
-                requestMapData = 5
-            };
-
-            await PublishJsonMessageAsync("MapDataRequest", message, 1);
+                if (sw.ElapsedMilliseconds > 200)
+                {
+                    var message = new
+                    {
+                        requestMapData = 1
+                    };
+                    counterForRequest++;
+                    await PublishJsonMessageAsync("MapDataRequest", message, 1);
+                    sw.Restart();
+                }
+            }
         }
         public void RefreshPicture()
         {
@@ -1259,13 +1268,13 @@ namespace RobotAppControl
                 }
                 else
                 {
-                   // _robot.setThetaActual(message.direction);
-                   // currentRotation = message.direction;
-                   // MonteLocalization.MoveParticles(message.movement, message.direction);
-                   // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                  //  MonteLocalization.Resample();
-                   // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                    addToTextBox($"<left = {message.rightSensor}> \n");
+                    // _robot.setThetaActual(message.direction);
+                    // currentRotation = message.direction;
+                    // MonteLocalization.MoveParticles(message.movement, message.direction);
+                    // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                    //  MonteLocalization.Resample();
+                    // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                   // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
             }

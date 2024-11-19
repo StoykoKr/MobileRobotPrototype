@@ -11,7 +11,9 @@
 #define signalOutputInterruptPinLeft 5
 #define analogOutputLeftPin 32   //17   //33
 #define analogOutputRightPin 26  //14
-#define trigPin 33               //26
+#define trigPin 33               //33
+#define trigPinHand 4
+#define echoPinHand 16
 #define echoMidPin 18
 #define echoLeftPin 19   //17
 #define echoRightPin 17  //16
@@ -24,13 +26,13 @@
 #define TICKS_PER_REV 42
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((float)(A)) / MM_PER_TICK
-//#define MM_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)  // TO BE UPDATED?
+//#define MMipconfig_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)  // TO BE UPDATED?
 //#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
-const char* ssid = "TP-Link_74CA";         //"Miyagi";
-const char* password = "edidani1";         //"$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "192.168.0.26";  //"192.168.43.144";
+const char* ssid = "Miyagi";                   //"Miyagi";  TP-Link_74CA
+const char* password = "$;)_eo73,,.5dhWLd*@";  //"$;)_eo73,,.5dhWLd*@"; edidani1
+const char* mqtt_server = "192.168.43.144";    //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -50,9 +52,11 @@ ESP32PWM motorRightPWM;
 double midUSArr[] = { 0, 0, 0 };
 double leftUSArr[] = { 0, 0, 0 };
 double rightUSArr[] = { 0, 0, 0 };
+double HandUSArr[] = { 0, 0, 0 };
 double _medianMid = 0;
 double _medianLeft = 0;
 double _medianRight = 0;
+double _medianHand = 0;
 volatile long leftEncoderCounter = 0;
 volatile long rightEncoderCounter = 0;
 volatile bool newMidData = false;
@@ -73,6 +77,12 @@ volatile bool canPingLeft = true;
 double distanceMid = 0;
 double distanceLeft = 0;
 double distanceRight = 0;
+double distanceHand = 0;
+volatile bool newHandData = false;
+volatile unsigned long microSecHand = 0;
+volatile unsigned long microSecHandEndDuration = 0;
+volatile bool canPingHand = true;
+volatile bool canCollectDataHand = false;
 volatile bool canCollectDataMid = false;
 volatile bool canCollectDataLeft = false;
 volatile bool canCollectDataRight = false;
@@ -134,10 +144,13 @@ void setup() {
   pinMode(analogOutputLeftPin, OUTPUT);
   pinMode(analogOutputRightPin, OUTPUT);
   pinMode(trigPin, OUTPUT);
+  pinMode(trigPinHand, OUTPUT);
   pinMode(echoMidPin, INPUT);
+  pinMode(echoPinHand, INPUT);
   pinMode(echoLeftPin, INPUT);
   pinMode(echoRightPin, INPUT);
   attachInterrupt(digitalPinToInterrupt(echoMidPin), IRS_MidSensor, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(echoPinHand), IRS_HandSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoLeftPin), IRS_LeftSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(echoRightPin), IRS_RightSensor, CHANGE);
   attachInterrupt(digitalPinToInterrupt(signalOutputInterruptPinRight), IRS_RightEncoder, RISING);
@@ -186,6 +199,21 @@ void ResetEncoderValues() {
   lastLeftEncoderCounterUsedToCalculate = 0;
   lastRightEncoderCounterUsedToCalculateAuto = 0;
   lastLeftEncoderCounterUsedToCalculateAuto = 0;
+}
+void IRS_HandSensor() {
+  if (digitalRead(echoPinHand) == 0x0) {
+    if (canCollectDataHand && !canPingHand) {
+      microSecHandEndDuration = micros() - microSecHand;
+      canCollectDataHand = false;
+      newHandData = true;
+    }
+  } else {
+    if (canPingHand) {
+      microSecHand = micros();
+      canPingHand = false;
+      canCollectDataHand = true;
+    }
+  }
 }
 void IRS_MidSensor() {
   if (digitalRead(echoMidPin) == 0x0) {
@@ -252,6 +280,48 @@ void IRS_RightEncoder() {
     lastRightRec = millis();
   }
 }
+unsigned long timeOfLastTriggerHand = 0;
+void handtemp() {
+  if (millis() - timeOfLastTriggerHand >= 40) {
+    canPingHand = true;
+    digitalWrite(trigPinHand, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPinHand, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPinHand, LOW);
+    timeOfLastTriggerHand = millis();
+  }
+  if (newHandData) {
+    newHandData = false;
+    distanceHand = (microSecHandEndDuration * 0.0343) / 2;
+    HandUSArr[0] = HandUSArr[1];
+    HandUSArr[1] = HandUSArr[2];
+    HandUSArr[2] = distanceHand;
+    if (HandUSArr[2] < HandUSArr[1]) {
+      if (HandUSArr[2] < HandUSArr[0]) {
+        if (HandUSArr[1] < HandUSArr[0]) {
+          _medianHand = HandUSArr[1];
+        } else {
+          _medianHand = HandUSArr[0];
+        }
+      } else {
+        _medianHand = HandUSArr[2];
+      }
+    } else {
+      if (HandUSArr[2] < HandUSArr[0]) {
+        _medianHand = HandUSArr[2];
+      } else {
+        if (HandUSArr[1] < HandUSArr[0]) {
+          _medianHand = HandUSArr[0];
+        } else {
+          _medianHand = HandUSArr[1];
+        }
+      }
+    }
+  }
+ // publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, useDataForMap);
+}
+
 void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDataRegardlessOfMove) {
   int rigthCount = rightEncoderCounter;
   int leftCount = leftEncoderCounter;
@@ -261,15 +331,19 @@ void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDa
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
 
-  if (millis() - timeOfLastTrigger >= 175) {
+  if (millis() - timeOfLastTrigger >= 75) {
     canPingLeft = true;
     canPingMid = true;
     canPingRight = true;
+    canPingHand = true;
     digitalWrite(trigPin, LOW);
+    digitalWrite(trigPinHand, LOW);
     delayMicroseconds(2);
     digitalWrite(trigPin, HIGH);
+    digitalWrite(trigPinHand, HIGH);
     delayMicroseconds(10);
     digitalWrite(trigPin, LOW);
+    digitalWrite(trigPinHand, LOW);
     timeOfLastTrigger = millis();
   }
   if (newRightData) {
@@ -296,6 +370,34 @@ void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDa
           _medianRight = rightUSArr[0];
         } else {
           _medianRight = rightUSArr[1];
+        }
+      }
+    }
+  }
+  if (newHandData) {
+    newHandData = false;
+    distanceHand = (microSecHandEndDuration * 0.0343) / 2;
+    HandUSArr[0] = HandUSArr[1];
+    HandUSArr[1] = HandUSArr[2];
+    HandUSArr[2] = distanceHand;
+    if (HandUSArr[2] < HandUSArr[1]) {
+      if (HandUSArr[2] < HandUSArr[0]) {
+        if (HandUSArr[1] < HandUSArr[0]) {
+          _medianHand = HandUSArr[1];
+        } else {
+          _medianHand = HandUSArr[0];
+        }
+      } else {
+        _medianHand = HandUSArr[2];
+      }
+    } else {
+      if (HandUSArr[2] < HandUSArr[0]) {
+        _medianHand = HandUSArr[2];
+      } else {
+        if (HandUSArr[1] < HandUSArr[0]) {
+          _medianHand = HandUSArr[0];
+        } else {
+          _medianHand = HandUSArr[1];
         }
       }
     }
@@ -361,7 +463,7 @@ void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDa
     }
   }
   if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
-    publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, useDataForMap);
+    publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
   }
 }
 float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
@@ -685,13 +787,14 @@ void autoMovement() {
   // the frond servo will likely change based on the difference of volocities as that signifies
   // There is the option where we do the direction change only when starting the movement sequence in which case we will need another method.. we can use the manual method for left/right
 }
-void publishJsonDataForMap(float direction, float movement, float left, float mid, float right, bool useDataForMap) {
+void publishJsonDataForMap(float direction, float movement, float left, float mid, float right, float hand, bool useDataForMap) {
   StaticJsonDocument<300> jsonDoc;
   jsonDoc["direction"] = direction;
   jsonDoc["movement"] = movement;
   jsonDoc["leftSensor"] = left;
   jsonDoc["midSensor"] = mid;
   jsonDoc["rightSensor"] = right;
+  jsonDoc["handSensor"] = hand;
   if (useDataForMap) {
     jsonDoc["mappingFlag"] = 1;
   } else {
@@ -814,6 +917,5 @@ void loop() {
   CheckConnections();
   client.loop();  // must be called constantly to check for new data
   delay(100);
- // GetUltrasoundData(0, false, false, true);
- 
+  // GetUltrasoundData(0, false, false, true);
 }

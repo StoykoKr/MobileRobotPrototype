@@ -62,7 +62,7 @@
             // 
             pBox_Area.Location = new Point(43, 28);
             pBox_Area.Name = "pBox_Area";
-            pBox_Area.Size = new Size(920, 586);
+            pBox_Area.Size = new Size(806, 586);
             pBox_Area.TabIndex = 0;
             pBox_Area.TabStop = false;
             pBox_Area.Click += pBox_Area_Click;
@@ -102,10 +102,10 @@
             // 
             // txtBox_TextOutput
             // 
-            txtBox_TextOutput.Location = new Point(977, 361);
+            txtBox_TextOutput.Location = new Point(855, 361);
             txtBox_TextOutput.Multiline = true;
             txtBox_TextOutput.Name = "txtBox_TextOutput";
-            txtBox_TextOutput.Size = new Size(161, 178);
+            txtBox_TextOutput.Size = new Size(283, 178);
             txtBox_TextOutput.TabIndex = 5;
             // 
             // btn_SaveImg

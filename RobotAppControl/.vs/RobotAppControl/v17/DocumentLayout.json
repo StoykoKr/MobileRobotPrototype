@@ -7,12 +7,20 @@
       "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
-      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\interpreter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\interpreter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\magdatamessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\magdatamessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|d:\\mobilerobot\\mobilerobotprototype\\robotappcontrol\\robotappcontrol\\jsonmessageclass.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\jsonmessageclass.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
+      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
       "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -21,10 +29,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\montecarlolocal.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\montecarlolocal.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\magdatamessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\magdatamessage.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\particle.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -42,7 +46,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 7,
+          "SelectedChildIndex": 8,
           "Children": [
             {
               "$type": "Bookmark",
@@ -50,7 +54,20 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 3,
+              "Title": "JsonMessageClass.cs",
+              "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\JsonMessageClass.cs",
+              "RelativeDocumentMoniker": "RobotAppControl\\JsonMessageClass.cs",
+              "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\JsonMessageClass.cs",
+              "RelativeToolTip": "RobotAppControl\\JsonMessageClass.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAAA0AAAAKAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-19T14:13:09.767Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
               "Title": "magDataMessage.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\magDataMessage.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\magDataMessage.cs",
@@ -58,11 +75,12 @@
               "RelativeToolTip": "RobotAppControl\\magDataMessage.cs",
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAAwAAAAkAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-11-15T18:40:20.567Z"
+              "WhenOpened": "2024-11-15T18:40:20.567Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 5,
               "Title": "Program.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Program.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\Program.cs",
@@ -70,25 +88,24 @@
               "RelativeToolTip": "RobotAppControl\\Program.cs",
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAA0AAAAMAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-11-14T11:42:20.846Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-11-14T11:42:20.846Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 1,
               "Title": "Interpreter.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Interpreter.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\Interpreter.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Interpreter.cs",
               "RelativeToolTip": "RobotAppControl\\Interpreter.cs",
-              "ViewState": "AQIAAC0AAAAAAAAAAAAowC4AAAA4AAAA",
+              "ViewState": "AQIAAI4AAAAAAAAAAAAcwIQAAAAoAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-10-29T11:25:14.353Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 8,
               "Title": "Node.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Node.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\Node.cs",
@@ -100,7 +117,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "Particle.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Particle.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\Particle.cs",
@@ -112,7 +129,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 6,
               "Title": "MonteCarloLocal.cs",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\MonteCarloLocal.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\MonteCarloLocal.cs",
@@ -120,8 +137,7 @@
               "RelativeToolTip": "RobotAppControl\\MonteCarloLocal.cs",
               "ViewState": "AQIAAAAAAAAAAAAAAAAAAA0AAAAiAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-10-15T10:08:35.208Z",
-              "EditorCaption": ""
+              "WhenOpened": "2024-10-15T10:08:35.208Z"
             },
             {
               "$type": "Document",
@@ -131,14 +147,14 @@
               "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
               "RelativeToolTip": "RobotAppControl\\Form1.cs",
-              "ViewState": "AQIAAB8FAAAAAAAAAAAowDIFAAAMAAAA",
+              "ViewState": "AQIAABIAAAAAAAAAAAAAAGgFAAAIAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-07-01T12:18:37.339Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 4,
               "Title": "Form1.cs [Design]",
               "DocumentMoniker": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
               "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
