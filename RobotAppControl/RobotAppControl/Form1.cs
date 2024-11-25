@@ -18,6 +18,7 @@ using MQTTnet.Server;
 using Newtonsoft.Json;
 using Microsoft.VisualBasic;
 using static System.Windows.Forms.AxHost;
+using System.Globalization;
 
 namespace RobotAppControl
 {
@@ -349,7 +350,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(1000, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, _grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(750, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20,5, _grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -594,6 +595,7 @@ namespace RobotAppControl
         }
         Keys lastSentKey = Keys.Enter;
         int counter = 0;
+        int movementVal = 0;
         private async void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
@@ -616,7 +618,8 @@ namespace RobotAppControl
                     if (MonteLocalization != null)
                     {
                         currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
-                        MonteLocalization.MoveParticles(1, currentRotation);
+                        movementVal = 1;
+                      //  MonteLocalization.StartTasksToMoveParticles(1, (float)currentRotation);
                         currentX += 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY += 1 * Math.Sin(currentRotation * Math.PI / 180);
                         counter++;
@@ -626,7 +629,8 @@ namespace RobotAppControl
                 {
                     _robot.setThetaActual(_robot.getThetaActual() - 1.5);
                     currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
-                    MonteLocalization.MoveParticles(0, currentRotation);
+                    movementVal = 0;
+                   // MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
                 else if (e.KeyCode == Keys.S)
@@ -634,7 +638,8 @@ namespace RobotAppControl
                     if (MonteLocalization != null)
                     {
                         currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
-                        MonteLocalization.MoveParticles(-1, currentRotation);
+                        movementVal = -1;
+                      //  MonteLocalization.StartTasksToMoveParticles(-1, (float)currentRotation);
                         currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
                         counter++;
@@ -644,27 +649,28 @@ namespace RobotAppControl
                 {
                     _robot.setThetaActual(_robot.getThetaActual() + 1.5);
                     currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
-                    MonteLocalization.MoveParticles(0, currentRotation);
+                    movementVal = 0;
+                 //   MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
-                if (counter > 0)
-                {
-                    //  currentRotation = _robot.getThetaVisual();
-                    MonteLocalization.UpdateWeights(
+
+                //  currentRotation = _robot.getThetaVisual();
+                await MonteLocalization.StartTasksToMoveParticles(movementVal, (float)currentRotation);
+                await MonteLocalization.StartTasksToUpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid), //_MCL_grid
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);
                     MonteLocalization.Resample();
-                    MonteLocalization.UpdateWeights(
+                /*    MonteLocalization.UpdateWeightsOld(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-                        2);
+                        2);*/
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                        DrawParticles();
+                      //  DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -686,8 +692,7 @@ namespace RobotAppControl
 
                         throw;
                     }
-                    counter = 0;
-                }
+                       
 
 
             }
@@ -1270,16 +1275,16 @@ namespace RobotAppControl
                 {
                     // _robot.setThetaActual(message.direction);
                     // currentRotation = message.direction;
-                    // MonteLocalization.MoveParticles(message.movement, message.direction);
-                    // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                    //  MonteLocalization.Resample();
-                    // MonteLocalization.UpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
+                    MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
+                    MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
+                      MonteLocalization.Resample();
+                     MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
                    // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
             }
         }
-
+      
         private void HandleTopicTwo(string payload)
         {
             addToTextBox($"{payload}\n");
@@ -1413,7 +1418,33 @@ namespace RobotAppControl
         }
         private void button3_Click(object sender, EventArgs e)
         {
-            RequestDataFromBot();
+            //  RequestDataFromBot();
+            KalmanTest();
+        }
+        private void KalmanTest()
+        {
+            Random random = new Random();
+            KalmanFilter kalmanFilter = new KalmanFilter(0.2f,15,7.5f,4,3,10);
+            int currentBase = 10;
+            int currentnumb = 0;
+            int output = 0;
+            int errCounter = 0;
+            for (int i = 0; i < 500; i++)
+            {
+                if (random.NextDouble() > 0.55)
+                    currentBase = random.Next(10, 250);
+                currentnumb = random.Next(7) + currentBase;
+                output = (int)kalmanFilter.Output(currentnumb);
+                if(Math.Abs(currentnumb - output) >= 10)
+                {
+
+                 errCounter++;
+                }
+                addToTextBox("<" + (currentnumb - output)+"|" + currentnumb +"|"+output+ ">" + Environment.NewLine);
+               // else
+               // addToTextBox("<" +currentnumb + " | " +kalmanFilter.Output(currentnumb).ToString("F", CultureInfo.InvariantCulture) + ">");
+            }
+            addToTextBox("The number of times the error exceeded 10 was: " + errCounter);
 
         }
 
