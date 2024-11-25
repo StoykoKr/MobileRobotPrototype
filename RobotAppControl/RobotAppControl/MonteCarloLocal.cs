@@ -24,8 +24,10 @@ namespace RobotAppControl
         public int numberOfTasksToRunOn { private set; get; }
         private double resampleNoiseFactor = 4;
         private double weightScale = 1;
+        public double totalWeightPublic = 666;
        // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
         public List<Particle> Particles { private set; get; }
+        private ConcurrentDictionary<int,Particle> keyValueParticles;
         
         public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range,int tastksCount, Grid map)
         {          
@@ -34,6 +36,7 @@ namespace RobotAppControl
             allParticleCount = particleCount;
             numberOfTasksToRunOn = tastksCount;
             Particles = InitializeParticles(particleCount, CenterX - range, CenterX + range, CenterY - range, CenterY + range);
+            keyValueParticles = new ConcurrentDictionary<int, Particle>(-1, particleCount);
             currentEstimateWeight = 0;
         }
         private List<Particle> InitializeParticles(int particleCount, int xMin, int xMax, int yMin, int yMax)
@@ -122,9 +125,9 @@ namespace RobotAppControl
 
                 totalWeight += Particles[i].Weight;
             }
-            if (totalWeight == 0)
+            if (totalWeight < 0.0001)
             {
-                totalWeight = 0.1;
+               // totalWeight = 0.1;
                 enterChaos = true;
             }
             else
@@ -136,6 +139,7 @@ namespace RobotAppControl
                 }
                 lastEstimatedPos = EstimatePosition();
             }
+            totalWeightPublic = totalWeight;
 
 
         }
@@ -158,56 +162,72 @@ namespace RobotAppControl
         {
             ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
             int remainingIndexes = allParticleCount;
-            int starIndex = 0;
-            int endIndex = 0;
             List<Task> tasks = new List<Task>();
-            //weights.Clear();
+          //  int starIndex = 0;   //FCKING muthithreading bullsh*t if I make these two outside of the loop it breaks everything.. God damn funky logic
+           // int endIndex = 0;
+         /*   for (int i = 0; i < allParticleCount; i++)
+            {
+                keyValueParticles[i] = Particles[i];
+            }*/
             for (int j = 1; j <= numberOfTasksToRunOn; j++)
             {
-                endIndex = remainingIndexes - 1;
+                int endIndex = remainingIndexes - 1;
                 remainingIndexes = remainingIndexes - allParticleCount / numberOfTasksToRunOn;
                 if (j == numberOfTasksToRunOn)
                 {
                     remainingIndexes -= allParticleCount % numberOfTasksToRunOn;
                 }
-                starIndex = remainingIndexes;
-                UpdateWeights(observedData, sigma, starIndex, endIndex, weights);
-              //   Task task = new Task(() => UpdateWeights(observedData,sigma,starIndex,endIndex,weights));
-              //   tasks.Add(task);
-               //  task.Start();
+                int starIndex = remainingIndexes;             
+                 Task task = new Task(() => UpdateWeights(observedData,sigma,starIndex,endIndex,weights));
+                 tasks.Add(task);
+                 task.Start();
             }
-           // await Task.WhenAll(tasks);
-
+            await Task.WhenAll(tasks);
+         /*   for (int i = 0; i < allParticleCount; i++)
+            {
+                Particles[i] = keyValueParticles[i];
+            }*/
             double totalWeight = 0;
             while (weights.TryDequeue(out double result))
             {
                 totalWeight += result;
             }
-            if (totalWeight < 0)
+            if (totalWeight <= 0)
             {
                 throw new Exception("wtf");
             }
-            if (totalWeight == 0)
-            {
-                totalWeight = 0.1;
-                enterChaos = true;
-            }
-            else
-            {
+            //if (totalWeight < 0.002)
+           // {
+               // totalWeight = 0.1;
+             //   enterChaos = true;
+          //  }
+          //  else
+          //  {
                
-                enterChaos = false;
+         //       enterChaos = false;
                 for (int i = 0; i < Particles.Count; i++)
                 {
                     Particles[i].Weight /= totalWeight;
                 }
                 lastEstimatedPos = EstimatePosition();
-            }
+          //  }
+            totalWeightPublic = totalWeight;
 
         }
         public void Resample()
         {
             List<Particle> newParticles = new List<Particle>();
             double[] cumulativeWeights = new double[allParticleCount];
+
+            if (enterChaos)
+            {
+                for (int i = 0; i < Particles.Count; i++)
+                {
+                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1,lastEstimatedPos.Item2,lastEstimatedPos.Item3),650,650,90));
+                }
+            }
+            else
+            {
             Particles.Sort(delegate (Particle x, Particle y)
             {
                 return y.Weight.CompareTo(x.Weight);
@@ -221,16 +241,6 @@ namespace RobotAppControl
             }
 
             int quarter = Particles.Count / 4;
-
-            if (enterChaos)
-            {
-                for (int i = 0; i < Particles.Count; i++)
-                {
-                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1,lastEstimatedPos.Item2,lastEstimatedPos.Item3),350,350,90));
-                }
-            }
-            else
-            {
                 for (int i = 0; i < Particles.Count; i++)
                 {
                     double randomValue = rand.NextDouble() * cumulativeWeights.Last();
@@ -248,11 +258,11 @@ namespace RobotAppControl
                     }
                     else if (index < quarter * 3)
                     {
-                        weightScale = 1.5;
+                        weightScale = 2.5;
                     }
                     else
                     {
-                        weightScale = 3;
+                        weightScale = 4;
                     }
 
                     resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
@@ -350,7 +360,9 @@ namespace RobotAppControl
  
                 newY = (int)(model.Y + (rand.NextInt64(-50, 50) / 50) * yRange);
             
-            return new Particle(newX, newY, newTheta);
+            Particle part =  new Particle(newX, newY, newTheta);
+            part.Weight = double.Epsilon;
+            return part;
 
         }
         public double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // WILL NOT work for the final thing but this will help with basic MCL testing

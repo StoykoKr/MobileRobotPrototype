@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RobotAppControl")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2e622edb2c26f13e4daa34a1f81d993322d4690f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9df410fdbfa5eaec13077557281e77e02f6a7442")]
 [assembly: System.Reflection.AssemblyProductAttribute("RobotAppControl")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RobotAppControl")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

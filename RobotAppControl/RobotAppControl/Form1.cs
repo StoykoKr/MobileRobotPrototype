@@ -661,7 +661,9 @@ namespace RobotAppControl
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);
+                addToTextBox(MonteLocalization.totalWeightPublic.ToString() + Environment.NewLine);
                     MonteLocalization.Resample();
+
                 /*    MonteLocalization.UpdateWeightsOld(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
@@ -670,7 +672,7 @@ namespace RobotAppControl
                     var estimatedPos = MonteLocalization.EstimatePosition();
                     try
                     {
-                      //  DrawParticles();
+                    //    DrawParticles();
                         if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                         {
                             custom.SetPixel((int)currentX, (int)currentY, Color.Green);
