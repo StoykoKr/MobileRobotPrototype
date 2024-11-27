@@ -92,11 +92,11 @@ namespace RobotAppControl
         public async Task StartTasksToMoveParticles(float move, float dir)
         {
             int remainingIndexes = allParticleCount;
-            int starIndex = 0;
-            int endIndex = 0;           
             List<Task> tasks = new List<Task>();
             for (int j = 1; j <= numberOfTasksToRunOn; j++)
             {
+            int starIndex = 0;
+            int endIndex = 0;           
                 endIndex = remainingIndexes - 1;
                 remainingIndexes = remainingIndexes - allParticleCount / numberOfTasksToRunOn;
                 if (j == numberOfTasksToRunOn)
@@ -228,26 +228,31 @@ namespace RobotAppControl
             }
             else
             {
-            Particles.Sort(delegate (Particle x, Particle y)
-            {
-                return y.Weight.CompareTo(x.Weight);
-            });
-            if(Particles.Count > 0)
-            cumulativeWeights[0] = Particles[0].Weight;
 
-            for (int i = 1; i < Particles.Count; i++)
+                var snapshot = Particles.ToList();
+                snapshot.Sort((x, y) =>
+                {
+                    if (double.IsNaN(x.Weight)) return 1;
+                    if (double.IsNaN(y.Weight)) return -1;
+                    return y.Weight.CompareTo(x.Weight);
+                });
+               
+            if(snapshot.Count > 0)
+            cumulativeWeights[0] = snapshot[0].Weight;
+
+            for (int i = 1; i < snapshot.Count; i++)
             {
-                cumulativeWeights[i] = cumulativeWeights[i - 1] + Particles[i].Weight;
+                cumulativeWeights[i] = cumulativeWeights[i - 1] + snapshot[i].Weight;
             }
 
-            int quarter = Particles.Count / 4;
-                for (int i = 0; i < Particles.Count; i++)
+            int quarter = snapshot.Count / 4;
+                for (int i = 0; i < snapshot.Count; i++)
                 {
                     double randomValue = rand.NextDouble() * cumulativeWeights.Last();
                     int index = Array.BinarySearch(cumulativeWeights, randomValue);
                     if (index < 0) index = ~index;
 
-                    Particle resampledParticle = Particles[index].Clone();
+                    Particle resampledParticle = snapshot[index].Clone();
                     if (index < quarter)
                     {
                         weightScale = 0.1;
@@ -333,18 +338,21 @@ namespace RobotAppControl
         }
         public (double X, double Y, double Theta) EstimatePosition()
         {
-            Particles.Sort(delegate (Particle x, Particle y)
+            var snapshot = Particles.ToList();                     
+            snapshot.Sort((x, y) =>
             {
+                if (double.IsNaN(x.Weight)) return 1;
+                if (double.IsNaN(y.Weight)) return -1;
                 return y.Weight.CompareTo(x.Weight);
             });
-            int parCount = Particles.Count / 2;
+            int parCount = snapshot.Count / 2;
             double x = 0.0, y = 0.0, theta = 0.0;
 
             for (int i = 0; i < parCount; i++)
             {
-                x += Particles[i].X;
-                y += Particles[i].Y;
-                theta += Particles[i].Theta;
+                x += snapshot[i].X;
+                y += snapshot[i].Y;
+                theta += snapshot[i].Theta;
             }           
             return (x / parCount, y / parCount, theta / parCount);
 
