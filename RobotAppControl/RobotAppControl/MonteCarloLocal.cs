@@ -25,13 +25,13 @@ namespace RobotAppControl
         private double resampleNoiseFactor = 4;
         private double weightScale = 1;
         public double totalWeightPublic = 666;
-       // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
+        // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
         public List<Particle> Particles { private set; get; }
-        private ConcurrentDictionary<int,Particle> keyValueParticles;
-        
-        public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range,int tastksCount, Grid map)
-        {          
-            MapMap = map;        
+        private ConcurrentDictionary<int, Particle> keyValueParticles;
+
+        public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, int tastksCount, Grid map)
+        {
+            MapMap = map;
             isStarted = true;
             allParticleCount = particleCount;
             numberOfTasksToRunOn = tastksCount;
@@ -80,13 +80,29 @@ namespace RobotAppControl
             }
             return newAngle;
         }
-        private void MoveParticles(double forwardMove, double Angle,int startingIndex,int finalIndex)
+        private double MovementVariation(double range)
+        {
+            Random rand = new Random();
+            if (rand.NextDouble() > 0.6)
+            {
+                return rand.NextDouble() * range;
+            }
+            else if (rand.NextDouble() < 0.4)
+            {
+                return rand.NextDouble() * -range;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+        private void MoveParticles(double forwardMove, double Angle, int startingIndex, int finalIndex)
         {
             for (int i = startingIndex; i <= finalIndex; i++)
             {
                 Particles[i].Theta = RecalcDegree(Angle, 5);
-                Particles[i].X += (forwardMove + (rand.NextDouble() * 0.2)) * Math.Cos(Particles[i].Theta * Math.PI / 180);
-                Particles[i].Y += (forwardMove + (rand.NextDouble() * 0.2)) * Math.Sin(Particles[i].Theta * Math.PI / 180);              
+                Particles[i].X += (forwardMove + MovementVariation(0.3)) * Math.Cos(Particles[i].Theta * Math.PI / 180);
+                Particles[i].Y += (forwardMove + MovementVariation(0.3)) * Math.Sin(Particles[i].Theta * Math.PI / 180);
             }
         }
         public async Task StartTasksToMoveParticles(float move, float dir)
@@ -95,8 +111,8 @@ namespace RobotAppControl
             List<Task> tasks = new List<Task>();
             for (int j = 1; j <= numberOfTasksToRunOn; j++)
             {
-            int starIndex = 0;
-            int endIndex = 0;           
+                int starIndex = 0;
+                int endIndex = 0;
                 endIndex = remainingIndexes - 1;
                 remainingIndexes = remainingIndexes - allParticleCount / numberOfTasksToRunOn;
                 if (j == numberOfTasksToRunOn)
@@ -104,7 +120,7 @@ namespace RobotAppControl
                     remainingIndexes -= allParticleCount % numberOfTasksToRunOn;
                 }
                 starIndex = remainingIndexes;
-                Task task = new Task(() => MoveParticles(move, dir, starIndex,endIndex));
+                Task task = new Task(() => MoveParticles(move, dir, starIndex, endIndex));
                 task.Start();
                 tasks.Add(task);
             }
@@ -127,7 +143,7 @@ namespace RobotAppControl
             }
             if (totalWeight < 0.0001)
             {
-               // totalWeight = 0.1;
+                // totalWeight = 0.1;
                 enterChaos = true;
             }
             else
@@ -143,32 +159,31 @@ namespace RobotAppControl
 
 
         }
-        public void UpdateWeights(double[] observedData, double sigma,int startingIndex, int finalIndex,ConcurrentQueue<double> doubles)
+        public void UpdateWeights(double[] observedData, double sigma, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
         {
             double total = 0;
-            
+
             for (int i = startingIndex; i <= finalIndex; i++)
             {
                 double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
                 Particles[i].Weight = Math.Max(Particles[i].Weight * likelihood, double.Epsilon);
-               // Particles[i].Weight *= likelihood;
                 total += Particles[i].Weight;
             }
             doubles.Enqueue(total);
-        
+
         }
-       
+
         public async Task StartTasksToUpdateWeights(double[] observedData, double sigma)
         {
             ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
             int remainingIndexes = allParticleCount;
             List<Task> tasks = new List<Task>();
-          //  int starIndex = 0;   //FCKING muthithreading bullsh*t if I make these two outside of the loop it breaks everything.. God damn funky logic
-           // int endIndex = 0;
-         /*   for (int i = 0; i < allParticleCount; i++)
-            {
-                keyValueParticles[i] = Particles[i];
-            }*/
+            //  int starIndex = 0;   //FCKING muthithreading bullsh*t if I make these two outside of the loop it breaks everything.. God damn funky logic
+            // int endIndex = 0;
+            /*   for (int i = 0; i < allParticleCount; i++)
+               {
+                   keyValueParticles[i] = Particles[i];
+               }*/
             for (int j = 1; j <= numberOfTasksToRunOn; j++)
             {
                 int endIndex = remainingIndexes - 1;
@@ -177,16 +192,16 @@ namespace RobotAppControl
                 {
                     remainingIndexes -= allParticleCount % numberOfTasksToRunOn;
                 }
-                int starIndex = remainingIndexes;             
-                 Task task = new Task(() => UpdateWeights(observedData,sigma,starIndex,endIndex,weights));
-                 tasks.Add(task);
-                 task.Start();
+                int starIndex = remainingIndexes;
+                Task task = new Task(() => UpdateWeights(observedData, sigma, starIndex, endIndex, weights));
+                tasks.Add(task);
+                task.Start();
             }
             await Task.WhenAll(tasks);
-         /*   for (int i = 0; i < allParticleCount; i++)
-            {
-                Particles[i] = keyValueParticles[i];
-            }*/
+            /*   for (int i = 0; i < allParticleCount; i++)
+               {
+                   Particles[i] = keyValueParticles[i];
+               }*/
             double totalWeight = 0;
             while (weights.TryDequeue(out double result))
             {
@@ -197,20 +212,20 @@ namespace RobotAppControl
                 throw new Exception("wtf");
             }
             //if (totalWeight < 0.002)
-           // {
-               // totalWeight = 0.1;
-             //   enterChaos = true;
-          //  }
-          //  else
-          //  {
-               
-         //       enterChaos = false;
-                for (int i = 0; i < Particles.Count; i++)
-                {
-                    Particles[i].Weight /= totalWeight;
-                }
-                lastEstimatedPos = EstimatePosition();
-          //  }
+            // {
+            // totalWeight = 0.1;
+            //   enterChaos = true;
+            //  }
+            //  else
+            //  {
+
+            //       enterChaos = false;
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                Particles[i].Weight /= totalWeight;
+            }
+            lastEstimatedPos = EstimatePosition();
+            //  }
             totalWeightPublic = totalWeight;
 
         }
@@ -223,7 +238,7 @@ namespace RobotAppControl
             {
                 for (int i = 0; i < Particles.Count; i++)
                 {
-                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1,lastEstimatedPos.Item2,lastEstimatedPos.Item3),650,650,90));
+                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1, lastEstimatedPos.Item2, lastEstimatedPos.Item3), 650, 650, 90));
                 }
             }
             else
@@ -236,16 +251,16 @@ namespace RobotAppControl
                     if (double.IsNaN(y.Weight)) return -1;
                     return y.Weight.CompareTo(x.Weight);
                 });
-               
-            if(snapshot.Count > 0)
-            cumulativeWeights[0] = snapshot[0].Weight;
 
-            for (int i = 1; i < snapshot.Count; i++)
-            {
-                cumulativeWeights[i] = cumulativeWeights[i - 1] + snapshot[i].Weight;
-            }
+                if (snapshot.Count > 0)
+                    cumulativeWeights[0] = snapshot[0].Weight;
 
-            int quarter = snapshot.Count / 4;
+                for (int i = 1; i < snapshot.Count; i++)
+                {
+                    cumulativeWeights[i] = cumulativeWeights[i - 1] + snapshot[i].Weight;
+                }
+
+                int quarter = snapshot.Count / 4;
                 for (int i = 0; i < snapshot.Count; i++)
                 {
                     double randomValue = rand.NextDouble() * cumulativeWeights.Last();
@@ -277,7 +292,7 @@ namespace RobotAppControl
                     newParticles.Add(resampledParticle);
                 }
             }
-
+            // Правилно ли е освобождава паметта?!?
             Particles = newParticles; // Replace old particles with resampled set
         }
 
@@ -338,7 +353,7 @@ namespace RobotAppControl
         }
         public (double X, double Y, double Theta) EstimatePosition()
         {
-            var snapshot = Particles.ToList();                     
+            var snapshot = Particles.ToList();
             snapshot.Sort((x, y) =>
             {
                 if (double.IsNaN(x.Weight)) return 1;
@@ -353,7 +368,7 @@ namespace RobotAppControl
                 x += snapshot[i].X;
                 y += snapshot[i].Y;
                 theta += snapshot[i].Theta;
-            }           
+            }
             return (x / parCount, y / parCount, theta / parCount);
 
         }
@@ -364,11 +379,11 @@ namespace RobotAppControl
             int newY = 0;
             double newTheta = RecalcDegree(model.Theta, thetaRange);
 
-                newX = (int)(model.X + (rand.NextInt64(-50, 50) / 50) * xRange);
- 
-                newY = (int)(model.Y + (rand.NextInt64(-50, 50) / 50) * yRange);
-            
-            Particle part =  new Particle(newX, newY, newTheta);
+            newX = (int)(model.X + (rand.NextInt64(-50, 50) / 50) * xRange);
+
+            newY = (int)(model.Y + (rand.NextInt64(-50, 50) / 50) * yRange);
+
+            Particle part = new Particle(newX, newY, newTheta);
             part.Weight = double.Epsilon;
             return part;
 

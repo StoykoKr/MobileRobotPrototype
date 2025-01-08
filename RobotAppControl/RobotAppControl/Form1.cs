@@ -53,10 +53,10 @@ namespace RobotAppControl
         public RefreshTheImg myDelagate;
         private bool settingStart = false;
         private bool settingEnd = false;
-        private int startX = 0;
-        private int startY = 0;
-        private int endX = 0;
-        private int endY = 0;
+        public int startX = 0;
+        public int startY = 0;
+        public int endX = 0;
+        public int endY = 0;
         private List<Node> finalPath = null;
         private MqttFactory mqttFactory = new MqttFactory();
         private bool newInfoForAutoMovement_FLAG = false;
@@ -806,7 +806,7 @@ namespace RobotAppControl
                 finalPath = path;
                 _robot.ExecutePath(path);
                 Node previous = null;//start;
-                txtBox_TextOutput.Clear();
+        
                 foreach (var item in path)
                 {
                     if (previous != null)
@@ -1116,6 +1116,7 @@ namespace RobotAppControl
                     leftVelocity = robot.LeftWheelVelocity,
                     rightSpeed = robot.RightWheelVelocity
                 };
+
                 // SafeUpdate(()=>DrawParticles());
                 /* SafeUpdate(() =>
                  {
@@ -1142,9 +1143,11 @@ namespace RobotAppControl
 
                 // }
                 estimatedPos = MonteLocalization.EstimatePosition();
+               
 
-            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 25 || currentGoal != path.Last());
-
+            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
+            startX = (int)estimatedPos.X;
+            startY = (int)estimatedPos.Y;
            
 
         }
@@ -1186,6 +1189,7 @@ namespace RobotAppControl
            // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 1));
           //  purePursuitTask.Start();
            await PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
+            RefreshPicture();
             /*
             var output = goodPath();
             foreach (var item in output)
@@ -1210,9 +1214,10 @@ namespace RobotAppControl
                 imagePublisherClient = mqttFactory.CreateMqttClient();
                 imagePublisherClient.ApplicationMessageReceivedAsync += delegate (MqttApplicationMessageReceivedEventArgs args)
                 {
-                    // Do some work with the message...
+                    // THIS is called in some bullshit tread or something so we need to fix it
                     string topic = args.ApplicationMessage.Topic;
                     string str = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
+
 
                     switch (topic)
                     {
@@ -1295,7 +1300,7 @@ namespace RobotAppControl
                 }
             }
         }
-        private void HandleTopicMap(string payload)
+        private async void HandleTopicMap(string payload)
         {
             JsonMessageClass? message = JsonConvert.DeserializeObject<JsonMessageClass>(payload);
             if (message != null)
@@ -1308,10 +1313,10 @@ namespace RobotAppControl
                 {
                     // _robot.setThetaActual(message.direction);
                     // currentRotation = message.direction;
-                    MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
-                    MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
+                   await MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
+                    await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
                       MonteLocalization.Resample();
-                     MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
+                    await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
                    // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
@@ -1321,6 +1326,7 @@ namespace RobotAppControl
         private void HandleTopicTwo(string payload)
         {
             addToTextBox($"{payload}\n");
+           
         }
 
         private void HandleTopicThree(string payload)
@@ -1334,25 +1340,107 @@ namespace RobotAppControl
 
         private void HandleTopicLocationMarker(string payload)
         {
-            // meh get the info and put markers
+            JsonMarkerMessage? message = JsonConvert.DeserializeObject<JsonMarkerMessage>(payload);
+            if (message != null) {
+                startX = message.start.x;
+                startY = message.start.y;
+                endX = message.end.x;
+                endY = message.end.y;
+                if (_robot == null)
+                {
+                    _robot = new Robot(_grid, custom, startX, startY, this, 16.5);
+                }
+                if (MonteLocalization == null)
+                {
+                    MonteLocalization = new MonteCarloLocal(750, startX, startY, 20, 5, _grid);// _grid is old
+                    currentX = startX;
+                    currentY = startY;                    
+                }
+                addToTextBox($"Added points {message.start.x}, {message.start.y} and {message.end.x}, {message.end.y}");
+            }
+
         }
         private void HandleTopicLocationCommands(string payload)
         {
 
-            JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
-            if (message != null)
-            {
+             JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
+
+
+
+              if (message != null)
+              {
+                  if (message.command == "plan_route")
+                  {
+                    // addToTextBox("we pressed planRoute" + Environment.NewLine);
+                    addToTextBox("we pressed planRoute" + Environment.NewLine);
+                   // PlanPath();
+                    SafeUpdate(PlanPath);
+                    SafeUpdate(PictureBox.Invalidate);
+                }
+                  if (message.command == "execute_route")
+                  {
+                      addToTextBox("we did indeed press execute yay" + Environment.NewLine);
+                    SafeUpdate(() => ExecutePlan());
+                    //SafeUpdate(RefreshPicture);
+                }
+                if (message.command == "load_map")
+                {
+                    addToTextBox("we pressed load" + Environment.NewLine);
+                  //  LoadDefaultImage();
+                   // SetObstacles();
+                    SafeUpdate(LoadDefaultImage);
+                    SafeUpdate(SetObstacles);
+                    //SafeUpdate(RefreshPicture);
+                }
+
                 if (message.command == "W" || message.command == "A" || message.command == "S" || message.command == "D")
+                  {
+                      var jsonMessage = new
+                      {
+                          stopSignal = "false",
+                          manualCommand = message.command
+                      };
+                      addToTextBox(message.command + Environment.NewLine);
+                      PublishJsonMessageAsync("Movement", jsonMessage, 2);
+
+                  }
+                  if (message.command == "stop")
+                  {
+                      var jsonMessage = new
+                      {
+                          stopSignal = "true",
+                          manualCommand = "None"
+                      };
+                      PublishJsonMessageAsync("Movement", jsonMessage, 1);
+
+                  }
+
+              }
+           /* if (payload != null)
+            {
+                if (payload == "plan_route")
+                {
+                    addToTextBox("we pressed planRoute" + Environment.NewLine);
+                    PlanPath();
+                }
+                if (payload == "execute_route")
+                {
+                    ExecutePlan();
+                    addToTextBox("we did indeed press execute yay" + Environment.NewLine);
+                }
+
+                if (payload == "W" || payload == "A" || payload == "S" || payload == "D")
                 {
                     var jsonMessage = new
                     {
                         stopSignal = "false",
-                        manualCommand = message.command
+                        manualCommand = payload
                     };
+                    addToTextBox(payload + Environment.NewLine);
                     PublishJsonMessageAsync("Movement", jsonMessage, 2);
 
                 }
-                if (message.command == "stop")
+                if (payload == "stop")
                 {
                     var jsonMessage = new
                     {
@@ -1363,7 +1451,8 @@ namespace RobotAppControl
 
                 }
 
-            }
+            }*/
+            // addToTextBox(payload + Environment.NewLine);
         }
         private async Task PublishJsonMessageAsync(string topic, object message, int qosLevel)
         {
