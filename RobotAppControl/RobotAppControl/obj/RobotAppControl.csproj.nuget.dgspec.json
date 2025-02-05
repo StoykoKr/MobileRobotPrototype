@@ -51,7 +51,7 @@
           "dependencies": {
             "MQTTnet": {
               "target": "Package",
-              "version": "[4.3.7.1207, )"
+              "version": "[5.0.1.1416, )"
             },
             "Newtonsoft.Json": {
               "target": "Package",

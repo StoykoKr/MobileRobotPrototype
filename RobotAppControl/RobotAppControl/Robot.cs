@@ -11,8 +11,8 @@ namespace RobotAppControl
     {
         private readonly Grid _grid;
         private readonly CustomBitmap _bitmap;
-        public int _currentX;
-        public int _currentY;
+        public double _currentX;
+        public double _currentY;
         private double theta;
         private Form1 _form;
         public double LeftWheelVelocity { get; set; }
@@ -82,7 +82,7 @@ namespace RobotAppControl
             */
 
             Graphics g = Graphics.FromImage(_bitmap.Bitmap);
-            g.DrawLine(new Pen(Brushes.Red), _currentX, _currentY, x, y);
+            g.DrawLine(new Pen(Brushes.Red), (int)_currentX, (int)_currentY, x, y);
             //  g.DrawLine(new Pen(Brushes.Blue), _currentX, _currentY, x, _currentY);;
             //   g.DrawLine(new Pen(Brushes.Green), x, _currentY, x, y);
             _currentX = x;

@@ -63,44 +63,66 @@ namespace RobotAppControl
                     int nehsto = 0;
                     Color newColor = Color.White;
 
+                    bitmap.SetPixel(
+x,
+y, newColor);
+                    int centralPixelX;
+                    int centralPixelY;
+                    if (!formControl.currentlyMappingSimulation)
+                    {
 
-
-                    offsedY = -30;
-                    offsedX = 0;
+                        offsedY = -30;
+                        offsedX = 0;
+                    }
                     newColor = Color.Red;
                     currentDegrees = MidDegrees;
                     nehsto = 1;
-                    int centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((/*degreeOffsetLeft*/degreeOffsetMid + currentRotation) * Math.PI / 180));
-                    int centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
-                    bitmap.SetPixel(
-                 centralPixelX,
-                 centralPixelY, newColor);
+                    if (whatWeKnow.midSensor < 290)
+                    {
+
+                        centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Cos((/*degreeOffsetLeft*/degreeOffsetMid + currentRotation) * Math.PI / 180));
+                        centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.midSensor * nehsto * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
+                        bitmap.SetPixel(
+                           centralPixelX,
+                           centralPixelY, newColor);
+                    }
 
 
+                    if (whatWeKnow.leftSensor < 290)
+                    {
+                        if (!formControl.currentlyMappingSimulation)
+                        {
 
-                    offsedY = -17;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                    offsedX = -24;
-                    newColor = Color.Green;
-                    currentDegrees = LeftDegrees;
-                    nehsto = -1;
-                    centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.leftSensor * nehsto * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
-                    centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.leftSensor * nehsto * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
-                    bitmap.SetPixel(
-                 centralPixelX,
-                 centralPixelY, newColor);
+                        offsedY = -17;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                        offsedX = -24;
+                        }
+                        newColor = Color.Green;
+                        currentDegrees = LeftDegrees;
+                        nehsto = -1;
+                        centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.leftSensor * nehsto * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
+                        centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.leftSensor * nehsto * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
+                        bitmap.SetPixel(
+                     centralPixelX,
+                     centralPixelY, newColor);
+                    }
 
+                    if (whatWeKnow.rightSensor < 290)
+                    {
+                        if (!formControl.currentlyMappingSimulation)
+                        {
 
-                    offsedY = -20;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                    offsedX = 26;
-                    newColor = Color.Blue;
-                    currentDegrees = RightDegrees;
-                    nehsto = -1;
-                    centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.rightSensor * nehsto * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
-                    centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.rightSensor * nehsto * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));
-                    bitmap.SetPixel(
-                 centralPixelX,
-                 centralPixelY, newColor);
-
+                            offsedY = -20;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                            offsedX = 26;
+                        }
+                        newColor = Color.Blue;
+                        currentDegrees = RightDegrees;
+                        nehsto = -1;
+                        centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.rightSensor * nehsto * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
+                        centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.rightSensor * nehsto * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));
+                        bitmap.SetPixel(
+                     centralPixelX,
+                     centralPixelY, newColor);
+                    }
                 }
 
                 catch (Exception ex)

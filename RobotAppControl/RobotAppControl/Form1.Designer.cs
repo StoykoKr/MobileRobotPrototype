@@ -55,6 +55,9 @@
             btnExplode = new Button();
             btnSendImage = new Button();
             btnLoadTwo = new Button();
+            button4 = new Button();
+            btnSwitchView = new Button();
+            btnScanView = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -322,11 +325,44 @@
             btnLoadTwo.UseVisualStyleBackColor = true;
             btnLoadTwo.Click += btnLoadTwo_Click;
             // 
+            // button4
+            // 
+            button4.Location = new Point(855, 86);
+            button4.Name = "button4";
+            button4.Size = new Size(143, 23);
+            button4.TabIndex = 38;
+            button4.Text = "Simulated mapping";
+            button4.UseVisualStyleBackColor = true;
+            button4.Click += button4_Click;
+            // 
+            // btnSwitchView
+            // 
+            btnSwitchView.Location = new Point(879, 144);
+            btnSwitchView.Name = "btnSwitchView";
+            btnSwitchView.Size = new Size(105, 23);
+            btnSwitchView.TabIndex = 39;
+            btnSwitchView.Text = "ShowOtherView";
+            btnSwitchView.UseVisualStyleBackColor = true;
+            btnSwitchView.Click += btnSwitchView_Click;
+            // 
+            // btnScanView
+            // 
+            btnScanView.Location = new Point(873, 199);
+            btnScanView.Name = "btnScanView";
+            btnScanView.Size = new Size(75, 23);
+            btnScanView.TabIndex = 40;
+            btnScanView.Text = "ShowScan";
+            btnScanView.UseVisualStyleBackColor = true;
+            btnScanView.Click += btnScanView_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnScanView);
+            Controls.Add(btnSwitchView);
+            Controls.Add(button4);
             Controls.Add(btnLoadTwo);
             Controls.Add(btnSendImage);
             Controls.Add(btnExplode);
@@ -393,5 +429,8 @@
         private Button btnExplode;
         private Button btnSendImage;
         private Button btnLoadTwo;
+        private Button button4;
+        private Button btnSwitchView;
+        private Button btnScanView;
     }
 }

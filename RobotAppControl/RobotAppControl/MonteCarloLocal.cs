@@ -388,7 +388,7 @@ namespace RobotAppControl
             return part;
 
         }
-        public double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // WILL NOT work for the final thing but this will help with basic MCL testing
+        public static double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // WILL NOT work for the final thing but this will help with basic MCL testing
         {
             // Define step size (how much to move along the ray each iteration)
             double stepSize = 1.25; // Small step size for accuracy

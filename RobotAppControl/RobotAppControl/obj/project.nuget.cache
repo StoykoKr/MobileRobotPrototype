@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "cY3a3H5ai1VhbTgtoZnuaAaZBUHPncADwEY3HVGcHfHAXlpN8JmP3Rrl6N6CGCXGiXE+ne5jnLzXKk0YbUQfQg==",
+  "dgSpecHash": "j/d0+wTP+ZEoMGRLmPbZiOoNcEVU5ICXtJ/2HnAK4n/2loOx3kOpMFnuPDNctlYrYyCv1QkoIGhCnarHEm48Pw==",
   "success": true,
   "projectFilePath": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\RobotAppControl.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\s\\.nuget\\packages\\mqttnet\\4.3.7.1207\\mqttnet.4.3.7.1207.nupkg.sha512",
+    "C:\\Users\\s\\.nuget\\packages\\mqttnet\\5.0.1.1416\\mqttnet.5.0.1.1416.nupkg.sha512",
     "C:\\Users\\s\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512"
   ],
   "logs": []

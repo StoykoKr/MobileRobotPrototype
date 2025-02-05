@@ -12,9 +12,7 @@ using System.Net.Sockets;
 using System.Windows.Forms;
 using System.Xml.Linq;
 using MQTTnet;
-using MQTTnet.Client;
 using System.Collections;
-using MQTTnet.Server;
 using Newtonsoft.Json;
 using Microsoft.VisualBasic;
 using static System.Windows.Forms.AxHost;
@@ -27,7 +25,7 @@ namespace RobotAppControl
         public Grid _grid;
         public Grid _MCL_grid;
         private Robot _robot = null;
-
+        private Robot simulatedActualRobot = null;
         private PictureBox PictureBox;
         private int picture_offsetX = 0, picture_offsetY = 0;
         private int _xPos = 0;  // mouseposition at MouseDown
@@ -58,7 +56,7 @@ namespace RobotAppControl
         public int endX = 0;
         public int endY = 0;
         private List<Node> finalPath = null;
-        private MqttFactory mqttFactory = new MqttFactory();
+        private MqttClientFactory mqttFactory = new MqttClientFactory();
         private bool newInfoForAutoMovement_FLAG = false;
         ConcurrentQueue<string> rawMagDataToBeWorkedOn;
         List<double> segments = new List<double>();
@@ -66,6 +64,9 @@ namespace RobotAppControl
         List<bool> turnsss = new List<bool>();
         private IMqttClient? imagePublisherClient = null;
         private MonteCarloLocal MonteLocalization = null;
+        public bool currentlyMappingSimulation = false;
+        public CustomBitmap simulatedMapArea;
+        public Grid simulatedMapGrid;
         public Form1()
         {
             InitializeComponent();
@@ -85,9 +86,9 @@ namespace RobotAppControl
                 //  listenThread.Start();
             }
         }
-        private Grid SetObstaclesFromMap(CustomBitmap map, Grid gridToBeSet)
+        private Grid SetObstaclesFromMap(CustomBitmap map)
         {
-            gridToBeSet = new Grid(map.Width, map.Height);
+            Grid gridToBeSet = new Grid(map.Width, map.Height);
 
             for (int x = 0; x < map.Width; x++)
             {
@@ -350,7 +351,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(750, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20,5, _grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(750, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -594,11 +595,71 @@ namespace RobotAppControl
             }
         }
         Keys lastSentKey = Keys.Enter;
-        int counter = 0;
         int movementVal = 0;
+
+        private double getRand()
+        {
+            Random rand = new Random();
+            double randVal = rand.NextDouble();
+            if (rand.NextDouble() > 0.5)
+            {
+                randVal *= -1;
+            }
+            return randVal;
+        }
         private async void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
+            if (currentlyMappingSimulation)
+            {
+                //simulatedActualRobot
+                if (e.KeyCode == Keys.W)
+                {
+                        movementVal = 2;
+                        simulatedActualRobot._currentX += 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                        simulatedActualRobot._currentY +=2* Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                }
+                else if (e.KeyCode == Keys.A)
+                {
+                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() - (1.5 + getRand()/2));
+                    movementVal = 0;
+                }
+                else if (e.KeyCode == Keys.S)
+                {                   
+                        movementVal = -2;
+                        simulatedActualRobot._currentX -= 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                        simulatedActualRobot._currentY -= 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+
+                }
+                else if (e.KeyCode == Keys.D)
+                {
+                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() + (1.5 + getRand()/2));
+                    movementVal = 0;
+                }
+                // sends data?
+                JsonMessageClass message = new JsonMessageClass();
+                message.direction = (float)simulatedActualRobot.getThetaActual();
+                double right = message.direction - 90;
+                if (right < 0)
+                {
+                    right += 360;
+                }
+                double left = message.direction + 90;
+                if (left > 360)
+                {
+                    left -= 360;
+                }
+
+                message.movement = movementVal * 10;
+                message.mappingFlag = 1;
+                message.rightSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, left, 300, simulatedMapGrid);
+                message.leftSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, right, 300, simulatedMapGrid);
+                message.midSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, message.direction, 300, simulatedMapGrid); ;
+                message.handSensor = 0;
+                stringsToBeInterpreted.Enqueue(("mapPoint", message));
+
+
+            }
+            else if (currentlyControlling && currentlyPressedKey == Keys.None && lastSentKey != e.KeyCode)
             {
                 currentlyPressedKey = e.KeyCode;
                 lastSentKey = e.KeyCode;
@@ -619,10 +680,10 @@ namespace RobotAppControl
                     {
                         currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                         movementVal = 1;
-                      //  MonteLocalization.StartTasksToMoveParticles(1, (float)currentRotation);
+                        //  MonteLocalization.StartTasksToMoveParticles(1, (float)currentRotation);
                         currentX += 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY += 1 * Math.Sin(currentRotation * Math.PI / 180);
-                        counter++;
+
                     }
                 }
                 else if (e.KeyCode == Keys.A)
@@ -630,7 +691,7 @@ namespace RobotAppControl
                     _robot.setThetaActual(_robot.getThetaActual() - 1.5);
                     currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                     movementVal = 0;
-                   // MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
+                    // MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
                 else if (e.KeyCode == Keys.S)
@@ -639,10 +700,10 @@ namespace RobotAppControl
                     {
                         currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                         movementVal = -1;
-                      //  MonteLocalization.StartTasksToMoveParticles(-1, (float)currentRotation);
+                        //  MonteLocalization.StartTasksToMoveParticles(-1, (float)currentRotation);
                         currentX -= 1 * Math.Cos(currentRotation * Math.PI / 180);
                         currentY -= 1 * Math.Sin(currentRotation * Math.PI / 180);
-                        counter++;
+
                     }
                 }
                 else if (e.KeyCode == Keys.D)
@@ -650,7 +711,7 @@ namespace RobotAppControl
                     _robot.setThetaActual(_robot.getThetaActual() + 1.5);
                     currentRotation = _robot.getThetaActual();// _robot.getThetaVisual();
                     movementVal = 0;
-                 //   MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
+                    //   MonteLocalization.StartTasksToMoveParticles(0, (float)currentRotation);
                     txtBoxServo.Text = currentRotation.ToString();
                 }
 
@@ -662,39 +723,39 @@ namespace RobotAppControl
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);
                 addToTextBox(MonteLocalization.totalWeightPublic.ToString() + Environment.NewLine);
-                    MonteLocalization.Resample();
+                MonteLocalization.Resample();
 
                 /*    MonteLocalization.UpdateWeightsOld(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);*/
-                    var estimatedPos = MonteLocalization.EstimatePosition();
-                    try
-                    {
+                var estimatedPos = MonteLocalization.EstimatePosition();
+                try
+                {
                     //    DrawParticles();
-                        if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
-                        {
-                            custom.SetPixel((int)currentX, (int)currentY, Color.Green);
-                        }
-                        if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
-                        {
-                            custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
-                        }
-                        txtBoxWeight.Text = estimatedPos.Theta.ToString();
-                        PictureBox.Invalidate();
-                        /* foreach (var item in MonteLocalization.Particles)
-                         {
-                         addToTextBox($"Point: { item.X} + {item.Y} ");
-
-                         }*/
-                    }
-                    catch (Exception)
+                    if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                     {
-
-                        throw;
+                        custom.SetPixel((int)currentX, (int)currentY, Color.Green);
                     }
-                       
+                    if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
+                    {
+                        custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
+                    }
+                    txtBoxWeight.Text = estimatedPos.Theta.ToString();
+                    PictureBox.Invalidate();
+                    /* foreach (var item in MonteLocalization.Particles)
+                     {
+                     addToTextBox($"Point: { item.X} + {item.Y} ");
+
+                     }*/
+                }
+                catch (Exception)
+                {
+
+                    throw;
+                }
+
 
 
             }
@@ -751,7 +812,7 @@ namespace RobotAppControl
         }
         private void CreateNewImage()
         {
-            custom = new CustomBitmap(5000, 5000);
+            custom = new CustomBitmap(3500, 3500);
             for (int counter = 0; counter < custom.Width * custom.Height; counter++)
             {
                 custom.WriteToBits(counter, Color.FromArgb(255, 0, 0, 0));
@@ -777,7 +838,7 @@ namespace RobotAppControl
         }
         private void SetObstacles()
         {
-            _grid = SetObstaclesFromMap(custom, _grid);
+            _grid = SetObstaclesFromMap(custom);
             // _MCL_grid = SetObstaclesFromMap(customMCL, _MCL_grid);
         }
         private void button1_Click(object sender, EventArgs e)
@@ -806,7 +867,7 @@ namespace RobotAppControl
                 finalPath = path;
                 _robot.ExecutePath(path);
                 Node previous = null;//start;
-        
+
                 foreach (var item in path)
                 {
                     if (previous != null)
@@ -1025,7 +1086,7 @@ namespace RobotAppControl
             //   PublishJsonMessageAsync("LeftRightSpeed", message);
         }
         private (double X, double Y, double Theta) estimatedPos;
-        public async Task UpdatePosition(Robot robot, double dt)
+        public async Task UpdatePosition(Robot robot, double dt)  // This needs to be looked at again very carefully before real test
         {
             /*
             double v = (robot.LeftWheelVelocity + robot.RightWheelVelocity) / 2.0;
@@ -1071,7 +1132,7 @@ namespace RobotAppControl
             try
             {
                 //SafeUpdate(()=> DrawParticles());
-               // DrawParticles();
+                // DrawParticles();
                 if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                 {
                     custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -1092,7 +1153,7 @@ namespace RobotAppControl
         public List<(double, double)> tempAngles = new List<(double, double)>();
         public async Task PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
         {
-           // RequestDataFromBot();
+            // RequestDataFromBot();
             Node currentGoal = path[0];
             Stopwatch sw = Stopwatch.StartNew();
             int firstInstance = 1;
@@ -1103,12 +1164,13 @@ namespace RobotAppControl
                 //    if (newInfoForAutoMovement_FLAG)
                 //    {
                 // newInfoForAutoMovement_FLAG = false;
+                await UpdatePosition(robot, dt);
+                estimatedPos = MonteLocalization.EstimatePosition();
                 var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
                 currentGoal = SmallGoal_BigGoal.Item2;
                 var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
                 SetWheelVelocities(robot, steeringAngle, baseVelocity);
                 //tempAngles.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity));
-                await UpdatePosition(robot, dt);
                 var message = new
                 {
                     stopSignal = "false",
@@ -1125,30 +1187,29 @@ namespace RobotAppControl
                          custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
                      }
                  });*/
-               // if (sw.ElapsedMilliseconds > 1750)
-               // {
-               //     break;
-               //     if (firstInstance == 1)
+                // if (sw.ElapsedMilliseconds > 1750)
+                // {
+                //     break;
+                //     if (firstInstance == 1)
                 //    {
-                      //  await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-               //         firstInstance = 0;
-               //     }
-               //     else
-              //      {
-                     //   PublishJsonMessageAsync("LeftRightSpeed", message, 0);
-             //       }
-                    // addToTextBox($"Velocity: {robot.LeftWheelVelocity}/{robot.RightWheelVelocity}");
-              //      sw.Restart();
-            //    }
+                //  await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                //         firstInstance = 0;
+                //     }
+                //     else
+                //      {
+                //   PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                //       }
+                // addToTextBox($"Velocity: {robot.LeftWheelVelocity}/{robot.RightWheelVelocity}");
+                //      sw.Restart();
+                //    }
 
                 // }
-                estimatedPos = MonteLocalization.EstimatePosition();
-               
+
 
             } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
             startX = (int)estimatedPos.X;
             startY = (int)estimatedPos.Y;
-           
+
 
         }
         public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
@@ -1186,9 +1247,9 @@ namespace RobotAppControl
             // ExecutePath(CookedPath(finalPath));
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
 
-           // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 1));
-          //  purePursuitTask.Start();
-           await PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
+            // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 1));
+            //  purePursuitTask.Start();
+            await PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
             RefreshPicture();
             /*
             var output = goodPath();
@@ -1199,8 +1260,7 @@ namespace RobotAppControl
         }
         private async void btn_ExecuteRoute_Click(object sender, EventArgs e)
         {
-             ExecutePlan();
-
+            ExecutePlan();
 
         }
         MqttClientOptions mqttClientOptions = new MqttClientOptionsBuilder().WithWebSocketServer(o => o.WithUri("ws://localhost:9001/mqtt"))
@@ -1214,10 +1274,9 @@ namespace RobotAppControl
                 imagePublisherClient = mqttFactory.CreateMqttClient();
                 imagePublisherClient.ApplicationMessageReceivedAsync += delegate (MqttApplicationMessageReceivedEventArgs args)
                 {
-                    // THIS is called in some bullshit tread or something so we need to fix it
+                    // THIS is called in some bullshit thread or something so we need to fix it
                     string topic = args.ApplicationMessage.Topic;
-                    string str = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
-
+                    var str = Encoding.UTF8.GetString(args.ApplicationMessage.Payload);
 
                     switch (topic)
                     {
@@ -1313,20 +1372,20 @@ namespace RobotAppControl
                 {
                     // _robot.setThetaActual(message.direction);
                     // currentRotation = message.direction;
-                   await MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
+                    await MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
                     await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
-                      MonteLocalization.Resample();
+                    MonteLocalization.Resample();
                     await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
-                   // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
+                    // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
             }
         }
-      
+
         private void HandleTopicTwo(string payload)
         {
             addToTextBox($"{payload}\n");
-           
+
         }
 
         private void HandleTopicThree(string payload)
@@ -1341,7 +1400,8 @@ namespace RobotAppControl
         private void HandleTopicLocationMarker(string payload)
         {
             JsonMarkerMessage? message = JsonConvert.DeserializeObject<JsonMarkerMessage>(payload);
-            if (message != null) {
+            if (message != null)
+            {
                 startX = message.start.x;
                 startY = message.start.y;
                 endX = message.end.x;
@@ -1354,7 +1414,7 @@ namespace RobotAppControl
                 {
                     MonteLocalization = new MonteCarloLocal(750, startX, startY, 20, 5, _grid);// _grid is old
                     currentX = startX;
-                    currentY = startY;                    
+                    currentY = startY;
                 }
                 addToTextBox($"Added points {message.start.x}, {message.start.y} and {message.end.x}, {message.end.y}");
             }
@@ -1363,84 +1423,48 @@ namespace RobotAppControl
         private void HandleTopicLocationCommands(string payload)
         {
 
-             JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
+            JsonLocationCommandsClass? message = JsonConvert.DeserializeObject<JsonLocationCommandsClass>(payload);
 
 
 
-              if (message != null)
-              {
-                  if (message.command == "plan_route")
-                  {
+            if (message != null)
+            {
+                if (message.command == "plan_route")
+                {
                     // addToTextBox("we pressed planRoute" + Environment.NewLine);
                     addToTextBox("we pressed planRoute" + Environment.NewLine);
-                   // PlanPath();
+                    // PlanPath();
                     SafeUpdate(PlanPath);
                     SafeUpdate(PictureBox.Invalidate);
                 }
-                  if (message.command == "execute_route")
-                  {
-                      addToTextBox("we did indeed press execute yay" + Environment.NewLine);
+                if (message.command == "execute_route")
+                {
+                    addToTextBox("we did indeed press execute yay" + Environment.NewLine);
                     SafeUpdate(() => ExecutePlan());
                     //SafeUpdate(RefreshPicture);
                 }
                 if (message.command == "load_map")
                 {
                     addToTextBox("we pressed load" + Environment.NewLine);
-                  //  LoadDefaultImage();
-                   // SetObstacles();
+                    //  LoadDefaultImage();
+                    // SetObstacles();
                     SafeUpdate(LoadDefaultImage);
                     SafeUpdate(SetObstacles);
                     //SafeUpdate(RefreshPicture);
                 }
 
                 if (message.command == "W" || message.command == "A" || message.command == "S" || message.command == "D")
-                  {
-                      var jsonMessage = new
-                      {
-                          stopSignal = "false",
-                          manualCommand = message.command
-                      };
-                      addToTextBox(message.command + Environment.NewLine);
-                      PublishJsonMessageAsync("Movement", jsonMessage, 2);
-
-                  }
-                  if (message.command == "stop")
-                  {
-                      var jsonMessage = new
-                      {
-                          stopSignal = "true",
-                          manualCommand = "None"
-                      };
-                      PublishJsonMessageAsync("Movement", jsonMessage, 1);
-
-                  }
-
-              }
-           /* if (payload != null)
-            {
-                if (payload == "plan_route")
-                {
-                    addToTextBox("we pressed planRoute" + Environment.NewLine);
-                    PlanPath();
-                }
-                if (payload == "execute_route")
-                {
-                    ExecutePlan();
-                    addToTextBox("we did indeed press execute yay" + Environment.NewLine);
-                }
-
-                if (payload == "W" || payload == "A" || payload == "S" || payload == "D")
                 {
                     var jsonMessage = new
                     {
                         stopSignal = "false",
-                        manualCommand = payload
+                        manualCommand = message.command
                     };
-                    addToTextBox(payload + Environment.NewLine);
+                    addToTextBox(message.command + Environment.NewLine);
                     PublishJsonMessageAsync("Movement", jsonMessage, 2);
 
                 }
-                if (payload == "stop")
+                if (message.command == "stop")
                 {
                     var jsonMessage = new
                     {
@@ -1451,7 +1475,43 @@ namespace RobotAppControl
 
                 }
 
-            }*/
+            }
+            /* if (payload != null)
+             {
+                 if (payload == "plan_route")
+                 {
+                     addToTextBox("we pressed planRoute" + Environment.NewLine);
+                     PlanPath();
+                 }
+                 if (payload == "execute_route")
+                 {
+                     ExecutePlan();
+                     addToTextBox("we did indeed press execute yay" + Environment.NewLine);
+                 }
+
+                 if (payload == "W" || payload == "A" || payload == "S" || payload == "D")
+                 {
+                     var jsonMessage = new
+                     {
+                         stopSignal = "false",
+                         manualCommand = payload
+                     };
+                     addToTextBox(payload + Environment.NewLine);
+                     PublishJsonMessageAsync("Movement", jsonMessage, 2);
+
+                 }
+                 if (payload == "stop")
+                 {
+                     var jsonMessage = new
+                     {
+                         stopSignal = "true",
+                         manualCommand = "None"
+                     };
+                     PublishJsonMessageAsync("Movement", jsonMessage, 1);
+
+                 }
+
+             }*/
             // addToTextBox(payload + Environment.NewLine);
         }
         private async Task PublishJsonMessageAsync(string topic, object message, int qosLevel)
@@ -1546,7 +1606,7 @@ namespace RobotAppControl
         private void KalmanTest()
         {
             Random random = new Random();
-            KalmanFilter kalmanFilter = new KalmanFilter(0.2f,15,7.5f,4,3,10);
+            KalmanFilter kalmanFilter = new KalmanFilter(0.2f, 15, 7.5f, 4, 3, 10);
             int currentBase = 10;
             int currentnumb = 0;
             int output = 0;
@@ -1557,14 +1617,14 @@ namespace RobotAppControl
                     currentBase = random.Next(10, 250);
                 currentnumb = random.Next(7) + currentBase;
                 output = (int)kalmanFilter.Output(currentnumb);
-                if(Math.Abs(currentnumb - output) >= 10)
+                if (Math.Abs(currentnumb - output) >= 10)
                 {
 
-                 errCounter++;
+                    errCounter++;
                 }
-                addToTextBox("<" + (currentnumb - output)+"|" + currentnumb +"|"+output+ ">" + Environment.NewLine);
-               // else
-               // addToTextBox("<" +currentnumb + " | " +kalmanFilter.Output(currentnumb).ToString("F", CultureInfo.InvariantCulture) + ">");
+                addToTextBox("<" + (currentnumb - output) + "|" + currentnumb + "|" + output + ">" + Environment.NewLine);
+                // else
+                // addToTextBox("<" +currentnumb + " | " +kalmanFilter.Output(currentnumb).ToString("F", CultureInfo.InvariantCulture) + ">");
             }
             addToTextBox("The number of times the error exceeded 10 was: " + errCounter);
 
@@ -1636,6 +1696,42 @@ namespace RobotAppControl
         private void btnLoadTwo_Click(object sender, EventArgs e)
         {
             MultiLoadLoadImageAsMap();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            CreateNewImage();
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                dlg.Title = "Open Image";
+                dlg.Filter = "Image Files | *.jpg; *.jpeg; *.png; *.gif; *.tif";
+
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+
+                    simulatedMapArea = LoadImageAsCustomBitmap(dlg.FileName);
+                    simulatedMapGrid = SetObstaclesFromMap(simulatedMapArea);
+
+                }
+
+
+            }
+            simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 300, 500, this, 16.5);
+            currentlyMappingSimulation = true;
+            StartInterpreting();
+        }
+
+        private void btnSwitchView_Click(object sender, EventArgs e)
+        {
+            PictureBox.Invalidate();
+            _imgRect = new Rectangle(picture_offsetX, picture_offsetY, simulatedMapArea.Width, simulatedMapArea.Height);
+            PictureBox.CreateGraphics().DrawImage(simulatedMapArea.Bitmap, _imgRect);
+            Thread.Sleep(2500);
+        }
+
+        private void btnScanView_Click(object sender, EventArgs e)
+        {
+            RefreshPicture();
         }
     }
 }
