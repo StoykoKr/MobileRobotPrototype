@@ -61,9 +61,8 @@ namespace RobotAppControl
                     int offsedX = 0;
                     int offsedY = 0;
                     int nehsto = 0;
-                    Color newColor = Color.White;
-
-                    bitmap.SetPixel(
+                    Color newColor = Color.Green;
+                   bitmap.SetPixel(
 x,
 y, newColor);
                     int centralPixelX;
@@ -74,7 +73,8 @@ y, newColor);
                         offsedY = -30;
                         offsedX = 0;
                     }
-                    newColor = Color.Red;
+                     newColor = Color.White;
+                  //  newColor = Color.Red;
                     currentDegrees = MidDegrees;
                     nehsto = 1;
                     if (whatWeKnow.midSensor < 290)
@@ -96,7 +96,7 @@ y, newColor);
                         offsedY = -17;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
                         offsedX = -24;
                         }
-                        newColor = Color.Green;
+                     //   newColor = Color.Green;
                         currentDegrees = LeftDegrees;
                         nehsto = -1;
                         centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.leftSensor * nehsto * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
@@ -114,7 +114,7 @@ y, newColor);
                             offsedY = -20;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
                             offsedX = 26;
                         }
-                        newColor = Color.Blue;
+                    //    newColor = Color.Blue;
                         currentDegrees = RightDegrees;
                         nehsto = -1;
                         centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(whatWeKnow.rightSensor * nehsto * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));

@@ -22,6 +22,11 @@ namespace RobotAppControl
 {
     public partial class Form1 : Form
     {
+        private string actualAreaPath = "C:\\Users\\s\\Desktop\\The_actual_area_we_are_scanning.png";
+        private string readyMapForTheAutonomousPart = "C:\\Users\\s\\Desktop\\third.jpg";  //This should point to the normal map not the _mcl version
+
+
+
         public Grid _grid;
         public Grid _MCL_grid;
         private Robot _robot = null;
@@ -64,7 +69,7 @@ namespace RobotAppControl
         List<bool> turnsss = new List<bool>();
         private IMqttClient? imagePublisherClient = null;
         private MonteCarloLocal MonteLocalization = null;
-        public bool currentlyMappingSimulation = false;
+        public volatile bool currentlyMappingSimulation = false;
         public CustomBitmap simulatedMapArea;
         public Grid simulatedMapGrid;
         public Form1()
@@ -215,9 +220,11 @@ namespace RobotAppControl
 
         private void LoadDefaultImage()
         {
-            custom = LoadImageAsCustomBitmap("Default");
-            _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
-            PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+            //custom = LoadImageAsCustomBitmap("Default");
+            //_imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
+            //PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+            MultiLoadLoadImageAsMap(readyMapForTheAutonomousPart);
+
         }
         private void SaveDefaultImage()
         {
@@ -245,40 +252,63 @@ namespace RobotAppControl
 
             }
         }
-        private void MultiLoadLoadImageAsMap()
+        private void MultiLoadLoadImageAsMap(string? path)
         {
-            using (OpenFileDialog dlg = new OpenFileDialog())
+            if (path == null)
             {
-                dlg.Title = "Open Image";
-                dlg.Filter = "Image Files | *.jpg; *.jpeg; *.png; *.gif; *.tif";
 
-                if (dlg.ShowDialog() == DialogResult.OK)
+                using (OpenFileDialog dlg = new OpenFileDialog())
                 {
-                    // bmp = new Bitmap(dlg.FileName);
+                    dlg.Title = "Open Image";
+                    dlg.Filter = "Image Files | *.jpg; *.jpeg; *.png; *.gif; *.tif";
 
-
-                    custom = LoadImageAsCustomBitmap(dlg.FileName);
-
-                    var mclName = dlg.FileName;
-                    var split = mclName.Split("\\");
-                    var theOne = split.Last().Split(".");
-                    StringBuilder newOne = new StringBuilder();
-                    for (int i = 0; i < split.Length - 1; i++)
+                    if (dlg.ShowDialog() == DialogResult.OK)
                     {
-                        newOne.Append(split[i]);
-                        newOne.Append("\\\\");
+                        // bmp = new Bitmap(dlg.FileName);
+
+
+                        custom = LoadImageAsCustomBitmap(dlg.FileName);
+
+                        var mclName = dlg.FileName;
+                        var split = mclName.Split("\\");
+                        var theOne = split.Last().Split(".");
+                        StringBuilder newOne = new StringBuilder();
+                        for (int i = 0; i < split.Length - 1; i++)
+                        {
+                            newOne.Append(split[i]);
+                            newOne.Append("\\\\");
+                        }
+                        newOne.Append(theOne[0]);
+                        newOne.Append("_mcl.");
+                        newOne.Append(theOne[1]);
+                        customMCL = LoadImageAsCustomBitmap(newOne.ToString());
+
+                        _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
+                        PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
+
                     }
-                    newOne.Append(theOne[0]);
-                    newOne.Append("_mcl.");
-                    newOne.Append(theOne[1]);
-                    customMCL = LoadImageAsCustomBitmap(newOne.ToString());
-
-                    _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
-                    PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
-
                 }
+            }
+            else
+            {
+                custom = LoadImageAsCustomBitmap(path);
 
+                var mclName = path;
+                var split = mclName.Split("\\");
+                var theOne = split.Last().Split(".");
+                StringBuilder newOne = new StringBuilder();
+                for (int i = 0; i < split.Length - 1; i++)
+                {
+                    newOne.Append(split[i]);
+                    newOne.Append("\\\\");
+                }
+                newOne.Append(theOne[0]);
+                newOne.Append("_mcl.");
+                newOne.Append(theOne[1]);
+                customMCL = LoadImageAsCustomBitmap(newOne.ToString());
 
+                _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
+                PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
             }
         }
         private void btn_LoadImageAsMap_Click(object sender, EventArgs e)
@@ -351,7 +381,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(750, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(750, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _MCL_grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -433,7 +463,7 @@ namespace RobotAppControl
                         if (i >= 0 && i < custom.Width && j >= 0 && j < custom.Height)
                         {
                             currentAdj = custom.GetPixel(i, j);
-                            if ((currentAdj.R + currentAdj.G + currentAdj.B) >= 10)
+                            if ((currentAdj.R /*+ currentAdj.G*/ + currentAdj.B) >= 250)
                             {
                                 if (affectedCells.ContainsKey(Tuple.Create(i, j)))
                                 {
@@ -561,7 +591,7 @@ namespace RobotAppControl
             }
             if (is_MCL_map == false)
             {
-                ConvertToOccMap(3, true);
+                ConvertToOccMap(2, true);
             }
         }
 
@@ -614,48 +644,21 @@ namespace RobotAppControl
                 //simulatedActualRobot
                 if (e.KeyCode == Keys.W)
                 {
-                        movementVal = 2;
-                        simulatedActualRobot._currentX += 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
-                        simulatedActualRobot._currentY +=2* Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                    keyCurrentlyPressedForSim = "w";
                 }
                 else if (e.KeyCode == Keys.A)
                 {
-                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() - (1.5 + getRand()/2));
-                    movementVal = 0;
+                      keyCurrentlyPressedForSim = "a";
                 }
                 else if (e.KeyCode == Keys.S)
-                {                   
-                        movementVal = -2;
-                        simulatedActualRobot._currentX -= 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
-                        simulatedActualRobot._currentY -= 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                {
+                      keyCurrentlyPressedForSim = "s";
 
                 }
                 else if (e.KeyCode == Keys.D)
                 {
-                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() + (1.5 + getRand()/2));
-                    movementVal = 0;
+                       keyCurrentlyPressedForSim = "d";
                 }
-                // sends data?
-                JsonMessageClass message = new JsonMessageClass();
-                message.direction = (float)simulatedActualRobot.getThetaActual();
-                double right = message.direction - 90;
-                if (right < 0)
-                {
-                    right += 360;
-                }
-                double left = message.direction + 90;
-                if (left > 360)
-                {
-                    left -= 360;
-                }
-
-                message.movement = movementVal * 10;
-                message.mappingFlag = 1;
-                message.rightSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, left, 300, simulatedMapGrid);
-                message.leftSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, right, 300, simulatedMapGrid);
-                message.midSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, message.direction, 300, simulatedMapGrid); ;
-                message.handSensor = 0;
-                stringsToBeInterpreted.Enqueue(("mapPoint", message));
 
 
             }
@@ -773,6 +776,10 @@ namespace RobotAppControl
         }
         private async void Form1_KeyUp(object sender, KeyEventArgs e)
         {
+            if (currentlyMappingSimulation)
+            {
+                keyCurrentlyPressedForSim = "n";
+            }
             if (currentlyControlling && currentlyPressedKey != Keys.None)
             {
                 lastSentKey = Keys.Enter;
@@ -839,7 +846,8 @@ namespace RobotAppControl
         private void SetObstacles()
         {
             _grid = SetObstaclesFromMap(custom);
-            // _MCL_grid = SetObstaclesFromMap(customMCL, _MCL_grid);
+            if (customMCL != null)
+             _MCL_grid = SetObstaclesFromMap(customMCL);
         }
         private void button1_Click(object sender, EventArgs e)
         {
@@ -865,7 +873,7 @@ namespace RobotAppControl
             if (path != null)
             {
                 finalPath = path;
-                _robot.ExecutePath(path);
+             //   _robot.ExecutePath(path);
                 Node previous = null;//start;
 
                 foreach (var item in path)
@@ -1122,9 +1130,9 @@ namespace RobotAppControl
             await MonteLocalization.StartTasksToMoveParticles((float)(v * dt), (float)currentRotation);
 
             await MonteLocalization.StartTasksToUpdateWeights(
-                      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
-                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
+                      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid),
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _MCL_grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid)],
                       2);
             MonteLocalization.Resample();
             estimatedPos = MonteLocalization.EstimatePosition();
@@ -1135,7 +1143,7 @@ namespace RobotAppControl
                 // DrawParticles();
                 if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                 {
-                    custom.SetPixel((int)currentX, (int)currentY, Color.Green);
+                   // custom.SetPixel((int)currentX, (int)currentY, Color.Green);
                 }
                 if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
                 {
@@ -1164,12 +1172,12 @@ namespace RobotAppControl
                 //    if (newInfoForAutoMovement_FLAG)
                 //    {
                 // newInfoForAutoMovement_FLAG = false;
-                await UpdatePosition(robot, dt);
                 estimatedPos = MonteLocalization.EstimatePosition();
                 var SmallGoal_BigGoal = FindLookaheadPoint(robot, currentGoal, path, maxLookahead);
                 currentGoal = SmallGoal_BigGoal.Item2;
                 var steeringAngle = CalculateSteeringAngle(robot, SmallGoal_BigGoal.Item1);
                 SetWheelVelocities(robot, steeringAngle, baseVelocity);
+                await UpdatePosition(robot, dt);
                 //tempAngles.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity));
                 var message = new
                 {
@@ -1206,7 +1214,7 @@ namespace RobotAppControl
                 // }
 
 
-            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last());
+            } while ((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 5 || currentGoal != path.Last());
             startX = (int)estimatedPos.X;
             startY = (int)estimatedPos.Y;
 
@@ -1249,7 +1257,7 @@ namespace RobotAppControl
 
             // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 1));
             //  purePursuitTask.Start();
-            await PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 2);
+            await PurePursuitControlAdaptive(_robot, finalPath, 5, 1, 1.5);
             RefreshPicture();
             /*
             var output = goodPath();
@@ -1412,7 +1420,7 @@ namespace RobotAppControl
                 }
                 if (MonteLocalization == null)
                 {
-                    MonteLocalization = new MonteCarloLocal(750, startX, startY, 20, 5, _grid);// _grid is old
+                    MonteLocalization = new MonteCarloLocal(750, startX, startY, 50, 5, _MCL_grid);// _grid is old
                     currentX = startX;
                     currentY = startY;
                 }
@@ -1429,41 +1437,53 @@ namespace RobotAppControl
 
             if (message != null)
             {
+
                 if (message.command == "plan_route")
                 {
-                    // addToTextBox("we pressed planRoute" + Environment.NewLine);
-                    addToTextBox("we pressed planRoute" + Environment.NewLine);
-                    // PlanPath();
                     SafeUpdate(PlanPath);
                     SafeUpdate(PictureBox.Invalidate);
                 }
                 if (message.command == "execute_route")
                 {
-                    addToTextBox("we did indeed press execute yay" + Environment.NewLine);
                     SafeUpdate(() => ExecutePlan());
-                    //SafeUpdate(RefreshPicture);
                 }
                 if (message.command == "load_map")
-                {
-                    addToTextBox("we pressed load" + Environment.NewLine);
-                    //  LoadDefaultImage();
-                    // SetObstacles();
+                {                    
                     SafeUpdate(LoadDefaultImage);
                     SafeUpdate(SetObstacles);
-                    //SafeUpdate(RefreshPicture);
                 }
-
-                if (message.command == "W" || message.command == "A" || message.command == "S" || message.command == "D")
+                if (message.command == "image_request")
                 {
-                    var jsonMessage = new
+                    PublishImageChunks();
+                }
+                if (message.command == "W" || message.command == "A" || message.command == "S" || message.command == "D" || message.command == "N")
+                {
+                    if (currentlyMappingSimulation)
                     {
-                        stopSignal = "false",
-                        manualCommand = message.command
-                    };
-                    addToTextBox(message.command + Environment.NewLine);
-                    PublishJsonMessageAsync("Movement", jsonMessage, 2);
+                        keyCurrentlyPressedForSim = message.command.ToLower();
+
+                    }
+                    else {
+                        var jsonMessage = new
+                        {
+                            stopSignal = "false",
+                            manualCommand = message.command
+                        };
+                        addToTextBox(message.command + Environment.NewLine);
+                        PublishJsonMessageAsync("Movement", jsonMessage, 2); 
+                    }
 
                 }
+                if (message.command == "start_simulation")
+                {
+                    BeginSimulation();
+                }
+
+
+
+
+
+
                 if (message.command == "stop")
                 {
                     var jsonMessage = new
@@ -1695,30 +1715,88 @@ namespace RobotAppControl
 
         private void btnLoadTwo_Click(object sender, EventArgs e)
         {
-            MultiLoadLoadImageAsMap();
+            MultiLoadLoadImageAsMap(null);
+        }
+
+        public volatile string keyCurrentlyPressedForSim = "n";
+
+        private async void ControllingTask()
+        {
+            int movementValue = 0;
+
+            while (currentlyMappingSimulation)
+            {
+                if (keyCurrentlyPressedForSim == "w")
+                {
+                    movementValue = 2;
+                    simulatedActualRobot._currentX += 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                    simulatedActualRobot._currentY += 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                }
+                else if (keyCurrentlyPressedForSim == "a")
+                {
+                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() - (1.5 + getRand() / 2));
+                    movementValue = 0;
+                }
+                else if (keyCurrentlyPressedForSim == "s")
+                {
+                    movementValue = -2;
+                    simulatedActualRobot._currentX -= 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+                    simulatedActualRobot._currentY -= 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
+
+                }
+                else if (keyCurrentlyPressedForSim == "d")
+                {
+                    simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() + (1.5 + getRand() / 2));
+                    movementValue = 0;
+                }
+                if (keyCurrentlyPressedForSim != "n")
+                {
+                    double right = (float)simulatedActualRobot.getThetaActual() - 90;
+                    if (right < 0)
+                    {
+                        right += 360;
+                    }
+                    double left = (float)simulatedActualRobot.getThetaActual() + 90;
+                    if (left > 360)
+                    {
+                        left -= 360;
+                    }
+
+                    var jsonMessage = new
+                    {
+                        direction = (float)simulatedActualRobot.getThetaActual(),
+                        movement = movementValue * 10,
+                        leftSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, right, 300, simulatedMapGrid),
+                        rightSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, left, 300, simulatedMapGrid),
+                        midSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, (float)simulatedActualRobot.getThetaActual(), 300, simulatedMapGrid),
+                        handSensor = 0,
+                        mappingFlag = 1
+                    };
+
+                    await PublishJsonMessageAsync("DataForMapping", jsonMessage, 1);
+                    movementValue = 0;
+                }
+                await Task.Delay(75);
+            }
+            
+        }
+
+
+        public void BeginSimulation()
+        {
+            CreateNewImage(); 
+            simulatedMapArea = LoadImageAsCustomBitmap(actualAreaPath);
+            simulatedMapGrid = SetObstaclesFromMap(simulatedMapArea);
+            simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 150, 300, this, 16.5);
+            currentlyMappingSimulation = true;
+            StartInterpreting();
+            Task.Run(ControllingTask);
+           
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
-            CreateNewImage();
-            using (OpenFileDialog dlg = new OpenFileDialog())
-            {
-                dlg.Title = "Open Image";
-                dlg.Filter = "Image Files | *.jpg; *.jpeg; *.png; *.gif; *.tif";
-
-                if (dlg.ShowDialog() == DialogResult.OK)
-                {
-
-                    simulatedMapArea = LoadImageAsCustomBitmap(dlg.FileName);
-                    simulatedMapGrid = SetObstaclesFromMap(simulatedMapArea);
-
-                }
-
-
-            }
-            simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 300, 500, this, 16.5);
-            currentlyMappingSimulation = true;
-            StartInterpreting();
+            BeginSimulation();
         }
 
         private void btnSwitchView_Click(object sender, EventArgs e)
