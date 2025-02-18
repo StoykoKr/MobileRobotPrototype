@@ -17,6 +17,8 @@ namespace RobotAppControl
         private Form1 _form;
         public double LeftWheelVelocity { get; set; }
         public double RightWheelVelocity { get; set; }
+        public double currentLeftWheelVelocity { get; set; }
+        public double currentRightWheelVelocity { get; set; }
         public double WheelBase { get; set; }
 
         public double getThetaVisual()
