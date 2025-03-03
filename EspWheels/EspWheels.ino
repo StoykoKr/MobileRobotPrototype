@@ -23,16 +23,16 @@
 
 #define WHEEL_DIAM 203.2
 //#define distance_Wheels 140   // TO BE UPDATED?
-#define TICKS_PER_REV 42
+#define TICKS_PER_REV 45  //42
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
-#define MM_TO_TICKS(A) ((float)(A)) / MM_PER_TICK
+#define MM_TO_TICKS(A) ((double)(A)) / MM_PER_TICK
 //#define MMipconfig_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)  // TO BE UPDATED?
 //#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
-const char* ssid = "Miyagi";                   //"Miyagi";  TP-Link_74CA
-const char* password = "$;)_eo73,,.5dhWLd*@";  //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.43.144";    //"192.168.43.144";
+const char* ssid = "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
+const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
+const char* mqtt_server = "192.168.0.4";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -68,7 +68,7 @@ volatile unsigned long microSecLeft = 0;
 volatile unsigned long microSecLeftEndDuration = 0;
 volatile unsigned long microSecRight = 0;
 volatile unsigned long microSecRightEndDuration = 0;
-int bounce = 7;
+int bounce = 2;
 volatile unsigned long lastLeftRec = 0;
 volatile unsigned long lastRightRec = 0;
 volatile bool canPingMid = true;
@@ -99,8 +99,8 @@ unsigned long previousTimeThereWasAnObstacle = millis();
 bool goingForward = false;
 bool turnedLeft = false;
 bool turnedRight = false;
-float PWMLeftCoefficient = 1;
-float PWMRightCoefficient = 1;
+double PWMLeftCoefficient = 1;
+double PWMRightCoefficient = 1;
 unsigned long speedTimer = 0;
 unsigned long speedAdjustTimer = 0;
 int LastSecondTicksLeft[] = { 0, 0, 0, 0, 0 };
@@ -110,26 +110,29 @@ int rightthing = 0;
 long lastRight = 0;
 int leftthing = 0;
 long lastLeft = 0;
-float mag_datat[] = { event.magnetic.x,
-                      event.magnetic.y,
-                      event.magnetic.z };
-float lastDegKeepDir = 0;
-float changeKeepDir = 0;
-float degreeChangeFromStartKeepDir = 0;
+double mag_datat[] = { event.magnetic.x,
+                       event.magnetic.y,
+                       event.magnetic.z };
+double lastDegKeepDir = 0;
+double changeKeepDir = 0;
+double degreeChangeFromStartKeepDir = 0;
 bool stopSignal = false;
 bool startingServoPosReached = false;
 bool alreadySendDirSignal = false;
 int remainningMapDataToTransmit = 0;
-float leftVelocity = 0;
-float rightVelocity = 0;
+double leftVelocity = 0;
+double rightVelocity = 0;
 bool movingDirectionLeft = false;
 bool movingDirectionRight = false;
-const float hard_iron[3] = {  // with magneto the values are new
+bool autoMovementWantedDirLeftWheelIsForward = true;
+bool autoMovementWantedDirRightWheelIsForward = true;
+
+const double hard_iron[3] = {  // with magneto the values are new
   //-107.431847, 122.222755, 220.246822
   356.739494, -89.900846, -180.455162
 };
 
-const float soft_iron[3][3] = {
+const double soft_iron[3][3] = {
   // { 1.602628, -0.006533, -0.149331 },
   // { -0.006533, 1.813032, 0.170965 },
   // { -0.149331, 0.170965, 2.302615 }
@@ -174,7 +177,7 @@ void resetConnectionParams() {
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
 }
-void setPWMLeft(float duty_cycle) {  // 0.0 to 1.0
+void setPWMLeft(double duty_cycle) {  // 0.0 to 1.0
   if (duty_cycle >= 0.95) {
     motorLeftPWM.writeScaled(0.95);
   } else if (duty_cycle < 0) {
@@ -183,7 +186,7 @@ void setPWMLeft(float duty_cycle) {  // 0.0 to 1.0
     motorLeftPWM.writeScaled(duty_cycle);
   }
 }
-void setPWMRight(float duty_cycle) {
+void setPWMRight(double duty_cycle) {
   if (duty_cycle >= 0.95) {
     motorRightPWM.writeScaled(0.95);
   } else if (duty_cycle < 0) {
@@ -319,10 +322,10 @@ void handtemp() {
       }
     }
   }
- // publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, useDataForMap);
+  // publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, useDataForMap);
 }
 
-void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDataRegardlessOfMove) {
+void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendDataRegardlessOfMove) {
   int rigthCount = rightEncoderCounter;
   int leftCount = leftEncoderCounter;
   double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
@@ -330,7 +333,7 @@ void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDa
   weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
-
+  bool weSending_testingVariable__ = newRightData || newHandData || newMidData || newLeftData;
   if (millis() - timeOfLastTrigger >= 75) {
     canPingLeft = true;
     canPingMid = true;
@@ -462,47 +465,51 @@ void GetUltrasoundData(float dir, bool sendMove, bool useDataForMap, bool sendDa
       }
     }
   }
-  if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
-    publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+
+  if (weSending_testingVariable__) {
+    publishJsonDataForMap(0, 1, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
   }
+  // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
+  //  publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+  // }
 }
-float MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
+double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
-  float hi_cal[3];
-  float mag_data[] = { event.magnetic.x * 10 * 1.3,
-                       event.magnetic.y * 10 * 1.3,
-                       event.magnetic.z * 10 * 1.3 };
+  double hi_cal[3];
+  double mag_data[] = { event.magnetic.x * 10 * 1.3,
+                        event.magnetic.y * 10 * 1.3,
+                        event.magnetic.z * 10 * 1.3 };
   for (uint8_t i = 0; i < 3; i++) {
     hi_cal[i] = mag_data[i] - hard_iron[i];
   }
   for (uint8_t i = 0; i < 3; i++) {
     mag_data[i] = (soft_iron[i][0] * hi_cal[0]) + (soft_iron[i][1] * hi_cal[1]) + (soft_iron[i][2] * hi_cal[2]);
   }
-  float heading = atan2(mag_data[0], mag_data[1]);
+  double heading = atan2(mag_data[0], mag_data[1]);
   if (heading < 0)
     heading += 2 * PI;
   if (heading > 2 * PI)
     heading -= 2 * PI;
-  float headingDegrees = heading * 180 / M_PI;
+  double headingDegrees = heading * 180 / M_PI;
 
 
   return headingDegrees;
 }
 void MagneticSensorReadingFORPROCESSING() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
-  float hi_cal[3];
+  double hi_cal[3];
   mag_datat[0] = event.magnetic.x * 10 * 1.3;
   mag_datat[1] = event.magnetic.y * 10 * 1.3;
   mag_datat[2] = event.magnetic.z * 10 * 1.3;
 }
-float PidControllerSpeedLeft(float target, float kp, float current) {
-  float e = current - target;
-  float u = (kp * e);
+double PidControllerSpeedLeft(double target, double kp, double current) {
+  double e = current - target;
+  double u = (kp * e);
   return u * -1;
 }
-float PidControllerSpeedRight(float target, float kp, float current) {
-  float e = current - target;
-  float u = (kp * e);
+double PidControllerSpeedRight(double target, double kp, double current) {
+  double e = current - target;
+  double u = (kp * e);
   return u * -1;
 }
 void ManualMovement(String signal) {
@@ -511,10 +518,12 @@ void ManualMovement(String signal) {
     justForward(true);  //true for forward
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
+    //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
   } else if (signal == "s" || signal == "S") {
     justForward(false);
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
+    //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
   } else if (signal == "none" || signal == "None") {
     StopMovement();
   }
@@ -526,6 +535,8 @@ void justLeftRight(int direction) {
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
+
+    /*
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
@@ -563,6 +574,8 @@ void justLeftRight(int direction) {
         alreadySendDirSignal = true;
       }
     }
+*/
+    GetUltrasoundData(MagneticSensorReading(), true, true, true);
   }
   StopMovement();
   goingForward = false;
@@ -592,10 +605,10 @@ void UpdateTicksLeft() {
   lastLeft = leftEncoderCounter;
   LastSecondTicksLeft[timeIntervalIndexCounter] = leftthing;
 }
-float GetCurrentSpeedRight() {
+double GetCurrentSpeedRight() {
   return (LastSecondTicksRight[0] + LastSecondTicksRight[1] + LastSecondTicksRight[2] + LastSecondTicksRight[3] + LastSecondTicksRight[4]) * MM_PER_TICK * 0.0036;
 }
-float GetCurrentSpeedLeft() {
+double GetCurrentSpeedLeft() {
   return (LastSecondTicksLeft[0] + LastSecondTicksLeft[1] + LastSecondTicksLeft[2] + LastSecondTicksLeft[3] + LastSecondTicksLeft[4]) * MM_PER_TICK * 0.0036;
 }
 void ResetKeepDir() {
@@ -604,7 +617,7 @@ void ResetKeepDir() {
   degreeChangeFromStartKeepDir = 0;
 }
 void keepDirection() {
-  float currentDeg = MagneticSensorReading();  //0;
+  double currentDeg = MagneticSensorReading();  //0;
   changeKeepDir = currentDeg - lastDegKeepDir;
   if (changeKeepDir > 200) {
     changeKeepDir -= 360;
@@ -638,13 +651,17 @@ void justForward(bool dir) {  //true for forward
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    if (!goingForward) {
+
+    startingServoPosReached = true;
+    goingForward = true;
+    turnedLeft = false;
+    turnedRight = false;
+    /*if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(90, true);
-      goingForward = true;
-      turnedLeft = false;
-      turnedRight = false;
-    } else if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
+     
+    } else */
+    if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
 
       GetUltrasoundData(MagneticSensorReading(), true, true, false);
 
@@ -659,16 +676,16 @@ void justForward(bool dir) {  //true for forward
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        float changeLEft = PidControllerSpeedLeft(3, 0.015, GetCurrentSpeedLeft());
-        float changeRight = PidControllerSpeedRight(3, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(7, 0.015, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(3, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 1.9 && PWMLeftCoefficient + changeLEft > 0.1) {
+          if (PWMLeftCoefficient + changeLEft < 7 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
           }
         }
         if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 1.9 && PWMRightCoefficient + changeRight > 0.1) {
+          if (PWMRightCoefficient + changeRight < 7 && PWMRightCoefficient + changeRight > 0.1) {
             PWMRightCoefficient += changeRight;
           }
         }
@@ -724,13 +741,15 @@ void autoMovement() {
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    if (!goingForward) {
+    /*if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
       goingForward = true;
       turnedLeft = false;
       turnedRight = false;
-    } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == false) {
+    } else */
+    startingServoPosReached = true;
+    if (startingServoPosReached && movingDirectionLeft == autoMovementWantedDirLeftWheelIsForward && movingDirectionRight == !autoMovementWantedDirRightWheelIsForward) {
       GetUltrasoundData(MagneticSensorReading(), true, false, false);
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
@@ -743,16 +762,16 @@ void autoMovement() {
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        float changeLEft = PidControllerSpeedLeft(1.5 * leftVelocity, 0.015, GetCurrentSpeedLeft());
-        float changeRight = PidControllerSpeedRight(1.5 * rightVelocity, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2 * leftVelocity, 0.0065, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2 * rightVelocity, 0.0065, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 7.5 && PWMLeftCoefficient + changeLEft > 0.1) {
+          if (PWMLeftCoefficient + changeLEft < 7 && PWMLeftCoefficient + changeLEft > 0.01) {
             PWMLeftCoefficient += changeLEft;
           }
         }
         if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 7.5 && PWMRightCoefficient + changeRight > 0.1) {
+          if (PWMRightCoefficient + changeRight < 7 && PWMRightCoefficient + changeRight > 0.01) {
             PWMRightCoefficient += changeRight;
           }
         }
@@ -760,8 +779,14 @@ void autoMovement() {
           StopMovement();
         } else {
           AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
-          setPWMRight(0.05 * PWMLeftCoefficient);
-          setPWMLeft(0.05 * PWMLeftCoefficient);
+          if (PWMLeftCoefficient < 0.1) {
+            setPWMLeft(0);
+          }
+          if (PWMRightCoefficient < 0.1) {
+            setPWMRight(0);
+          }
+          setPWMRight(0.1 * PWMRightCoefficient);
+          setPWMLeft(0.1 * PWMLeftCoefficient);
         }
         speedAdjustTimer = millis();
       }
@@ -770,8 +795,8 @@ void autoMovement() {
       setPWMRight(0);
       setPWMLeft(0);
       alreadySendDirSignal = true;
-      SendDirSignal(true, LEFTDIRWHEEL);
-      SendDirSignal(false, RIGHTDIRWHEEL);
+      SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
+      SendDirSignal(!autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
     }
   }
   StopMovement();
@@ -787,7 +812,7 @@ void autoMovement() {
   // the frond servo will likely change based on the difference of volocities as that signifies
   // There is the option where we do the direction change only when starting the movement sequence in which case we will need another method.. we can use the manual method for left/right
 }
-void publishJsonDataForMap(float direction, float movement, float left, float mid, float right, float hand, bool useDataForMap) {
+void publishJsonDataForMap(double direction, double movement, double left, double mid, double right, double hand, bool useDataForMap) {
   StaticJsonDocument<300> jsonDoc;
   jsonDoc["direction"] = direction;
   jsonDoc["movement"] = movement;
@@ -830,12 +855,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
       CollectAndSendMagDataForCalibration();
     }
   }
+
   if (jsonDoc.containsKey("move")) {
     int moveDistance = jsonDoc["move"];
     // forward(moveDistance);
   }
   if (jsonDoc.containsKey("turn")) {
-    float Turn = jsonDoc["turn"];
+    double Turn = jsonDoc["turn"];
     //  turn(Turn);
   }
   if (jsonDoc.containsKey("requestMapData")) {
@@ -851,10 +877,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   if (jsonDoc.containsKey("leftVelocity")) {
     double leftVelo = jsonDoc["leftVelocity"];
-    double rightVelo = jsonDoc["rightSpeed"];
+    double rightVelo = jsonDoc["rightVelocity"];
     int isFirstInstance = jsonDoc["firstInstance"];
-    leftVelocity = leftVelo;
-    rightVelocity = rightVelo;
+    if (leftVelo < 0) {
+      autoMovementWantedDirLeftWheelIsForward = false;
+    } else {
+      autoMovementWantedDirLeftWheelIsForward = true;
+    }
+    if (rightVelo < 0) {
+      autoMovementWantedDirRightWheelIsForward = false;
+    } else {
+      autoMovementWantedDirRightWheelIsForward = true;
+    }
+    leftVelocity = fabs(leftVelo);
+    rightVelocity = fabs(rightVelo);
     if (isFirstInstance == 1) {
       autoMovement();
     }
@@ -908,14 +944,19 @@ void CheckWiFiConnection() {
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
+      //Serial.println("not connected");
+      // Serial.println(ssid);
+      // Serial.println(password);
+      // Serial.println("----------");
       delay(1000);
     }
   }
 }
 
 void loop() {
+
   CheckConnections();
   client.loop();  // must be called constantly to check for new data
-  delay(100);
+  delay(10);
   // GetUltrasoundData(0, false, false, true);
 }

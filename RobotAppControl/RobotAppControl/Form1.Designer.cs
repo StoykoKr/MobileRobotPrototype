@@ -58,6 +58,8 @@
             button4 = new Button();
             btnSwitchView = new Button();
             btnScanView = new Button();
+            btnSingleMotorSpeedTestForward = new Button();
+            btnSingleMotorTestBackward = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -355,11 +357,33 @@
             btnScanView.UseVisualStyleBackColor = true;
             btnScanView.Click += btnScanView_Click;
             // 
+            // btnSingleMotorSpeedTestForward
+            // 
+            btnSingleMotorSpeedTestForward.Location = new Point(855, 269);
+            btnSingleMotorSpeedTestForward.Name = "btnSingleMotorSpeedTestForward";
+            btnSingleMotorSpeedTestForward.Size = new Size(99, 23);
+            btnSingleMotorSpeedTestForward.TabIndex = 41;
+            btnSingleMotorSpeedTestForward.Text = "setMotorForward";
+            btnSingleMotorSpeedTestForward.UseVisualStyleBackColor = true;
+            btnSingleMotorSpeedTestForward.Click += btnSingleMotorSpeedTestForward_Click;
+            // 
+            // btnSingleMotorTestBackward
+            // 
+            btnSingleMotorTestBackward.Location = new Point(855, 298);
+            btnSingleMotorTestBackward.Name = "btnSingleMotorTestBackward";
+            btnSingleMotorTestBackward.Size = new Size(99, 23);
+            btnSingleMotorTestBackward.TabIndex = 42;
+            btnSingleMotorTestBackward.Text = "setMotorBackward";
+            btnSingleMotorTestBackward.UseVisualStyleBackColor = true;
+            btnSingleMotorTestBackward.Click += btnSingleMotorTestBackward_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnSingleMotorTestBackward);
+            Controls.Add(btnSingleMotorSpeedTestForward);
             Controls.Add(btnScanView);
             Controls.Add(btnSwitchView);
             Controls.Add(button4);
@@ -432,5 +456,7 @@
         private Button button4;
         private Button btnSwitchView;
         private Button btnScanView;
+        private Button btnSingleMotorSpeedTestForward;
+        private Button btnSingleMotorTestBackward;
     }
 }

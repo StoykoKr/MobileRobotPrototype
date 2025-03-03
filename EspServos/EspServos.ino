@@ -17,9 +17,9 @@
 // ultrasonic trig 33
 // force sensor 17
 
-const char* ssid = "Miyagi";//"Miyagi";
-const char* password = "$;)_eo73,,.5dhWLd*@";//"$;)_eo73,,.5dhWLd*@";
-const char* mqtt_server = "192.168.43.144";//"192.168.43.144";
+const char* ssid = "TheEvilWithin";                   //"Miyagi";  TP-Link_74CA
+const char* password = "2PPG6262F3";  //"$;)_eo73,,.5dhWLd*@"; edidani1
+const char* mqtt_server = "192.168.0.4";    //"192.168.43.144";
 const int mqtt_port = 1883;
 
 
@@ -286,5 +286,5 @@ void updateRelay() {  // !!! H-bridge NEVER HIGH HIGH
 void loop() {
   CheckConnections();
   client.loop();  // must be called constantly to check for new data
-  delay(100);
+  delay(5);
 }

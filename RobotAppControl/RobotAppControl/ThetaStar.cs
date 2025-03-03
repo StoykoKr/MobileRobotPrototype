@@ -56,8 +56,8 @@ namespace RobotAppControl
                         continue;
                     // About the tentativeG. During the calculation using the _grid.GetCost leads to faster results but I fear we are not using the real distance.
                     float tentativeG = current.Parent != null && LineOfSight(current.Parent, neighbor) ?
-                                       current.Parent.G + Heuristic(current.Parent, neighbor) + _grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)://(_grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y)) :// + _grid.GetCost(current.Parent.X, current.Parent.Y) :         //Heuristic(current.Parent, neighbor) :
-                                       current.G +Heuristic(current, neighbor)  + _grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);//_grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y);//_grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);// Heuristic(current, neighbor);
+                                       current.Parent.G + Heuristic(current.Parent, neighbor) + _grid.GetCost(current.Parent.X, current.Parent.Y) + _grid.GetCost(neighbor.X, neighbor.Y) + _grid.GetCost(current.X, current.Y):
+                                       current.G +Heuristic(current, neighbor)  + _grid.GetCost(current.X, current.Y) + _grid.GetCost(neighbor.X, neighbor.Y);
 
                     if (!openSet.Contains(neighbor) || tentativeG < neighbor.G)
                     {
@@ -195,8 +195,6 @@ namespace RobotAppControl
         public float Heuristic(Node a, Node b)
         {
             float euclidean = (float)Math.Sqrt(Math.Pow(a.X - b.X, 2) + Math.Pow(a.Y - b.Y, 2));
-            // float manhattan = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
-            // return (float)Math.Round(euclidean * 0.4f + manhattan * 0.6f);
             return euclidean;
         }
     }

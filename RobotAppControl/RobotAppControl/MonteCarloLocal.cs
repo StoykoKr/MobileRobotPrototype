@@ -24,7 +24,9 @@ namespace RobotAppControl
         public int numberOfTasksToRunOn { private set; get; }
         private double resampleNoiseFactor = 4;
         private double weightScale = 1;
-        public double totalWeightPublic = 666;
+        public double totalWeightPublic = 666;  
+        private bool enterChaos = false;
+        private (double, double, double) lastEstimatedPos = (700, 700, 120);
         // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
         public List<Particle> Particles { private set; get; }
         private ConcurrentDictionary<int, Particle> keyValueParticles;
@@ -126,43 +128,12 @@ namespace RobotAppControl
             }
             await Task.WhenAll(tasks);
         }
-        private bool enterChaos = false;
-        private (double, double, double) lastEstimatedPos = (700, 700, 120);
+      
 
-        public void UpdateWeightsOld(double[] observedData, double sigma)
-        {
-            double totalWeight = 0;
-
-            for (int i = 0; i < Particles.Count; i++)
-            {
-                double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
-
-                Particles[i].Weight *= likelihood;
-
-                totalWeight += Particles[i].Weight;
-            }
-            if (totalWeight < 0.0001)
-            {
-                // totalWeight = 0.1;
-                enterChaos = true;
-            }
-            else
-            {
-                enterChaos = false;
-                for (int i = 0; i < Particles.Count; i++)
-                {
-                    Particles[i].Weight /= totalWeight;
-                }
-                lastEstimatedPos = EstimatePosition();
-            }
-            totalWeightPublic = totalWeight;
-
-
-        }
+      
         public void UpdateWeights(double[] observedData, double sigma, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
         {
             double total = 0;
-
             for (int i = startingIndex; i <= finalIndex; i++)
             {
                 double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
@@ -322,18 +293,7 @@ namespace RobotAppControl
             double coefficient = 1.0 / (sigma * Math.Sqrt(2 * Math.PI));
             return coefficient * Math.Exp(exponent);
         }
-        public static double SimilarityScore(double difference, double sigma)
-        {
-            // Ensure sigma is positive to avoid division by zero or invalid input
-            if (sigma <= 0)
-                throw new ArgumentException("Sigma must be greater than 0", nameof(sigma));
-
-            // Exponential decay formula
-            double score = Math.Exp(-difference / sigma);
-
-            // Ensure the score is never exactly 0
-            return Math.Max(score, double.Epsilon); // double.Epsilon is the smallest positive value
-        }
+      
         public double GetPredictedDistance(double x, double y, double theta, double offset, Grid map)
         {
             // Raycasting logic to get the predicted distance to the nearest obstacle

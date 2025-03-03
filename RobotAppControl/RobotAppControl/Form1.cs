@@ -17,6 +17,7 @@ using Newtonsoft.Json;
 using Microsoft.VisualBasic;
 using static System.Windows.Forms.AxHost;
 using System.Globalization;
+using System.Drawing;
 
 namespace RobotAppControl
 {
@@ -648,16 +649,16 @@ namespace RobotAppControl
                 }
                 else if (e.KeyCode == Keys.A)
                 {
-                      keyCurrentlyPressedForSim = "a";
+                    keyCurrentlyPressedForSim = "a";
                 }
                 else if (e.KeyCode == Keys.S)
                 {
-                      keyCurrentlyPressedForSim = "s";
+                    keyCurrentlyPressedForSim = "s";
 
                 }
                 else if (e.KeyCode == Keys.D)
                 {
-                       keyCurrentlyPressedForSim = "d";
+                    keyCurrentlyPressedForSim = "d";
                 }
 
 
@@ -843,7 +844,7 @@ namespace RobotAppControl
         {
             _grid = SetObstaclesFromMap(custom);
             if (customMCL != null)
-             _MCL_grid = SetObstaclesFromMap(customMCL);
+                _MCL_grid = SetObstaclesFromMap(customMCL);
         }
         private void button1_Click(object sender, EventArgs e)
         {
@@ -851,25 +852,19 @@ namespace RobotAppControl
         }
         private void PlanPath()
         {
-            // Define start and goal positions
-            //   var start = new NewNode(startX, startY);
-            //   var goal = new NewNode(endX, endY);
+           
             var start = new Node(startX, startY);
             var goal = new Node(endX, endY);
-            // Find path using A* algorithm
-            //   var aStar = new AStar(_grid);
-            //   var path = aStar.FindPath(start, goal);
+           
 
 
             var thetaStar = new ThetaStar(_grid);
-            //  var thetaStar = new NewThetaStar(_grid);
             var path = thetaStar.FindPath(start, goal);
-            //  var path = thetaStar.FindPath(start,goal);
-            // Execute path with robot
+
             if (path != null)
             {
                 finalPath = path;
-             //   _robot.ExecutePath(path);
+                _robot.ExecutePath(path);
                 Node previous = null;//start;
 
                 foreach (var item in path)
@@ -883,14 +878,12 @@ namespace RobotAppControl
                     }
                     previous = item;
                 }
-                //   txtBox_TextOutput.AppendText($"From ({previous.X},{previous.Y}) to ({goal.X},{goal.Y}) which is {FindTurnDegree(previous, goal)} \n ");
             }
             else
             {
                 MessageBox.Show("No path");
             }
 
-            // Refresh the picture box to show the path
             RefreshPicture();
         }
         private void btn_ManualRotation_Click(object sender, EventArgs e)
@@ -1067,25 +1060,35 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
+        // public List<(double,double)> values_angleToTarget_SteeringAngle = new List<(double,double)>();
         public double CalculateSteeringAngle(Robot robot, Node lookaheadPoint)
         {
             double dx = lookaheadPoint.X - robot._currentX;
             double dy = lookaheadPoint.Y - robot._currentY;
-            double angleToTarget = Math.Atan2(dy, dx);// * 180/Math.PI;
+            double angleToTarget = Math.Atan2(dy, dx);
             double angleinDegree = angleToTarget * 180 / Math.PI;
             double steeringAngle = angleToTarget - robot.getThetaVisual() * Math.PI / 180;
+            //values_angleToTarget_SteeringAngle.Add((angleinDegree, steeringAngle));
             return steeringAngle;
         }
+        public List<(double, double)> values = new List<(double, double)>();
         public void SetWheelVelocities(Robot robot, double steeringAngle, double baseVelocity)
         {
             double radius = robot.WheelBase / (2 * Math.Sin(steeringAngle));
             robot.LeftWheelVelocity = baseVelocity * (1 - robot.WheelBase / (2 * radius));
             robot.RightWheelVelocity = baseVelocity * (1 + robot.WheelBase / (2 * radius));
+
+            if (robot.LeftWheelVelocity > 1.35 || robot.RightWheelVelocity > 1.35)
+            {
+                robot.LeftWheelVelocity -= 1;
+                robot.RightWheelVelocity -= 1;
+            }
+           
             //var message = new
             //{
             //    stopSignal = "false",
             //    leftVelocity = robot.LeftWheelVelocity,
-            //    rightSpeed = robot.RightWheelVelocity
+            //    rightVelocity = robot.RightWheelVelocity
             //};
             //   PublishJsonMessageAsync("LeftRightSpeed", message);
         }
@@ -1102,6 +1105,18 @@ namespace RobotAppControl
             double u = (kp * e);
             return u * -1;
         }
+        private double currentCoeffForMoving_left = 0;
+        private double currentCoeffForMoving_right = 0;
+
+        private KalmanFilter kalmanLeft = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        private KalmanFilter kalmanRight = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        private KalmanFilter kalmanMid = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        private double midValue = 0;
+        private double leftValue = 0;
+        private double rightValue = 0;
+        private double midValuePrevious = 0;
+        private double leftValuePrevious = 0;
+        private double rightValuePrevious = 0;
         public async Task UpdatePosition(Robot robot, double dt)  // This needs to be looked at again very carefully before real test
         {
             /*
@@ -1121,12 +1136,37 @@ namespace RobotAppControl
             currentRotation = robot.getThetaVisual();
 
             */
-            double changeLeft = PidControllerSpeedLeft(robot.LeftWheelVelocity, 0.15, robot.currentLeftWheelVelocity); 
-            double changeRight = PidControllerSpeedRight(robot.RightWheelVelocity,0.15,robot.currentRightWheelVelocity);
+            double changeLeft = PidControllerSpeedLeft(robot.LeftWheelVelocity, 0.22, robot.currentLeftWheelVelocity);
+            double changeRight = PidControllerSpeedRight(robot.RightWheelVelocity, 0.22, robot.currentRightWheelVelocity);
+
+            //if (Math.Abs(changeLeft) > 0.0001)
+            //{
+            //    if (currentCoeffForMoving_left + changeLeft < 1.99 && currentCoeffForMoving_left + changeLeft >= 0)
+            //    {
+            //        currentCoeffForMoving_left += changeLeft;
+            //    }
+            //}
+            //if (Math.Abs(changeRight) > 0.0001)
+            //{
+            //    if (currentCoeffForMoving_right + changeRight < 1.99 && currentCoeffForMoving_right + changeRight >= 0)
+            //    {
+            //        currentCoeffForMoving_right += changeRight;
+            //    }
+            //}
+            //   robot.currentLeftWheelVelocity + = currentCoeffForMoving_left;
+
+
+            // something that takes the currently wanted speed
+            // current = current + change + natDecel?
+
+            bool midIsRelevant = false;
+            bool leftIsRelevant = false;
+            bool rightIsRelevant = false;
+
             robot.currentLeftWheelVelocity += changeLeft;
             robot.currentRightWheelVelocity += changeRight;
 
-            double v = (robot.currentLeftWheelVelocity* 1.5 + robot.currentRightWheelVelocity * 1.5) / 2.0;
+            double v = (robot.currentLeftWheelVelocity * 1.5 + robot.currentRightWheelVelocity * 1.5) / 2.0;
             double omega = (robot.currentRightWheelVelocity * 1.5 - robot.currentLeftWheelVelocity * 1.5) / robot.WheelBase;
             if (Math.Abs(omega) < 1e-6) // Moving straight
             {
@@ -1147,31 +1187,52 @@ namespace RobotAppControl
             currentRotation = robot.getThetaVisual();
 
             await MonteLocalization.StartTasksToMoveParticles((float)(v * dt), (float)currentRotation);
-            await MonteLocalization.StartTasksToUpdateWeights(
-                      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid),
-                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _MCL_grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid)],
-                      2);
-            //await MonteLocalization.StartTasksToUpdateWeights(
-            //          [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
-            //                       MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
-            //                        MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
-            //          2);
-            MonteLocalization.Resample();
+
+            midValue = kalmanMid.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid)); // This should be changed for real data I think. By this I mean the whole method
+            if (Math.Abs(midValue - midValuePrevious) < 5)
+            {
+                midIsRelevant = true;
+            }
+            midValuePrevious = midValue;
+
+            leftValue = kalmanLeft.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, -90, _MCL_grid));
+            if (Math.Abs(leftValue - leftValuePrevious) < 5)
+            {
+                leftIsRelevant = true;
+            }
+
+            leftValuePrevious = leftValue;
+
+            rightValue = kalmanRight.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid));
+            if (Math.Abs(rightValue - rightValuePrevious) < 5)
+            {
+                rightIsRelevant = true;
+            }
+            rightValuePrevious = rightValue;
+
+            if (midIsRelevant && leftIsRelevant && rightIsRelevant)
+            {
+
+                //await MonteLocalization.StartTasksToUpdateWeights(
+                //      [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid),
+                //                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _MCL_grid),
+                //                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid)],
+                //      2);
+
+                await MonteLocalization.StartTasksToUpdateWeights(
+                    [midValue, leftValue, rightValue], 2);
+
+                MonteLocalization.Resample();
+            }
             estimatedPos = MonteLocalization.EstimatePosition();
             //addToTextBox(estimatedPos.ToString());
             try
             {
                 //SafeUpdate(()=> DrawParticles());
                 // DrawParticles();
-                if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
-                {
-                    custom.SetPixel((int)currentX, (int)currentY, Color.Blue);
-                }
-                if (_grid.IsWalkable((int)estimatedPos.X, (int)estimatedPos.Y) == true)
-                {
-                    custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
-                }
+                custom.SetPixel((int)currentX, (int)currentY, Color.Black);
+                custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
+
             }
             catch (Exception)
             {
@@ -1186,10 +1247,10 @@ namespace RobotAppControl
         {
             // RequestDataFromBot();
             Node currentGoal = path[0];
-           // Stopwatch sw = Stopwatch.StartNew();
-         //   int firstInstance = 1;
-            robot.currentLeftWheelVelocity = 1;
-            robot.currentRightWheelVelocity = 1;
+            // Stopwatch sw = Stopwatch.StartNew();
+            //   int firstInstance = 1;
+            robot.currentLeftWheelVelocity = 0;
+            robot.currentRightWheelVelocity = 0;
             do
             {
 
@@ -1247,7 +1308,7 @@ namespace RobotAppControl
         }
         public (Node, Node) FindLookaheadPoint(Robot robot, Node nextPoint, List<Node> path, double lookaheadDistance)
         {
-            // Calculate the vector from the current point to the next point
+
             double dx = nextPoint.X - robot._currentX;
             double dy = nextPoint.Y - robot._currentY;
             double segmentLength = Math.Sqrt(dx * dx + dy * dy);
@@ -1267,7 +1328,6 @@ namespace RobotAppControl
                 }
             }
 
-            // Interpolate along the segment to create a virtual lookahead point
             double interpolationFactor = lookaheadDistance / segmentLength;
             double lookaheadX = robot._currentX + interpolationFactor * dx;
             double lookaheadY = robot._currentY + interpolationFactor * dy;
@@ -1282,7 +1342,7 @@ namespace RobotAppControl
 
             // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 1, 1));
             //  purePursuitTask.Start();
-            await PurePursuitControlAdaptive(_robot, finalPath, 5, 1, 1.5);
+            await PurePursuitControlAdaptive(_robot, finalPath, 15, 1, 1.5);
             RefreshPicture();
             /*
             var output = goodPath();
@@ -1473,7 +1533,7 @@ namespace RobotAppControl
                     SafeUpdate(() => ExecutePlan());
                 }
                 if (message.command == "load_map")
-                {                    
+                {
                     SafeUpdate(LoadDefaultImage);
                     SafeUpdate(SetObstacles);
                 }
@@ -1488,14 +1548,15 @@ namespace RobotAppControl
                         keyCurrentlyPressedForSim = message.command.ToLower();
 
                     }
-                    else {
+                    else
+                    {
                         var jsonMessage = new
                         {
                             stopSignal = "false",
                             manualCommand = message.command
                         };
                         addToTextBox(message.command + Environment.NewLine);
-                        PublishJsonMessageAsync("Movement", jsonMessage, 2); 
+                        PublishJsonMessageAsync("Movement", jsonMessage, 2);
                     }
 
                 }
@@ -1808,20 +1869,20 @@ namespace RobotAppControl
                 }
                 await Task.Delay(75);
             }
-            
+
         }
 
 
         public void BeginSimulation()
         {
-            CreateNewImage(); 
+            CreateNewImage();
             simulatedMapArea = LoadImageAsCustomBitmap(actualAreaPath);
             simulatedMapGrid = SetObstaclesFromMap(simulatedMapArea);
             simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 150, 300, this, 16.5);
             currentlyMappingSimulation = true;
             StartInterpreting();
             Task.Run(ControllingTask);
-           
+
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -1840,6 +1901,87 @@ namespace RobotAppControl
         private void btnScanView_Click(object sender, EventArgs e)
         {
             RefreshPicture();
+        }
+
+        private int testing_firstInstance = 1;
+        private int testing_lastClicked = 0; // 0 none clicked, 1 forward clicked, 2 backward clicked
+        private void btnSingleMotorSpeedTestForward_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopSignal = "false",
+                firstInstance = testing_firstInstance,
+                leftVelocity = 1.5,
+                rightSpeed = 0
+            };
+            if (testing_lastClicked == 1)
+            {
+                message = new
+                {
+                    stopSignal = "true",
+                    firstInstance = testing_firstInstance,
+                    leftVelocity = 0.0,
+                    rightSpeed = 0
+                };
+                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                
+            }
+            else
+            {
+
+
+            if (testing_firstInstance == 1)
+            {
+                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                testing_firstInstance = 0;
+                testing_lastClicked = 1;
+            }
+            else
+            {
+                PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                testing_lastClicked = 1;
+            }
+            }
+
+        }
+
+        private void btnSingleMotorTestBackward_Click(object sender, EventArgs e)
+        {
+            var message = new
+            {
+                stopSignal = "false",
+                firstInstance = testing_firstInstance,
+                leftVelocity = -1.5,
+                rightSpeed = 0
+            };
+            if (testing_lastClicked == 2)
+            {
+                message = new
+                {
+                    stopSignal = "true",
+                    firstInstance = testing_firstInstance,
+                    leftVelocity = 0.0,
+                    rightSpeed = 0
+                };
+                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+
+            }
+            else
+            {
+
+
+                if (testing_firstInstance == 1)
+                {
+                    PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                    testing_firstInstance = 0;
+                    testing_lastClicked = 2;
+                }
+                else
+                {
+                    PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                    testing_lastClicked = 2;
+                }
+            }
         }
     }
 }
