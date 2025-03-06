@@ -1709,7 +1709,17 @@ namespace RobotAppControl
         private void button3_Click(object sender, EventArgs e)
         {
             //  RequestDataFromBot();
-            KalmanTest();
+            //  KalmanTest();
+            SendMarkerForTesting();
+        }
+        private void SendMarkerForTesting()
+        {
+            var message = new
+            {
+                markerX = startX,
+                makerY = startY
+            };
+            PublishJsonMessageAsync("location/robot", message, 2);
         }
         private void KalmanTest()
         {
