@@ -73,6 +73,7 @@ namespace RobotAppControl
         public volatile bool currentlyMappingSimulation = false;
         public CustomBitmap simulatedMapArea;
         public Grid simulatedMapGrid;
+        public List<JsonMessageClass> feedback = new List<JsonMessageClass>();
         public Form1()
         {
             InitializeComponent();
@@ -1460,6 +1461,7 @@ namespace RobotAppControl
                 if (message.mappingFlag == 1)
                 {
                     stringsToBeInterpreted.Enqueue(("mapPoint", message));
+                    feedback.Add(message);
                 }
                 else
                 {

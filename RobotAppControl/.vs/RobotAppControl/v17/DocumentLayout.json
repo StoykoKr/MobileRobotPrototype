@@ -11,7 +11,7 @@
       "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\form1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|d:\\mobilerobot\\mobilerobotprototype\\robotappcontrol\\robotappcontrol\\thetastar.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\robotappcontrol\\thetastar.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{6488A15A-3E0B-4C46-B570-ED163AA0F596}|RobotAppControl\\RobotAppControl.csproj|solutionrelative:robotappcontrol\\thetastar.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
@@ -37,6 +37,10 @@
           "SelectedChildIndex": 3,
           "Children": [
             {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+            },
+            {
               "$type": "Document",
               "DocumentIndex": 2,
               "Title": "ThetaStar.cs",
@@ -46,12 +50,7 @@
               "RelativeToolTip": "RobotAppControl\\ThetaStar.cs",
               "ViewState": "AQIAACgAAAAAAAAAAAAAAEAAAAA/AAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-03T12:32:34.879Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{b1e99781-ab81-11d0-b683-00aa00a3ee26}"
+              "WhenOpened": "2025-03-03T12:32:34.879Z"
             },
             {
               "$type": "Document",
@@ -63,8 +62,7 @@
               "RelativeToolTip": "RobotAppControl\\MonteCarloLocal.cs",
               "ViewState": "AQIAAB8AAAAAAAAAAAAkwHAAAAAwAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-02-14T12:06:40.758Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-02-14T12:06:40.758Z"
             },
             {
               "$type": "Document",
@@ -74,7 +72,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
               "RelativeToolTip": "RobotAppControl\\Form1.cs",
-              "ViewState": "AQIAACMEAAAAAAAAAAAMwDsEAAAuAAAA",
+              "ViewState": "AQIAADYAAAAAAAAAAAAAAI8GAAAIAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2024-07-01T12:18:37.339Z",
               "EditorCaption": ""
@@ -112,8 +110,7 @@
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs [Design]",
               "RelativeToolTip": "RobotAppControl\\Form1.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-09-29T07:37:26.1Z",
-              "EditorCaption": " [Design]"
+              "WhenOpened": "2024-09-29T07:37:26.1Z"
             }
           ]
         }

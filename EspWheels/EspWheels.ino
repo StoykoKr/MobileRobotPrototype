@@ -30,9 +30,9 @@
 //#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
-const char* ssid = "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
-const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.4";  //"192.168.43.144";
+const char* ssid ="Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
+const char* password = "$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
+const char* mqtt_server = "192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -467,7 +467,7 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
   }
 
   if (weSending_testingVariable__) {
-    publishJsonDataForMap(0, 1, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+    publishJsonDataForMap(rigthCount, leftCount, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
   }
   // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
   //  publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
@@ -676,8 +676,8 @@ void justForward(bool dir) {  //true for forward
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(7, 0.015, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(3, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2, 0.015, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 7 && PWMLeftCoefficient + changeLEft > 0.1) {
