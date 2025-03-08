@@ -148,7 +148,7 @@ namespace RobotAppControl
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
                     currentRotation = whatWeKnow.direction + 270; //270;    // ADJUST HERE BY 90 IN A DIRECTION NOT SURE WHICH // Added change idk what now
-                    double movementDistance = whatWeKnow.movement * 0.1;
+                    double movementDistance = whatWeKnow.movement* 0.1;
                     currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
@@ -198,12 +198,12 @@ namespace RobotAppControl
                             {
                                 tempMax -= 360;
                             }
-                          
+
 
                             //inputLog.Add($"Arc with:{x}| {y} | {midValue} | {(int)tempMin} | {(int)tempMax}");
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    midValue, (int)tempMin, (int)tempMax);
+                            MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                                y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
+                                midValue, (int)tempMin, (int)tempMax);
 
 
 
@@ -258,9 +258,9 @@ namespace RobotAppControl
                             }
 
 
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    leftValue * nehsto, (int)tempMin, (int)tempMax);  // No idea why I did this, sorry
+                            MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                                y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
+                                leftValue * nehsto, (int)tempMin, (int)tempMax);  // No idea why I did this, sorry
 
                             centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * nehsto * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
                             centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * nehsto * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
@@ -313,9 +313,9 @@ namespace RobotAppControl
                             }
 
 
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    rightValue * nehsto, (int)tempMin, (int)tempMax);
+                            MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                                y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
+                                rightValue * nehsto, (int)tempMin, (int)tempMax);
 
 
 

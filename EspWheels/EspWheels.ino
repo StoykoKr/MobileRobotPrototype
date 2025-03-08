@@ -30,9 +30,9 @@
 //#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
-const char* ssid ="Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
-const char* password = "$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.167.216";  //"192.168.43.144";
+const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
+const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
+const char* mqtt_server = "192.168.0.4";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -467,7 +467,8 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
   }
 
   if (weSending_testingVariable__) {
-    publishJsonDataForMap(rigthCount, leftCount, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+    //publishJsonDataForMap(rigthCount, leftCount, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+    publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
   }
   // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
   //  publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
@@ -529,14 +530,21 @@ void ManualMovement(String signal) {
   }
 }
 void justLeftRight(int direction) {
+  speedTimer = millis();
+  speedAdjustTimer = millis();
   turnedRight = false;
   turnedLeft = false;
   alreadySendDirSignal = false;
+  rightthing = 0;
+  lastRight = 0;
+  PWMLeftCoefficient = 1;
+  PWMRightCoefficient = 1;
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
 
-    /*
+
+    GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
@@ -545,9 +553,29 @@ void justLeftRight(int direction) {
         goingForward = false;
         turnedRight = false;
       } else if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == false) {
-        setPWMLeft(0.25);
-        setPWMRight(0.25);
-        GetUltrasoundData(MagneticSensorReading(), true, true, false);
+        if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
+          double changeLEft = PidControllerSpeedLeft(1.5, 0.25, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1.5, 0.25, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+
+          if (fabs(changeLEft) > 0.0001) {
+            if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
+              PWMLeftCoefficient += changeLEft;
+            }
+          }
+          if (fabs(changeRight) > 0.0001) {
+            if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
+              PWMRightCoefficient += changeRight;
+            }
+          }
+          if (millis() - previousTimeThereWasAnObstacle <= 250) {
+            StopMovement();
+          } else {
+            setPWMRight(0.1 * PWMLeftCoefficient);
+            setPWMLeft(0.1 * PWMLeftCoefficient);
+          }
+          speedAdjustTimer = millis();
+        }
+
       } else if (!alreadySendDirSignal) {
         setPWMRight(0);
         setPWMLeft(0);
@@ -563,9 +591,28 @@ void justLeftRight(int direction) {
         goingForward = false;
         turnedRight = true;
       } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
-        setPWMLeft(0.3);
-        setPWMRight(0.3);
-        GetUltrasoundData(MagneticSensorReading(), true, true, false);
+         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
+          double changeLEft = PidControllerSpeedLeft(1.5, 0.25, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1.5, 0.25, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+
+          if (fabs(changeLEft) > 0.0001) {
+            if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
+              PWMLeftCoefficient += changeLEft;
+            }
+          }
+          if (fabs(changeRight) > 0.0001) {
+            if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
+              PWMRightCoefficient += changeRight;
+            }
+          }
+          if (millis() - previousTimeThereWasAnObstacle <= 250) {
+            StopMovement();
+          } else {
+            setPWMRight(0.1 * PWMLeftCoefficient);
+            setPWMLeft(0.1 * PWMLeftCoefficient);
+          }
+          speedAdjustTimer = millis();
+        }
       } else if (!alreadySendDirSignal) {
         setPWMRight(0);
         setPWMLeft(0);
@@ -574,8 +621,8 @@ void justLeftRight(int direction) {
         alreadySendDirSignal = true;
       }
     }
-*/
-    GetUltrasoundData(MagneticSensorReading(), true, true, true);
+
+    // GetUltrasoundData(MagneticSensorReading(), true, true, true);
   }
   StopMovement();
   goingForward = false;
@@ -656,12 +703,11 @@ void justForward(bool dir) {  //true for forward
     goingForward = true;
     turnedLeft = false;
     turnedRight = false;
-    /*if (!goingForward) {
+    if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(90, true);
-     
-    } else */
-    if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
+
+    } else if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
 
       GetUltrasoundData(MagneticSensorReading(), true, true, false);
 
@@ -676,16 +722,16 @@ void justForward(bool dir) {  //true for forward
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(2, 0.015, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(2, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2.5, 0.015, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2.5, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 7 && PWMLeftCoefficient + changeLEft > 0.1) {
+          if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
           }
         }
         if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 7 && PWMRightCoefficient + changeRight > 0.1) {
+          if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
             PWMRightCoefficient += changeRight;
           }
         }
@@ -957,6 +1003,6 @@ void loop() {
 
   CheckConnections();
   client.loop();  // must be called constantly to check for new data
-  delay(10);
+  delay(5);
   // GetUltrasoundData(0, false, false, true);
 }
