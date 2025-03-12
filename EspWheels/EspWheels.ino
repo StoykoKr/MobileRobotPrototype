@@ -9,8 +9,8 @@
 
 #define signalOutputInterruptPinRight 23
 #define signalOutputInterruptPinLeft 5
-#define analogOutputLeftPin 32   //17   //33
-#define analogOutputRightPin 26  //14
+#define analogOutputLeftPin 26   //17   //33
+#define analogOutputRightPin 32  //14
 #define trigPin 33               //33
 #define trigPinHand 4
 #define echoPinHand 16
@@ -266,9 +266,9 @@ void IRS_RightSensor() {
 void IRS_LeftEncoder() {
   if (millis() - lastLeftRec >= bounce) {
     if (movingDirectionLeft) {
-      leftEncoderCounter++;
-    } else {
       leftEncoderCounter--;
+    } else {
+      leftEncoderCounter++;
     }
     lastLeftRec = millis();
   }
@@ -276,9 +276,9 @@ void IRS_LeftEncoder() {
 void IRS_RightEncoder() {
   if (millis() - lastRightRec >= bounce) {
     if (!movingDirectionRight) {
-      rightEncoderCounter++;
-    } else {
       rightEncoderCounter--;
+    } else {
+      rightEncoderCounter++;
     }
     lastRightRec = millis();
   }
@@ -333,7 +333,7 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
   weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
   lastRightEncoderCounterUsedToCalculate = rigthCount;
   lastLeftEncoderCounterUsedToCalculate = leftCount;
-  bool weSending_testingVariable__ = newRightData || newHandData || newMidData || newLeftData;
+  //bool weSending_testingVariable__ = newRightData || newHandData || newMidData || newLeftData;
   if (millis() - timeOfLastTrigger >= 75) {
     canPingLeft = true;
     canPingMid = true;
@@ -466,13 +466,9 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
     }
   }
 
-  if (weSending_testingVariable__) {
-    //publishJsonDataForMap(rigthCount, leftCount, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+  if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
     publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
   }
-  // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
-  //  publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
-  // }
 }
 double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
@@ -516,12 +512,14 @@ double PidControllerSpeedRight(double target, double kp, double current) {
 void ManualMovement(String signal) {
   ResetEncoderValues();
   if (signal == "w" || signal == "W") {
-    justForward(true);  //true for forward
+    // justForward(true);  //true for forward??
+    justForward(false);
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
     //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
   } else if (signal == "s" || signal == "S") {
-    justForward(false);
+    // justForward(false);
+    justForward(true);
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
     //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
@@ -571,7 +569,9 @@ void justLeftRight(int direction) {
             StopMovement();
           } else {
             setPWMRight(0.1 * PWMLeftCoefficient);
-            setPWMLeft(0.1 * PWMLeftCoefficient);
+            //setPWMLeft(0.1 * PWMLeftCoefficient);
+            setPWMLeft(0);
+            //setPWMRight(1);
           }
           speedAdjustTimer = millis();
         }
@@ -591,7 +591,7 @@ void justLeftRight(int direction) {
         goingForward = false;
         turnedRight = true;
       } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
-         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
+        if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
           double changeLEft = PidControllerSpeedLeft(1.5, 0.25, GetCurrentSpeedLeft());
           double changeRight = PidControllerSpeedRight(1.5, 0.25, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
@@ -608,8 +608,11 @@ void justLeftRight(int direction) {
           if (millis() - previousTimeThereWasAnObstacle <= 250) {
             StopMovement();
           } else {
-            setPWMRight(0.1 * PWMLeftCoefficient);
+            //setPWMRight(0.1 * PWMLeftCoefficient);
             setPWMLeft(0.1 * PWMLeftCoefficient);
+            setPWMRight(0);
+            //setPWMLeft(0);
+            //setPWMRight(1);
           }
           speedAdjustTimer = millis();
         }
@@ -643,13 +646,13 @@ void CollectAndSendMagDataForCalibration() {
   }
 }
 void UpdateTicksRight() {
-  rightthing = rightEncoderCounter - lastRight;
-  lastRight = rightEncoderCounter;
+  rightthing = abs(rightEncoderCounter) - lastRight;
+  lastRight = abs(rightEncoderCounter);
   LastSecondTicksRight[timeIntervalIndexCounter] = rightthing;
 }
 void UpdateTicksLeft() {
-  leftthing = leftEncoderCounter - lastLeft;
-  lastLeft = leftEncoderCounter;
+  leftthing = abs(leftEncoderCounter) - lastLeft;
+  lastLeft = abs(leftEncoderCounter);
   LastSecondTicksLeft[timeIntervalIndexCounter] = leftthing;
 }
 double GetCurrentSpeedRight() {
@@ -722,8 +725,8 @@ void justForward(bool dir) {  //true for forward
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(2.5, 0.015, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(2.5, 0.015, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2.5, 0.15, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2.5, 0.15, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -738,7 +741,7 @@ void justForward(bool dir) {  //true for forward
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-          setPWMRight(0.1 * PWMLeftCoefficient);
+          setPWMRight(0.1 * PWMRightCoefficient);
           setPWMLeft(0.1 * PWMLeftCoefficient);
           keepDirection();
         }
@@ -1000,9 +1003,10 @@ void CheckWiFiConnection() {
 }
 
 void loop() {
-
+  
   CheckConnections();
-  client.loop();  // must be called constantly to check for new data
+  client.loop();  
   delay(5);
+
   // GetUltrasoundData(0, false, false, true);
 }

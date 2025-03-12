@@ -296,9 +296,7 @@ namespace RobotAppControl
       
         public double GetPredictedDistance(double x, double y, double theta, double offset, Grid map)
         {
-            // Raycasting logic to get the predicted distance to the nearest obstacle
-            // Offset is the direction offset for left/right sensor
-            // This method should simulate sensor readings based on the map's obstacle layout
+            
             double angl = theta + offset;
             if (angl < 0)
             {
@@ -309,7 +307,7 @@ namespace RobotAppControl
                 angl -= 360;
             }
 
-            return Raycast(x, y, angl, 300, map); // Placeholder for actual raycasting logic
+            return Raycast(x, y, angl, 300, map); 
         }
         public (double X, double Y, double Theta) EstimatePosition()
         {

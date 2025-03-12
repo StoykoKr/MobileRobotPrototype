@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Collections;
+using System.Security.Policy;
 
 namespace RobotAppControl
 {
@@ -22,13 +23,13 @@ namespace RobotAppControl
         private Form1 formControl;
         public double movedTotalRecieved = 0;
         private List<string> magDataList;
-        private double currentDegrees = 0;
-        private int degreeOffsetMid = 0;
-        private int degreeOffsetLeft = 90;
-        private int degreeOffsetRight = -90;      
+        private double currentDegrees = 0; // This represents the offset in degrees of the sensors compared to the middle point. It is replaced by the 3 values below. ONLY use with offset values not incoming sensor data
         private double MidDegrees = Math.Atan2(0, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
         private double LeftDegrees = Math.Atan2(-24, 17) * (180.0 / Math.PI);  //left
         private double RightDegrees = Math.Atan2(26, 20) * (180.0 / Math.PI);  //right
+        private int degreeOffsetMid = 0;
+        private int degreeOffsetLeft = -90;
+        private int degreeOffsetRight = 90;
         private KalmanFilter kalmanLeft;
         private KalmanFilter kalmanRight;
         private KalmanFilter kalmanMid;
@@ -73,18 +74,21 @@ namespace RobotAppControl
         {
             HashSet<(int, int)> arcBoundaryPoints = new();
             HashSet<(int, int)> interiorPoints = new();
-
-            for (int angle = angleMin; angle <= angleMax; angle++)
+            var tempAngle = 0;
+            for (int i = 0; i <= 30; i++)
             {
-                double radians = angle * Math.PI / 180.0;
-                int targetX = (int)Math.Round(Ax + distance * Math.Cos(radians));
-                int targetY = (int)Math.Round(Ay + distance * Math.Sin(radians));
+                tempAngle = angleMin + i;
+                if (tempAngle >= 360)
+                {
+                    tempAngle -= 360;
+                }
+                double radians = tempAngle * Math.PI / 180.0;
+                int targetX = (int)Math.Round(Ax + Math.Abs(distance) * Math.Cos(radians));
+                int targetY = (int)Math.Round(Ay+ Math.Abs(distance) * Math.Sin(radians));
 
-                // Store the exact arc boundary point
                 if (IsInBounds(targetX, targetY))
                     arcBoundaryPoints.Add((targetX, targetY));
 
-                // Use Bresenham to get all interior points
                 foreach (var point in BresenhamLine(Ax, Ay, targetX, targetY))
                 {
                     if (point != (targetX, targetY) && IsInBounds(point.Item1, point.Item2))
@@ -92,35 +96,70 @@ namespace RobotAppControl
                 }
             }
 
+            Dictionary<Tuple<int, int>, int> AffectedCells = new Dictionary<Tuple<int, int>, int>();
             foreach (var (x, y) in arcBoundaryPoints)
             {
-               // if (!gridForMapping[x, y].IsProvenEmpty)
-                //{
-                if (gridForMapping[x, y].IsPossible <= 15)
-                    gridForMapping[x, y].IsPossible += 3;
-                // }
+              
+                HandleAdjacentPixels(x, y, 2, AffectedCells);
 
-                if (gridForMapping[x, y].IsPossible >= 8/*gridForMapping[x, y].IsProvenEmpty*/)
+            }
+
+            foreach (var item in AffectedCells.Keys)
+            {
+                if (gridForMapping[item.Item1, item.Item2].IsPossible <= 15)
                 {
-                    pointsThatNeedVisualChange.Add((x, y));
+                    gridForMapping[item.Item1, item.Item2].IsPossible += 3;
+                }
+
+               
+                if (gridForMapping[item.Item1, item.Item2].IsPossible >= 8 + gridForMapping[item.Item1, item.Item2].IsProvenEmpty)
+                {
+                    pointsThatNeedVisualChange.Add((item.Item1, item.Item2));
+                    gridForMapping[item.Item1, item.Item2].ResetBelief();
                 }
             }
 
             foreach (var (x, y) in interiorPoints)
             {
-                //gridForMapping[x, y].IsProvenEmpty++;
-
+               
                 if (gridForMapping[x, y].IsPossible > 0)
-                    gridForMapping[x, y].IsPossible --;
+                    gridForMapping[x, y].IsPossible -=4;
 
-                if (gridForMapping[x, y].IsPossible + 1 == 7)
+                if (gridForMapping[x, y].IsPossible < 8 && gridForMapping[x, y].IsPossible >=3)
                 {
                     pointsThatNeedVisualChange.Add((x, y));
                 }
+                if (gridForMapping[x, y].IsPossible <= 2)
+                {
+                    gridForMapping[x, y].IncreaseIsProvenEmpty();
+                }
+
             }
             inputLog.Add($"Arc logic over. Added {pointsThatNeedVisualChange.Count} points for change");
         }
+        private void HandleAdjacentPixels(int iCentr, int jCentr, int spread, Dictionary<Tuple<int, int>, int> affectedCells)
+        {
 
+            for (int i = iCentr - spread; i <= iCentr + spread; i++)
+            {
+                for (int j = jCentr - spread; j <= jCentr + spread; j++)
+                {
+                    if (IsInBounds(i, j))
+                    {
+                        if (affectedCells.ContainsKey(Tuple.Create(i, j)))
+                            {
+                                affectedCells[Tuple.Create(i, j)] += 1;
+                            }
+                            else
+                            {
+                                affectedCells.Add(Tuple.Create(i, j), 1);
+                            }
+                        
+                    }
+                    
+                }
+            }
+        }
         public static List<(int, int)> BresenhamLine(int x0, int y0, int x1, int y1)  // should be an algorithm to cheaply draw a line from one point to another in a 2d grid. If working should implement in other parts of the code too.
         {
             List<(int, int)> points = new();
@@ -148,14 +187,13 @@ namespace RobotAppControl
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
                     currentRotation = whatWeKnow.direction + 270; //270;    // ADJUST HERE BY 90 IN A DIRECTION NOT SURE WHICH // Added change idk what now
-                    double movementDistance = whatWeKnow.movement* 0.1;
+                    double movementDistance = whatWeKnow.movement * 0.1;
                     currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
                     currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
                     int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
                     int offsedX = 0;
                     int offsedY = 0;
-                    int nehsto = 0;
                     Color newColor = Color.Green;
                    bitmap.SetPixel(
                         x,
@@ -168,18 +206,16 @@ namespace RobotAppControl
                         offsedY = -30;
                         offsedX = 0;
                     }
-                     newColor = Color.White;
+
+
+                    newColor = Color.White;
                   //  newColor = Color.Red;
                     currentDegrees = MidDegrees;
-                    nehsto = 1;
                     if (whatWeKnow.midSensor < 290)
                     {
                         midValue = kalmanMid.Output(whatWeKnow.midSensor);
                         if(Math.Abs(midValue - midValuePrevious) < 5)
                         {
-
-
-
                             var tempMin = degreeOffsetMid + currentRotation - 15;
                             var tempMax = degreeOffsetMid + currentRotation + 15;
                             while (tempMin < 0)
@@ -200,15 +236,15 @@ namespace RobotAppControl
                             }
 
 
-                            //inputLog.Add($"Arc with:{x}| {y} | {midValue} | {(int)tempMin} | {(int)tempMax}");
+                            inputLog.Add($"Mid Arc with:{x}| {y} | {midValue} | {(int)tempMin} | {(int)tempMax}");
                             MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
                                 midValue, (int)tempMin, (int)tempMax);
 
 
 
-                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue * nehsto * Math.Cos((/*degreeOffsetLeft*/degreeOffsetMid + currentRotation) * Math.PI / 180));
-                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue * nehsto * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
+                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue  * Math.Cos((degreeOffsetMid + currentRotation) * Math.PI / 180));
+                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue  * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
                             bitmap.SetPixel(
                                centralPixelX,
                                centralPixelY, newColor);
@@ -236,7 +272,7 @@ namespace RobotAppControl
                         if (Math.Abs(leftValue - leftValuePrevious) < 5)
                         {
                             currentDegrees = LeftDegrees;
-                            nehsto = -1;
+                          
 
                             var tempMin = degreeOffsetLeft + currentRotation - 15;
                             var tempMax = degreeOffsetLeft + currentRotation + 15;
@@ -257,13 +293,13 @@ namespace RobotAppControl
                                 tempMax -= 360;
                             }
 
-
+                            inputLog.Add($"Left Arc with:{x}| {y} | {leftValue} | {(int)tempMin} | {(int)tempMax}");
                             MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                                leftValue * nehsto, (int)tempMin, (int)tempMax);  // No idea why I did this, sorry
+                                leftValue, (int)tempMin, (int)tempMax);
 
-                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * nehsto * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
-                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * nehsto * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
+                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue  * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
+                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
                             bitmap.SetPixel(
                          centralPixelX,
                          centralPixelY, newColor);
@@ -286,12 +322,12 @@ namespace RobotAppControl
                             offsedX = 26;
                         }
                         //    newColor = Color.Blue;
+          
                         rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
                         if (Math.Abs(rightValue - rightValuePrevious) < 5)
                         {
                             currentDegrees = RightDegrees;
-                            nehsto = -1;
-
+       
 
                             var tempMin = degreeOffsetRight + currentRotation - 15;
                             var tempMax = degreeOffsetRight + currentRotation + 15;
@@ -311,16 +347,16 @@ namespace RobotAppControl
                             {
                                 tempMax -= 360;
                             }
-
+                            inputLog.Add($"Right Arc with:{x}| {y} | {rightValue} | {(int)tempMin} | {(int)tempMax}");
 
                             MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                                rightValue * nehsto, (int)tempMin, (int)tempMax);
+                                rightValue, (int)tempMin, (int)tempMax);
 
 
 
-                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * nehsto * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
-                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * nehsto * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));
+                            centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
+                            centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));
                             bitmap.SetPixel(
                          centralPixelX,
                          centralPixelY, newColor);
@@ -343,7 +379,7 @@ namespace RobotAppControl
         {
             foreach (var item in pointsThatNeedVisualChange)
             {
-                 if (gridForMapping[item.Item1, item.Item2].IsPossible >= 8 /*gridForMapping[item.Item1, item.Item2].IsProvenEmpty*/)
+                 if (gridForMapping[item.Item1, item.Item2].IsPossible >= 8 + gridForMapping[item.Item1, item.Item2].IsProvenEmpty /*gridForMapping[item.Item1, item.Item2].IsProvenEmpty*/)
                 {
                     bitmap.SetPixel(
                         item.Item1,

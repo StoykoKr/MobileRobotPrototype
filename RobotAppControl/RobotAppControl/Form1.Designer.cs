@@ -252,7 +252,7 @@
             // 
             // btnArmDown
             // 
-            btnArmDown.Location = new Point(977, 169);
+            btnArmDown.Location = new Point(1063, 144);
             btnArmDown.Name = "btnArmDown";
             btnArmDown.Size = new Size(75, 23);
             btnArmDown.TabIndex = 30;
@@ -262,7 +262,7 @@
             // 
             // btnArmUp
             // 
-            btnArmUp.Location = new Point(1079, 169);
+            btnArmUp.Location = new Point(1143, 144);
             btnArmUp.Name = "btnArmUp";
             btnArmUp.Size = new Size(75, 23);
             btnArmUp.TabIndex = 31;
@@ -272,7 +272,7 @@
             // 
             // btnGrab
             // 
-            btnGrab.Location = new Point(978, 213);
+            btnGrab.Location = new Point(1063, 173);
             btnGrab.Name = "btnGrab";
             btnGrab.Size = new Size(75, 23);
             btnGrab.TabIndex = 32;
@@ -282,7 +282,7 @@
             // 
             // btnRelease
             // 
-            btnRelease.Location = new Point(1079, 213);
+            btnRelease.Location = new Point(1147, 173);
             btnRelease.Name = "btnRelease";
             btnRelease.Size = new Size(75, 23);
             btnRelease.TabIndex = 33;
@@ -339,7 +339,7 @@
             // 
             // btnSwitchView
             // 
-            btnSwitchView.Location = new Point(879, 144);
+            btnSwitchView.Location = new Point(855, 115);
             btnSwitchView.Name = "btnSwitchView";
             btnSwitchView.Size = new Size(105, 23);
             btnSwitchView.TabIndex = 39;
@@ -349,7 +349,7 @@
             // 
             // btnScanView
             // 
-            btnScanView.Location = new Point(873, 199);
+            btnScanView.Location = new Point(855, 265);
             btnScanView.Name = "btnScanView";
             btnScanView.Size = new Size(75, 23);
             btnScanView.TabIndex = 40;
@@ -359,7 +359,7 @@
             // 
             // btnSingleMotorSpeedTestForward
             // 
-            btnSingleMotorSpeedTestForward.Location = new Point(855, 269);
+            btnSingleMotorSpeedTestForward.Location = new Point(855, 294);
             btnSingleMotorSpeedTestForward.Name = "btnSingleMotorSpeedTestForward";
             btnSingleMotorSpeedTestForward.Size = new Size(99, 23);
             btnSingleMotorSpeedTestForward.TabIndex = 41;
@@ -369,7 +369,7 @@
             // 
             // btnSingleMotorTestBackward
             // 
-            btnSingleMotorTestBackward.Location = new Point(855, 298);
+            btnSingleMotorTestBackward.Location = new Point(855, 323);
             btnSingleMotorTestBackward.Name = "btnSingleMotorTestBackward";
             btnSingleMotorTestBackward.Size = new Size(99, 23);
             btnSingleMotorTestBackward.TabIndex = 42;

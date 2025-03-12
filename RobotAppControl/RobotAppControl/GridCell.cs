@@ -11,5 +11,17 @@ namespace RobotAppControl
         public int IsPossible { get; set; } = 0; 
         public int IsProvenEmpty { get; set; } = 0;
 
+        public void IncreaseIsProvenEmpty()
+        {
+            IsProvenEmpty++;
+            IsProvenEmpty++;
+            if (IsProvenEmpty > 10) {
+                IsProvenEmpty = 10;
+            }
+        }
+        public void ResetBelief()
+        {
+            IsProvenEmpty = 0;
+        }
     }
 }
