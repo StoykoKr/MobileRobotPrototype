@@ -32,7 +32,7 @@
 
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.4";  //"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.3";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -87,6 +87,7 @@ volatile bool canCollectDataMid = false;
 volatile bool canCollectDataLeft = false;
 volatile bool canCollectDataRight = false;
 unsigned long timeOfLastTrigger = millis();
+unsigned long timeOfLastSendSensorData = millis();
 double weMoved = 0;
 double weMovedAuto = 0;
 int lastRightEncoderCounterUsedToCalculate = 0;
@@ -326,13 +327,6 @@ void handtemp() {
 }
 
 void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendDataRegardlessOfMove) {
-  int rigthCount = rightEncoderCounter;
-  int leftCount = leftEncoderCounter;
-  double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
-  weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
-  lastRightEncoderCounterUsedToCalculate = rigthCount;
-  lastLeftEncoderCounterUsedToCalculate = leftCount;
   //bool weSending_testingVariable__ = newRightData || newHandData || newMidData || newLeftData;
   if (millis() - timeOfLastTrigger >= 75) {
     canPingLeft = true;
@@ -466,9 +460,19 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
     }
   }
 
-  if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
-    publishJsonDataForMap(dir, weMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+  if (sendMove && millis() - timeOfLastSendSensorData > 150) {
+    int rigthCount = rightEncoderCounter;
+    int leftCount = leftEncoderCounter;
+    double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
+    double leftDistanceMoved = (leftCount - lastLeftEncoderCounterUsedToCalculate) * MM_PER_TICK;
+    weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
+    lastRightEncoderCounterUsedToCalculate = rigthCount;
+    lastLeftEncoderCounterUsedToCalculate = leftCount;
+    publishJsonDataForMap(dir, leftDistanceMoved, rightDistanceMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+    timeOfLastSendSensorData = millis();
   }
+  // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
+  //}
 }
 double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
@@ -512,17 +516,15 @@ double PidControllerSpeedRight(double target, double kp, double current) {
 void ManualMovement(String signal) {
   ResetEncoderValues();
   if (signal == "w" || signal == "W") {
-    // justForward(true);  //true for forward??
+    
     justForward(false);
   } else if (signal == "a" || signal == "A") {
     justLeftRight(1);
-    //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
   } else if (signal == "s" || signal == "S") {
-    // justForward(false);
+
     justForward(true);
   } else if (signal == "d" || signal == "D") {
     justLeftRight(-1);
-    //  GetUltrasoundData(MagneticSensorReading(), true, true, true);
   } else if (signal == "none" || signal == "None") {
     StopMovement();
   }
@@ -541,6 +543,15 @@ void justLeftRight(int direction) {
     CheckWiFiConnection();
     client.loop();
 
+    if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
+      if (5 <= timeIntervalIndexCounter) {
+        timeIntervalIndexCounter = 0;
+      }
+      UpdateTicksRight();
+      UpdateTicksLeft();
+      timeIntervalIndexCounter++;
+      speedTimer = millis();
+    }
 
     GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (direction > 0) {
@@ -552,8 +563,8 @@ void justLeftRight(int direction) {
         turnedRight = false;
       } else if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == false) {
         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-          double changeLEft = PidControllerSpeedLeft(1.5, 0.25, GetCurrentSpeedLeft());
-          double changeRight = PidControllerSpeedRight(1.5, 0.25, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+          double changeLEft = PidControllerSpeedLeft(1.5, 0.045, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1.5, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
           if (fabs(changeLEft) > 0.0001) {
             if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -568,7 +579,7 @@ void justLeftRight(int direction) {
           if (millis() - previousTimeThereWasAnObstacle <= 250) {
             StopMovement();
           } else {
-            setPWMRight(0.1 * PWMLeftCoefficient);
+            setPWMRight(0.1 * PWMRightCoefficient);
             //setPWMLeft(0.1 * PWMLeftCoefficient);
             setPWMLeft(0);
             //setPWMRight(1);
@@ -592,8 +603,8 @@ void justLeftRight(int direction) {
         turnedRight = true;
       } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-          double changeLEft = PidControllerSpeedLeft(1.5, 0.25, GetCurrentSpeedLeft());
-          double changeRight = PidControllerSpeedRight(1.5, 0.25, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+          double changeLEft = PidControllerSpeedLeft(1.5, 0.045, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1.5, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
           if (fabs(changeLEft) > 0.0001) {
             if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -608,7 +619,7 @@ void justLeftRight(int direction) {
           if (millis() - previousTimeThereWasAnObstacle <= 250) {
             StopMovement();
           } else {
-            //setPWMRight(0.1 * PWMLeftCoefficient);
+            //setPWMRight(0.1 * PWMRightCoefficient);
             setPWMLeft(0.1 * PWMLeftCoefficient);
             setPWMRight(0);
             //setPWMLeft(0);
@@ -725,8 +736,8 @@ void justForward(bool dir) {  //true for forward
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(2.5, 0.15, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(2.5, 0.15, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2.5, 0.025, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2.5, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -861,10 +872,11 @@ void autoMovement() {
   // the frond servo will likely change based on the difference of volocities as that signifies
   // There is the option where we do the direction change only when starting the movement sequence in which case we will need another method.. we can use the manual method for left/right
 }
-void publishJsonDataForMap(double direction, double movement, double left, double mid, double right, double hand, bool useDataForMap) {
+void publishJsonDataForMap(double direction, double leftDistance, double rightDistance, double left, double mid, double right, double hand, bool useDataForMap) {
   StaticJsonDocument<300> jsonDoc;
   jsonDoc["direction"] = direction;
-  jsonDoc["movement"] = movement;
+  jsonDoc["leftMovement"] = leftDistance;
+  jsonDoc["rightMovement"] = rightDistance;
   jsonDoc["leftSensor"] = left;
   jsonDoc["midSensor"] = mid;
   jsonDoc["rightSensor"] = right;
@@ -1003,9 +1015,9 @@ void CheckWiFiConnection() {
 }
 
 void loop() {
-  
+
   CheckConnections();
-  client.loop();  
+  client.loop();
   delay(5);
 
   // GetUltrasoundData(0, false, false, true);

@@ -24,9 +24,9 @@ namespace RobotAppControl
         public double movedTotalRecieved = 0;
         private List<string> magDataList;
         private double currentDegrees = 0; // This represents the offset in degrees of the sensors compared to the middle point. It is replaced by the 3 values below. ONLY use with offset values not incoming sensor data
-        private double MidDegrees = Math.Atan2(0, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
-        private double LeftDegrees = Math.Atan2(-24, 17) * (180.0 / Math.PI);  //left
-        private double RightDegrees = Math.Atan2(26, 20) * (180.0 / Math.PI);  //right
+        private double MidDegrees = Math.Atan2(14, 30) * (180.0 / Math.PI);  //mid  change Math.Atan2(x,y) with new values if sensors are moved
+        private double LeftDegrees = Math.Atan2(-22, 8) * (180.0 / Math.PI);  //left
+        private double RightDegrees = Math.Atan2(25, 7) * (180.0 / Math.PI);  //right
         private int degreeOffsetMid = 0;
         private int degreeOffsetLeft = -90;
         private int degreeOffsetRight = 90;
@@ -40,8 +40,9 @@ namespace RobotAppControl
         private double leftValuePrevious = 0;
         private double rightValuePrevious = 0;
         public List<string> inputLog = new List<string>();
-        private GridCell[,] gridForMapping; 
-        public Interpreter(ref ConcurrentQueue<(string key, object value)> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference)
+        private GridCell[,] gridForMapping;
+        private double wheelBase = 0;
+        public Interpreter(ref ConcurrentQueue<(string key, object value)> strings, ref CustomBitmap actualMap, ref double curX, ref double curY, ref double curRotation, Form1 formReference, double wheelBase)
         {
             magDataList = new List<string>();
             stringsToBeInterpreted = strings;
@@ -54,6 +55,7 @@ namespace RobotAppControl
                     gridForMapping[i, j] = new GridCell();
                 }
             }
+            this.wheelBase = wheelBase;
             currentX = curX;
             currentY = curY;
             currentRotation = curRotation;
@@ -187,10 +189,33 @@ namespace RobotAppControl
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
                     currentRotation = whatWeKnow.direction + 270; //270;    // ADJUST HERE BY 90 IN A DIRECTION NOT SURE WHICH // Added change idk what now
-                    double movementDistance = whatWeKnow.movement * 0.1;
-                    currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
-                    currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
-                    int x = tempX + (int)Math.Round(currentX);
+
+                    double dL = whatWeKnow.leftMovement * 0.1;  // Distance traveled by left wheel
+                    double dR = whatWeKnow.rightMovement * 0.1; // Distance traveled by right wheel
+
+                    double d = (dL + dR) / 2.0;  // Linear displacement
+                    double deltaTheta = (dR - dL) / wheelBase;  // Change in orientation (radians)
+
+                    // Convert current rotation from degrees to radians
+                    double theta = currentRotation * Math.PI / 180;
+
+                    if (Math.Abs(deltaTheta) < 1e-6)  // If rotation is negligible, move straight
+                    {
+                        currentX += d * Math.Cos(theta);
+                        currentY += d * Math.Sin(theta);
+                      }
+                    else  // If rotating, move along an arc
+                     {
+                    currentX += (d / deltaTheta) * (Math.Sin(theta + deltaTheta) - Math.Sin(theta));
+                     currentY -= (d / deltaTheta) * (Math.Cos(theta + deltaTheta) - Math.Cos(theta));
+                      }
+
+
+
+                //double movementDistance = whatWeKnow.movement * 0.1;
+                // currentX += movementDistance * Math.Cos(currentRotation * Math.PI / 180);
+                // currentY += movementDistance * Math.Sin(currentRotation * Math.PI / 180);
+                int x = tempX + (int)Math.Round(currentX);
                     int y = tempY + (int)Math.Round(currentY);
                     int offsedX = 0;
                     int offsedY = 0;
@@ -202,10 +227,10 @@ namespace RobotAppControl
                     int centralPixelY;
                     if (!formControl.currentlyMappingSimulation)
                     {
+                    }
 
                         offsedY = -30;
                         offsedX = 0;
-                    }
 
 
                     newColor = Color.White;
@@ -241,7 +266,9 @@ namespace RobotAppControl
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
                                 midValue, (int)tempMin, (int)tempMax);
 
-
+                            //      bitmap.SetPixel(
+                            //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                            //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Orange);
 
                             centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue  * Math.Cos((degreeOffsetMid + currentRotation) * Math.PI / 180));
                             centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue  * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
@@ -263,9 +290,9 @@ namespace RobotAppControl
                         if (!formControl.currentlyMappingSimulation)
                         {
 
-                            offsedY = -17;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                            offsedX = -24;
                         }
+                            offsedY = -8;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                            offsedX = -22;
                         //   newColor = Color.Green;
 
                         leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
@@ -298,6 +325,10 @@ namespace RobotAppControl
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
                                 leftValue, (int)tempMin, (int)tempMax);
 
+                      //      bitmap.SetPixel(
+                      //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                      //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Cyan);
+
                             centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue  * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
                             centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
                             bitmap.SetPixel(
@@ -318,9 +349,9 @@ namespace RobotAppControl
                         if (!formControl.currentlyMappingSimulation)
                         {
 
-                            offsedY = -20;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                            offsedX = 26;
                         }
+                            offsedY = -7;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
+                            offsedX = 25;
                         //    newColor = Color.Blue;
           
                         rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
@@ -353,7 +384,9 @@ namespace RobotAppControl
                                 y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
                                 rightValue, (int)tempMin, (int)tempMax);
 
-
+                       //     bitmap.SetPixel(
+                       //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
+                       //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Gold);
 
                             centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
                             centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));

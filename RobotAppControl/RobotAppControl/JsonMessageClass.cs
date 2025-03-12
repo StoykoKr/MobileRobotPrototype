@@ -9,7 +9,8 @@ namespace RobotAppControl
     public class JsonMessageClass
     {
         public float direction { get; set; }
-        public float movement { get; set; }
+        public float leftMovement { get; set; }
+        public float rightMovement { get; set; }
         public float leftSensor { get; set; }
         public float midSensor { get; set; }
         public float rightSensor { get; set; }

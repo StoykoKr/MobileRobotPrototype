@@ -394,7 +394,7 @@ namespace RobotAppControl
                 startY = coordinates.Y - picture_offsetY;
                 if (_robot == null)
                 {
-                    _robot = new Robot(_grid, custom, startX, startY, this, 16.5);
+                    _robot = new Robot(_grid, custom, startX, startY, this, 63);//old was 16.5
                 }
                 settingStart = false;
             }
@@ -826,7 +826,7 @@ namespace RobotAppControl
             }
             _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
             PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
-            interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this);
+            interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this, 63);
             // RefreshPicture();
         }
         private void btn_CreateNewImage_Click(object sender, EventArgs e)
@@ -1446,10 +1446,10 @@ namespace RobotAppControl
                 {
                     // _robot.setThetaActual(message.direction);
                     // currentRotation = message.direction;
-                    await MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
-                    await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
-                    MonteLocalization.Resample();
-                    await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
+                  //  await MonteLocalization.StartTasksToMoveParticles(message.movement, message.direction);
+                   // await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
+                   // MonteLocalization.Resample();
+                  //  await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 4);
                     // addToTextBox($"<{message.leftSensor} {message.midSensor} {message.rightSensor} | {message.handSensor}> \n");
                 }
                 TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
@@ -1482,7 +1482,7 @@ namespace RobotAppControl
                 endY = message.end.y;
                 if (_robot == null)
                 {
-                    _robot = new Robot(_MCL_grid, custom, startX, startY, this, 16.5);
+                    _robot = new Robot(_MCL_grid, custom, startX, startY, this, 63);
                 }
                 if (MonteLocalization == null)
                 {
@@ -1770,24 +1770,42 @@ namespace RobotAppControl
         public List<string> wtfIsThisDoing = new List<string>();
         private async void ControllingTask()
         {
-            int movementValue = 0;
-
+            double movementLeft = 0;
+            double movementRight = 0;
             while (currentlyMappingSimulation)
             {
                 if (keyCurrentlyPressedForSim == "w")
                 {
-                    movementValue = 2;
+                    movementLeft = 2;
+                    movementRight = 2;
                     simulatedActualRobot._currentX += 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
                     simulatedActualRobot._currentY += 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
                 }
                 else if (keyCurrentlyPressedForSim == "a")
                 {
+                    movementRight = 2;
                     simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() - (1.5 + getRand() / 2));
-                    movementValue = 0;
+                    //   movementLeft = -2;
+                    double d = (movementLeft + movementRight) / 2.0;  
+                    double deltaTheta = (movementRight - movementLeft) / simulatedActualRobot.WheelBase;  
+                    double theta = simulatedActualRobot.getThetaActual() * Math.PI / 180;
+                    if (Math.Abs(deltaTheta) < 1e-6)
+                    {
+                        simulatedActualRobot._currentX += d * Math.Cos(theta);
+                        simulatedActualRobot._currentY += d * Math.Sin(theta);
+                      
+                    }
+                    else  // If rotating, move along an arc
+                    {
+                        simulatedActualRobot._currentX += (d / deltaTheta) * (Math.Sin(theta + deltaTheta) - Math.Sin(theta));
+                        simulatedActualRobot._currentY -= (d / deltaTheta) * (Math.Cos(theta + deltaTheta) - Math.Cos(theta));
+                    }
+
                 }
                 else if (keyCurrentlyPressedForSim == "s")
                 {
-                    movementValue = -2;
+                    movementLeft = -2;
+                    movementRight = -2;
                     simulatedActualRobot._currentX -= 2 * Math.Cos(simulatedActualRobot.getThetaActual() * Math.PI / 180);
                     simulatedActualRobot._currentY -= 2 * Math.Sin(simulatedActualRobot.getThetaActual() * Math.PI / 180);
 
@@ -1795,7 +1813,22 @@ namespace RobotAppControl
                 else if (keyCurrentlyPressedForSim == "d")
                 {
                     simulatedActualRobot.setThetaActual(simulatedActualRobot.getThetaActual() + (1.5 + getRand() / 2));
-                    movementValue = 0;
+                    movementLeft = 2;
+                    // movementRight = -2;
+                    double d = (movementLeft + movementRight) / 2.0;
+                    double deltaTheta = (movementRight - movementLeft) / simulatedActualRobot.WheelBase;
+                    double theta = simulatedActualRobot.getThetaActual() * Math.PI / 180;
+                    if (Math.Abs(deltaTheta) < 1e-6)
+                    {
+                        simulatedActualRobot._currentX += d * Math.Cos(theta);
+                        simulatedActualRobot._currentY += d * Math.Sin(theta);
+
+                    }
+                    else  // If rotating, move along an arc
+                    {
+                        simulatedActualRobot._currentX += (d / deltaTheta) * (Math.Sin(theta + deltaTheta) - Math.Sin(theta));
+                        simulatedActualRobot._currentY -= (d / deltaTheta) * (Math.Cos(theta + deltaTheta) - Math.Cos(theta));
+                    }
                 }
                 if (keyCurrentlyPressedForSim != "n")
                 {
@@ -1814,7 +1847,8 @@ namespace RobotAppControl
                     var jsonMessage = new
                     {
                         direction = (float)simulatedActualRobot.getThetaActual(),
-                        movement = movementValue * 10,
+                        leftMovement = movementLeft * 10,
+                        rightMovement = movementRight * 10,
                         leftSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, left, 300, simulatedMapGrid),
                         rightSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, right, 300, simulatedMapGrid),
                         midSensor = (float)MonteCarloLocal.Raycast(simulatedActualRobot._currentX, simulatedActualRobot._currentY, (float)simulatedActualRobot.getThetaActual(), 300, simulatedMapGrid),
@@ -1823,7 +1857,8 @@ namespace RobotAppControl
                     };
 
                     await PublishJsonMessageAsync("DataForMapping", jsonMessage, 1);
-                    movementValue = 0;
+                    movementLeft = 0;
+                    movementRight = 0;
                 }
                 await Task.Delay(75);
             }
@@ -1836,7 +1871,7 @@ namespace RobotAppControl
             CreateNewImage();
             simulatedMapArea = LoadImageAsCustomBitmap(actualAreaPath);
             simulatedMapGrid = SetObstaclesFromMap(simulatedMapArea);
-            simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 150, 300, this, 16.5);
+            simulatedActualRobot = new Robot(simulatedMapGrid, simulatedMapArea, 150, 300, this, 63);
             currentlyMappingSimulation = true;
             StartInterpreting();
             Task.Run(ControllingTask);
