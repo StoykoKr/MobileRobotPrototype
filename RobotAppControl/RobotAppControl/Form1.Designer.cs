@@ -349,11 +349,11 @@
             // 
             // btnScanView
             // 
-            btnScanView.Location = new Point(855, 265);
+            btnScanView.Location = new Point(864, 212);
             btnScanView.Name = "btnScanView";
-            btnScanView.Size = new Size(75, 23);
+            btnScanView.Size = new Size(151, 23);
             btnScanView.TabIndex = 40;
-            btnScanView.Text = "ShowScan";
+            btnScanView.Text = "Stop pure pursuit";
             btnScanView.UseVisualStyleBackColor = true;
             btnScanView.Click += btnScanView_Click;
             // 

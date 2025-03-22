@@ -19,7 +19,7 @@
 
 const char* ssid ="TheEvilWithin";//"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";//"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.3";//"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.6";//"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 
@@ -176,11 +176,11 @@ void AdjustFrontServoToPos() {
   while (!stoppedServos && WantedposFrontServo != posFrontServo) {
     CheckConnections();
     client.loop();
-    if (posFrontServo > WantedposFrontServo) {
+    if (posFrontServo >= WantedposFrontServo) {
       posFrontServo--;
       frontMovementServo.write(posFrontServo);
       delay(10);
-    } else if (posFrontServo < WantedposFrontServo) {
+    } else if (posFrontServo <= WantedposFrontServo) {
       posFrontServo++;
       frontMovementServo.write(posFrontServo);
       delay(10);

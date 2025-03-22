@@ -200,7 +200,7 @@ namespace RobotAppControl
             totalWeightPublic = totalWeight;
 
         }
-        public void Resample()
+        public void Resample(bool forceTheta, double thetaToBeForced)
         {
             List<Particle> newParticles = new List<Particle>();
             double[] cumulativeWeights = new double[allParticleCount];
@@ -258,6 +258,11 @@ namespace RobotAppControl
 
                     resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
                     resampledParticle.Y += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
+                    if (forceTheta)
+                    {
+                        resampledParticle.Theta = thetaToBeForced;
+
+                    }                  
                     resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * (resampleNoiseFactor / 2) * weightScale;
 
                     newParticles.Add(resampledParticle);
@@ -309,6 +314,27 @@ namespace RobotAppControl
 
             return Raycast(x, y, angl, 300, map); 
         }
+        //public (double X, double Y, double Theta) EstimatePosition()
+        //{
+        //    var snapshot = Particles.ToList();
+        //    snapshot.Sort((x, y) =>
+        //    {
+        //        if (double.IsNaN(x.Weight)) return 1;
+        //        if (double.IsNaN(y.Weight)) return -1;
+        //        return y.Weight.CompareTo(x.Weight);
+        //    });
+        //    int parCount = snapshot.Count / 2;
+        //    double x = 0.0, y = 0.0, theta = 0.0;
+        //    for (int i = 0; i < parCount; i++)
+        //    {
+        //        x += snapshot[i].X;
+        //        y += snapshot[i].Y;
+
+        //        theta += snapshot[i].Theta;
+        //    }
+        //    return (x / parCount, y / parCount, theta / parCount);
+        //}
+
         public (double X, double Y, double Theta) EstimatePosition()
         {
             var snapshot = Particles.ToList();
@@ -318,18 +344,29 @@ namespace RobotAppControl
                 if (double.IsNaN(y.Weight)) return -1;
                 return y.Weight.CompareTo(x.Weight);
             });
+
             int parCount = snapshot.Count / 2;
-            double x = 0.0, y = 0.0, theta = 0.0;
+            double x = 0.0, y = 0.0;
+            double sumSin = 0.0, sumCos = 0.0;
 
             for (int i = 0; i < parCount; i++)
             {
                 x += snapshot[i].X;
                 y += snapshot[i].Y;
-                theta += snapshot[i].Theta;
-            }
-            return (x / parCount, y / parCount, theta / parCount);
 
+                sumCos += Math.Cos(snapshot[i].Theta * Math.PI / 180.0);
+                sumSin += Math.Sin(snapshot[i].Theta * Math.PI / 180.0);
+            }
+
+            double avgX = x / parCount;
+            double avgY = y / parCount;
+
+            // Convert averaged unit vectors back to angle
+            double avgTheta = Math.Atan2(sumSin, sumCos) * 180.0 / Math.PI;
+
+            return (avgX, avgY, avgTheta);
         }
+
         private Particle ParticleMaker(Particle model, int xRange, int yRange, int thetaRange)
         {
             Random rand = new Random();

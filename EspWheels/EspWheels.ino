@@ -9,30 +9,27 @@
 
 #define signalOutputInterruptPinRight 23
 #define signalOutputInterruptPinLeft 5
-#define analogOutputLeftPin 26   //17   //33
-#define analogOutputRightPin 32  //14
-#define trigPin 33               //33
+#define analogOutputLeftPin 26
+#define analogOutputRightPin 32
+#define trigPin 33  //33
 #define trigPinHand 4
 #define echoPinHand 16
 #define echoMidPin 18
 #define echoLeftPin 19   //17
 #define echoRightPin 17  //16
 
-#define LEFTDIRWHEEL 0  //just so its not that confusing.. or to make it more?
-#define RIGHTDIRWHEEL 1
+#define LEFTDIRWHEEL 1  //just so its not that confusing.. or to make it more?
+#define RIGHTDIRWHEEL 0
 
 #define WHEEL_DIAM 203.2
-//#define distance_Wheels 140   // TO BE UPDATED?
 #define TICKS_PER_REV 45  //42
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((double)(A)) / MM_PER_TICK
-//#define MMipconfig_PER_DEGREES(D) ((distance_Wheels * PI * (D)) / 360.0f)  // TO BE UPDATED?
-//#define turnDegr(M) ((M) / (PI * distance_Wheels * 360.0f)) // TO BE UPDATED?
 #define millisecToRecordTicksInterval 200
 
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.3";  //"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.6";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -127,20 +124,31 @@ bool movingDirectionLeft = false;
 bool movingDirectionRight = false;
 bool autoMovementWantedDirLeftWheelIsForward = true;
 bool autoMovementWantedDirRightWheelIsForward = true;
-
+int justForwardDirVar = 1;
 const double hard_iron[3] = {  // with magneto the values are new
-  //-107.431847, 122.222755, 220.246822
-  356.739494, -89.900846, -180.455162
+  161.435337, 457.451646, -354.171764
 };
 
 const double soft_iron[3][3] = {
-  // { 1.602628, -0.006533, -0.149331 },
-  // { -0.006533, 1.813032, 0.170965 },
-  // { -0.149331, 0.170965, 2.302615 }
-  { 1.924747, 0.008350, 0.169482 },
-  { 0.008350, 1.643996, 0.226782 },
-  { 0.169482, 0.226782, 2.329259 }
+  { 1.419622, -0.045275, -0.019007},
+  { -0.045275,1.288103, 0.096391 },
+  { -0.019007, 0.096391,1.911295 }
 };
+
+/* FIRST CONFIG
+const double hard_iron[3] = {  
+  86.871459, 291.309730, -243.015002
+};
+
+const double soft_iron[3][3] = {
+  { 1.335313, -0.050415, -0.051339 },
+  { -0.050415, 1.185457, 0.090977 },
+  { -0.051339, 0.090977, 1.769086 }
+};
+
+
+
+*/
 
 void setup() {
   pinMode(signalOutputInterruptPinRight, INPUT);
@@ -267,9 +275,9 @@ void IRS_RightSensor() {
 void IRS_LeftEncoder() {
   if (millis() - lastLeftRec >= bounce) {
     if (movingDirectionLeft) {
-      leftEncoderCounter--;
-    } else {
       leftEncoderCounter++;
+    } else {
+      leftEncoderCounter--;
     }
     lastLeftRec = millis();
   }
@@ -277,9 +285,9 @@ void IRS_LeftEncoder() {
 void IRS_RightEncoder() {
   if (millis() - lastRightRec >= bounce) {
     if (!movingDirectionRight) {
-      rightEncoderCounter--;
-    } else {
       rightEncoderCounter++;
+    } else {
+      rightEncoderCounter--;
     }
     lastRightRec = millis();
   }
@@ -427,7 +435,7 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
         }
       }
     }
-    if (_medianMid < 40) {
+    if (_medianMid < 50) {
       previousTimeThereWasAnObstacle = millis();
     }
   }
@@ -460,7 +468,7 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
     }
   }
 
-  if (sendMove && millis() - timeOfLastSendSensorData > 150) {
+  if (sendMove && millis() - timeOfLastSendSensorData > 100) {
     int rigthCount = rightEncoderCounter;
     int leftCount = leftEncoderCounter;
     double rightDistanceMoved = (rigthCount - lastRightEncoderCounterUsedToCalculate) * MM_PER_TICK;
@@ -468,7 +476,11 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
     weMoved = (rightDistanceMoved + leftDistanceMoved) / 2.0;
     lastRightEncoderCounterUsedToCalculate = rigthCount;
     lastLeftEncoderCounterUsedToCalculate = leftCount;
-    publishJsonDataForMap(dir, leftDistanceMoved, rightDistanceMoved, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);
+
+    publishJsonDataForMap(dir, leftDistanceMoved * justForwardDirVar, rightDistanceMoved * justForwardDirVar, _medianLeft, _medianMid, _medianRight, _medianHand, useDataForMap);  // This damn variable is an act of desperation
+
+    //publishJsonDataForMap(dir, leftDistanceMoved, rightDistanceMoved,     GetCurrentSpeedLeft(), _medianMid,     GetCurrentSpeedRight(), _medianHand, useDataForMap);
+
     timeOfLastSendSensorData = millis();
   }
   // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
@@ -516,20 +528,27 @@ double PidControllerSpeedRight(double target, double kp, double current) {
 void ManualMovement(String signal) {
   ResetEncoderValues();
   if (signal == "w" || signal == "W") {
-    
-    justForward(false);
-  } else if (signal == "a" || signal == "A") {
-    justLeftRight(1);
-  } else if (signal == "s" || signal == "S") {
 
     justForward(true);
+
+  } else if (signal == "a" || signal == "A") {
+
+    justLeftRight(1);
+
+  } else if (signal == "s" || signal == "S") {
+
+    justForward(false);
   } else if (signal == "d" || signal == "D") {
+
     justLeftRight(-1);
+
   } else if (signal == "none" || signal == "None") {
     StopMovement();
   }
 }
 void justLeftRight(int direction) {
+  ResetEncoderValues();
+  justForwardDirVar = 1;
   speedTimer = millis();
   speedAdjustTimer = millis();
   turnedRight = false;
@@ -543,6 +562,7 @@ void justLeftRight(int direction) {
     CheckWiFiConnection();
     client.loop();
 
+    GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
       if (5 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
@@ -553,11 +573,10 @@ void justLeftRight(int direction) {
       speedTimer = millis();
     }
 
-    GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
-        AdjustPosTo(35, true);
+        AdjustPosTo(0/*35*/, true);
         turnedLeft = true;
         goingForward = false;
         turnedRight = false;
@@ -580,8 +599,8 @@ void justLeftRight(int direction) {
             StopMovement();
           } else {
             setPWMRight(0.1 * PWMRightCoefficient);
-            //setPWMLeft(0.1 * PWMLeftCoefficient);
-            setPWMLeft(0);
+            setPWMLeft(0.1 * PWMLeftCoefficient);
+           // setPWMLeft(0);
             //setPWMRight(1);
           }
           speedAdjustTimer = millis();
@@ -597,7 +616,7 @@ void justLeftRight(int direction) {
     } else {
       if (!turnedRight) {
         startingServoPosReached = false;
-        AdjustPosTo(145, true);
+        AdjustPosTo(180/*145*/, true);
         turnedLeft = false;
         goingForward = false;
         turnedRight = true;
@@ -619,9 +638,9 @@ void justLeftRight(int direction) {
           if (millis() - previousTimeThereWasAnObstacle <= 250) {
             StopMovement();
           } else {
-            //setPWMRight(0.1 * PWMRightCoefficient);
+            setPWMRight(0.1 * PWMRightCoefficient);
             setPWMLeft(0.1 * PWMLeftCoefficient);
-            setPWMRight(0);
+           // setPWMRight(0);
             //setPWMLeft(0);
             //setPWMRight(1);
           }
@@ -698,7 +717,8 @@ void AdjustPosTo(int wanted, bool waitAnswer) {
   serializeJson(jsonDoc, jsonBuffer);
   client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
 }
-void justForward(bool dir) {  //true for forward
+void justForward(bool dir) {
+  ResetEncoderValues();
   speedTimer = millis();
   speedAdjustTimer = millis();
   alreadySendDirSignal = false;
@@ -707,23 +727,22 @@ void justForward(bool dir) {  //true for forward
   PWMLeftCoefficient = 1;
   PWMRightCoefficient = 1;
   goingForward = false;
+  justForwardDirVar = -1;
   ResetKeepDir();
   lastDegKeepDir = MagneticSensorReading();
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
 
-    startingServoPosReached = true;
-    goingForward = true;
-    turnedLeft = false;
-    turnedRight = false;
+
+    GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(90, true);
-
-    } else if (startingServoPosReached && movingDirectionLeft == dir && movingDirectionRight == !dir) {
-
-      GetUltrasoundData(MagneticSensorReading(), true, true, false);
+      goingForward = true;
+      turnedLeft = false;
+      turnedRight = false;
+    } else if (startingServoPosReached && movingDirectionLeft == !dir && movingDirectionRight == dir) {
 
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
@@ -749,7 +768,7 @@ void justForward(bool dir) {  //true for forward
             PWMRightCoefficient += changeRight;
           }
         }
-        if (millis() - previousTimeThereWasAnObstacle <= 250) {
+        if (millis() - previousTimeThereWasAnObstacle <= 250 && dir) {
           StopMovement();
         } else {
           setPWMRight(0.1 * PWMRightCoefficient);
@@ -774,10 +793,10 @@ void justForward(bool dir) {  //true for forward
 }
 void SendDirSignal(bool signal, int whichOneToSwitchDir) {
   StaticJsonDocument<200> jsonDoc;
-  if (whichOneToSwitchDir == LEFTDIRWHEEL) {
+  if (whichOneToSwitchDir == RIGHTDIRWHEEL) {  // Just switched left and right here 13/3/25
     jsonDoc["dirLeft"] = signal;
   }
-  if (whichOneToSwitchDir == RIGHTDIRWHEEL) {
+  if (whichOneToSwitchDir == LEFTDIRWHEEL) {
     jsonDoc["dirRight"] = signal;
   }
   char jsonBuffer[256];
@@ -786,31 +805,26 @@ void SendDirSignal(bool signal, int whichOneToSwitchDir) {
   delay(150);
 }
 int CalcDirectionFrontServoFromSpeeds() {
-  return 90 + (leftVelocity - rightVelocity) * 20;
+  return 90 + (leftVelocity - rightVelocity) * 25;
   // this is not concrete so no idea if it will work remotely as wanted
 }
 void autoMovement() {
+  ResetEncoderValues();
   speedTimer = millis();
   speedAdjustTimer = millis();
+    justForwardDirVar = -1;
   rightthing = 0;
   lastRight = 0;
   PWMLeftCoefficient = 1;
   PWMRightCoefficient = 1;
   alreadySendDirSignal = false;
-  goingForward = false;
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    /*if (!goingForward) {
-      startingServoPosReached = false;
-      AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
-      goingForward = true;
-      turnedLeft = false;
-      turnedRight = false;
-    } else */
-    startingServoPosReached = true;
-    if (startingServoPosReached && movingDirectionLeft == autoMovementWantedDirLeftWheelIsForward && movingDirectionRight == !autoMovementWantedDirRightWheelIsForward) {
-      GetUltrasoundData(MagneticSensorReading(), true, false, false);
+
+    if (movingDirectionLeft == false && movingDirectionRight == true) {
+    GetUltrasoundData(MagneticSensorReading(), true, false, false);
+
       if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
         if (5 <= timeIntervalIndexCounter) {
           timeIntervalIndexCounter = 0;
@@ -822,29 +836,23 @@ void autoMovement() {
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(2 * leftVelocity, 0.0065, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(2 * rightVelocity, 0.0065, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+    AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
+        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.025, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(rightVelocity, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 7 && PWMLeftCoefficient + changeLEft > 0.01) {
+          if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
           }
         }
         if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 7 && PWMRightCoefficient + changeRight > 0.01) {
+          if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
             PWMRightCoefficient += changeRight;
           }
         }
         if (millis() - previousTimeThereWasAnObstacle <= 250) {
           StopMovement();
         } else {
-          AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
-          if (PWMLeftCoefficient < 0.1) {
-            setPWMLeft(0);
-          }
-          if (PWMRightCoefficient < 0.1) {
-            setPWMRight(0);
-          }
           setPWMRight(0.1 * PWMRightCoefficient);
           setPWMLeft(0.1 * PWMLeftCoefficient);
         }
@@ -854,24 +862,15 @@ void autoMovement() {
     } else if (!alreadySendDirSignal) {
       setPWMRight(0);
       setPWMLeft(0);
+      SendDirSignal(true, LEFTDIRWHEEL);
+      SendDirSignal(false, RIGHTDIRWHEEL);
       alreadySendDirSignal = true;
-      SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
-      SendDirSignal(!autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
     }
   }
   StopMovement();
-  goingForward = false;
-  turnedLeft = false;
-  turnedRight = false;
-
-
-
-
-  // make it apply these velocity coefficients to both wheels. This way we are not yet changing directions which isn't the best case as switching directions will be better in times where we need big turns.
-  //(the velocity coefficient maybe can be applied to the speed we are aiming for? so a coeff of 1 will be a speed of max 3km/h) For example if we have coeff of 0.8 on left and 0.3 on right then we are turning right in a curved path
-  // the frond servo will likely change based on the difference of volocities as that signifies
-  // There is the option where we do the direction change only when starting the movement sequence in which case we will need another method.. we can use the manual method for left/right
+  
 }
+
 void publishJsonDataForMap(double direction, double leftDistance, double rightDistance, double left, double mid, double right, double hand, bool useDataForMap) {
   StaticJsonDocument<300> jsonDoc;
   jsonDoc["direction"] = direction;
@@ -929,7 +928,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     remainningMapDataToTransmit = jsonDoc["requestMapData"];
     for (; remainningMapDataToTransmit > 0; remainningMapDataToTransmit--) {
       //GetUltrasoundData(MagneticSensorReading(), true, false, true);
-      GetUltrasoundData(MagneticSensorReading(), false, false, true);
+      GetUltrasoundData(MagneticSensorReading(), true, false, true);
     }
   }
   if (jsonDoc.containsKey("manualCommand")) {
@@ -940,9 +939,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
     double leftVelo = jsonDoc["leftVelocity"];
     double rightVelo = jsonDoc["rightVelocity"];
     int isFirstInstance = jsonDoc["firstInstance"];
-    if (leftVelo < 0) {
+
+    Serial.print(leftVelo);
+    Serial.print("|");
+    Serial.print(rightVelo);
+    Serial.print("|");
+    Serial.println(isFirstInstance);
+
+      if (leftVelo < 0) {
       autoMovementWantedDirLeftWheelIsForward = false;
-    } else {
+    }
+    else {
       autoMovementWantedDirLeftWheelIsForward = true;
     }
     if (rightVelo < 0) {
@@ -1019,6 +1026,19 @@ void loop() {
   CheckConnections();
   client.loop();
   delay(5);
-
-  // GetUltrasoundData(0, false, false, true);
+  GetUltrasoundData(MagneticSensorReading(), true, true, false);
+  /*setPWMRight(0);
+  setPWMLeft(0);
+  delay(1000);
+  SendDirSignal(true, LEFTDIRWHEEL);
+  delay(1500);
+  setPWMLeft(0.3);
+  delay(2500);
+  setPWMRight(0);
+  setPWMLeft(0);
+  delay(1000);
+  SendDirSignal(false, LEFTDIRWHEEL);
+  delay(1500);
+  setPWMLeft(0.3);
+  delay(2500);*/
 }
