@@ -62,13 +62,13 @@ namespace RobotAppControl
         public int endY = 0;
         private List<Node> finalPath = null;
         private MqttClientFactory mqttFactory = new MqttClientFactory();
-        private bool newInfoForAutoMovement_FLAG = false;
+        public bool newInfoForAutoMovement_FLAG = false;
         ConcurrentQueue<string> rawMagDataToBeWorkedOn;
         List<double> segments = new List<double>();
         List<double> turns = new List<double>();
         List<bool> turnsss = new List<bool>();
         private IMqttClient? imagePublisherClient = null;
-        private MonteCarloLocal MonteLocalization = null;
+        public MonteCarloLocal MonteLocalization = null;
         public volatile bool currentlyMappingSimulation = false;
         public CustomBitmap simulatedMapArea;
         public Grid simulatedMapGrid;
@@ -398,6 +398,8 @@ namespace RobotAppControl
                     _robot.setThetaActual(90);
                 }
                 settingStart = false;
+                mclIsON = true;
+                currentlyMapping = false;
             }
             else if (settingEnd)
             {
@@ -707,10 +709,10 @@ namespace RobotAppControl
                 }
                 else if (e.KeyCode == Keys.S)
                 {
-                        movementLeft = -2;
-                        movementRight = -2;
-                        currentX -= 2 * Math.Cos(_robot.getThetaActual() * Math.PI / 180);
-                        currentY -= 2 * Math.Sin(_robot.getThetaActual() * Math.PI / 180);
+                    movementLeft = -2;
+                    movementRight = -2;
+                    currentX -= 2 * Math.Cos(_robot.getThetaActual() * Math.PI / 180);
+                    currentY -= 2 * Math.Sin(_robot.getThetaActual() * Math.PI / 180);
                 }
                 else if (e.KeyCode == Keys.D)
                 {
@@ -726,26 +728,26 @@ namespace RobotAppControl
                         currentY += d * Math.Sin(theta);
 
                     }
-                    else  
+                    else
                     {
-                       currentX += (d / deltaTheta) * (Math.Sin(theta + deltaTheta) - Math.Sin(theta));
+                        currentX += (d / deltaTheta) * (Math.Sin(theta + deltaTheta) - Math.Sin(theta));
                         currentY -= (d / deltaTheta) * (Math.Cos(theta + deltaTheta) - Math.Cos(theta));
                     }
 
                 }
 
-                
+
                 currentRotation = _robot.getThetaActual();
-              
-                await MonteLocalization.StartTasksToMoveParticles((movementLeft + movementRight)/2, (float)currentRotation);
+
+                await MonteLocalization.StartTasksToMoveParticles((movementLeft + movementRight) / 2, (float)currentRotation);
                 await MonteLocalization.StartTasksToUpdateWeights(
-                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid), //_MCL_grid
-                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _MCL_grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid)],
-                        2);
+                        [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0,0,(0,0), _MCL_grid), //_MCL_grid
+                                   MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90,0,(0,0), _MCL_grid),
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90,0,(0,0), _MCL_grid)],
+                        75);
                 // addToTextBox(MonteLocalization.totalWeightPublic.ToString() +""+ Environment.NewLine);
                 addToTextBox(currentRotation.ToString() + "" + Environment.NewLine);
-                MonteLocalization.Resample(false,0);
+                MonteLocalization.Resample(false, 0);
 
                 /*    MonteLocalization.UpdateWeightsOld(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _grid),
@@ -755,7 +757,7 @@ namespace RobotAppControl
                 var estimatedPos = MonteLocalization.EstimatePosition();
                 try
                 {
-                 //      DrawParticles();
+                    //      DrawParticles();
                     if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                     {
                         custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -790,15 +792,16 @@ namespace RobotAppControl
                 if (_grid.IsWalkable((int)item.X, (int)item.Y) == true)
                 {
 
-                    if(item.Theta < 90)
+                    if (item.Theta < 90)
                     {
                         custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
-                        
-                    }else if(item.Theta < 180)
+
+                    }
+                    else if (item.Theta < 180)
                     {
                         custom.SetPixel((int)item.X, (int)item.Y, Color.Red);
                     }
-                    else if( item.Theta < 270)
+                    else if (item.Theta < 270)
                     {
                         custom.SetPixel((int)item.X, (int)item.Y, Color.Purple);
                     }
@@ -852,8 +855,10 @@ namespace RobotAppControl
         {
             // ConnectionButton();
         }
+        public bool currentlyMapping = false;
         private void CreateNewImage()
         {
+            
             custom = new CustomBitmap(3500, 3500);
             for (int counter = 0; counter < custom.Width * custom.Height; counter++)
             {
@@ -863,6 +868,8 @@ namespace RobotAppControl
             _imgRect = new Rectangle(picture_offsetX, picture_offsetY, custom.Width, custom.Height);
             PictureBox.CreateGraphics().DrawImage(custom.Bitmap, _imgRect);
             interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this, 63);
+            currentlyMapping = true;
+            mclIsON = false;
             // RefreshPicture();
         }
         private void btn_CreateNewImage_Click(object sender, EventArgs e)
@@ -890,10 +897,10 @@ namespace RobotAppControl
         }
         private void PlanPath()
         {
-           
+
             var start = new Node(startX, startY);
             var goal = new Node(endX, endY);
-           
+
 
 
             var thetaStar = new ThetaStar(_grid);
@@ -1098,32 +1105,28 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
-        public List<(double,double,double,double)> values_angleToTarget_SteeringAngle = new List<(double,double, double, double)>();
+        public List<(double, double, double, double)> values_angleToTarget_SteeringAngle = new List<(double, double, double, double)>();
         public double CalculateSteeringAngle(double x, double y, double theta, Node lookaheadPoint)
         {
             double dx = lookaheadPoint.X - x;
             double dy = lookaheadPoint.Y - y;
-            double angleToTarget = Math.Atan2(dy, dx);   // THis is visual?
+            double angleToTarget = Math.Atan2(dy, dx); 
 
-            double temp = (angleToTarget * 180/Math.PI) + 90;
-            if (temp < 0) 
-            { 
+            double temp = (angleToTarget * 180 / Math.PI);
+            if (temp < 0)
+            {
                 temp += 360;
             }
             else if (temp > 360)
             {
                 temp -= 360;
             }
-
+            temp = 360 - temp;
 
             try
             {
-                // SafeUpdate(()=> RefreshPicture());
-
-                // DrawParticles();
                 custom.SetPixel((int)lookaheadPoint.X, (int)lookaheadPoint.Y, Color.Cyan);
-               // custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
-
+                
             }
             catch (Exception)
             {
@@ -1131,12 +1134,11 @@ namespace RobotAppControl
                 throw;
             }
 
-            // double steeringAngle = (temp - theta) * Math.PI / 180;
-            double steeringAngle = angleToTarget - (theta * Math.PI / 180);
-            values_angleToTarget_SteeringAngle.Add((temp, steeringAngle, angleToTarget * 180/Math.PI,theta));
+            double steeringAngle = (temp * Math.PI/180)/*angleToTarget*/ - (theta * Math.PI / 180);
+            values_angleToTarget_SteeringAngle.Add((temp, steeringAngle, angleToTarget * 180 / Math.PI, theta));
             return steeringAngle;
         }
-        public List<(double, double,double,double)> values = new List<(double, double,double,double)>();
+        public List<(double, double, double, double)> values = new List<(double, double, double, double)>();
         public void SetWheelVelocities(Robot robot, double steeringAngle, double baseVelocity)
         {
             if (Math.Abs(steeringAngle) < 1e-6)
@@ -1153,16 +1155,16 @@ namespace RobotAppControl
 
 
 
-            //if (robot.LeftWheelVelocity > 1.35 || robot.RightWheelVelocity > 1.35)
-            //{
-            //    robot.LeftWheelVelocity -= 1;
-            //    robot.RightWheelVelocity -= 1;
-            //}
+            if (robot.LeftWheelVelocity > 1.35 || robot.RightWheelVelocity > 1.35)
+            {
+                robot.LeftWheelVelocity -= 1;
+                robot.RightWheelVelocity -= 1;
+            }
 
-            values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity,radius, steeringAngle));
-            
+            values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
+
         }
-        private (double X, double Y, double Theta) estimatedPos;
+        public (double X, double Y, double Theta) estimatedPos;
         private double PidControllerSpeedLeft(double target, double kp, double current)
         {
             double e = current - target;
@@ -1178,9 +1180,9 @@ namespace RobotAppControl
         private double currentCoeffForMoving_left = 0;
         private double currentCoeffForMoving_right = 0;
 
-        private KalmanFilter kalmanLeft = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
-        private KalmanFilter kalmanRight = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
-        private KalmanFilter kalmanMid = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        public KalmanFilter kalmanLeft = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        public KalmanFilter kalmanRight = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
+        public KalmanFilter kalmanMid = new KalmanFilter(0.7f, 15, 7.5f, 4, 3, 10);
         private double midValue = 0;
         private double leftValue = 0;
         private double rightValue = 0;
@@ -1189,7 +1191,7 @@ namespace RobotAppControl
         private double rightValuePrevious = 0;
         private List<double> log = new List<double>();
         private List<List<Particle>> logOfParticles = new List<List<Particle>>();
-        
+
         public async Task UpdatePosition(Robot robot, double dt)  // This needs to be looked at again very carefully before real test
         {
 
@@ -1211,17 +1213,17 @@ namespace RobotAppControl
                 currentRotation -= 360;
 
             }
-            if (Math.Abs(omega) < 1e-6) 
+            if (Math.Abs(omega) < 1e-6)
             {
                 robot._currentX += v * dt * Math.Cos(currentRotation * Math.PI / 180);
                 robot._currentY += v * dt * Math.Sin(currentRotation * Math.PI / 180);
             }
-            else 
+            else
             {
                 robot._currentX += (v / omega) * (Math.Sin(currentRotation * Math.PI / 180 + omega * dt) - Math.Sin(currentRotation * Math.PI / 180));
                 robot._currentY -= (v / omega) * (Math.Cos(currentRotation * Math.PI / 180 + omega * dt) - Math.Cos(currentRotation * Math.PI / 180));
                 robot.setThetaActual(robot.getThetaActual() + (omega * dt) * 180 / Math.PI);
-           }
+            }
             log.Add((omega * dt) * 180 / Math.PI);
             currentRotation = robot.getThetaActual();
             while (currentRotation > 360)
@@ -1236,14 +1238,14 @@ namespace RobotAppControl
 
             await MonteLocalization.StartTasksToMoveParticles((float)(v * dt), (float)currentRotation);
 
-            midValue = kalmanMid.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, _MCL_grid)); // This should be changed for real data I think. By this I mean the whole method
+            midValue = kalmanMid.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0, 0,(0, 0), _MCL_grid)); // This should be changed for real data I think. By this I mean the whole method
             if (Math.Abs(midValue - midValuePrevious) < 5)
             {
                 midIsRelevant = true;
             }
             midValuePrevious = midValue;
 
-            leftValue = kalmanLeft.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, -90, _MCL_grid));
+            leftValue = kalmanLeft.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, -90,0, (0, 0), _MCL_grid));
             if (Math.Abs(leftValue - leftValuePrevious) < 5)
             {
                 leftIsRelevant = true;
@@ -1251,7 +1253,7 @@ namespace RobotAppControl
 
             leftValuePrevious = leftValue;
 
-            rightValue = kalmanRight.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _MCL_grid));
+            rightValue = kalmanRight.Output((float)MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90,0, (0, 0), _MCL_grid));
             if (Math.Abs(rightValue - rightValuePrevious) < 5)
             {
                 rightIsRelevant = true;
@@ -1262,22 +1264,22 @@ namespace RobotAppControl
             {
 
                 await MonteLocalization.StartTasksToUpdateWeights(
-                    [midValue, leftValue, rightValue], 2);
+                    [midValue, leftValue, rightValue], 75);
                 //MonteLocalization.Resample(true, currentRotation);
                 MonteLocalization.Resample(false, 0);
 
             }
             estimatedPos = MonteLocalization.EstimatePosition();
 
-          //  robot.currentLeftWheelVelocity -= 0.15;
-          //  robot.currentRightWheelVelocity -= 0.15;
+            //  robot.currentLeftWheelVelocity -= 0.15;
+            //  robot.currentRightWheelVelocity -= 0.15;
 
             //addToTextBox(estimatedPos.ToString());
             try
             {
-               // SafeUpdate(()=> RefreshPicture());
-                
-              //  DrawParticles();
+                // SafeUpdate(()=> RefreshPicture());
+
+                //  DrawParticles();
                 custom.SetPixel((int)currentX, (int)currentY, Color.DarkBlue);
                 custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
 
@@ -1298,80 +1300,81 @@ namespace RobotAppControl
         public async Task PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
         {
             Node currentGoal = path[0];
-            //RequestDataFromBot();
-            //int firstInstance = 1;
+            RequestDataFromBot();
+            int firstInstance = 1;
             robot.currentLeftWheelVelocity = 0;
             robot.currentRightWheelVelocity = 0;
-           Stopwatch sw = Stopwatch.StartNew();            
+            double tempTheta = 0;
+            Stopwatch sw = Stopwatch.StartNew();
             do
             {
-                //if (newInfoForAutoMovement_FLAG)
-                //{
-                //    newInfoForAutoMovement_FLAG = false;
+                if (newInfoForAutoMovement_FLAG)
+                {
+                    newInfoForAutoMovement_FLAG = false;
 
                     estimatedPos = MonteLocalization.EstimatePosition();
 
-                    //robot._currentX = estimatedPos.X;
-                    //robot._currentY = estimatedPos.Y;
-                   // robot.setThetaActual(estimatedPos.Theta);
+                    robot._currentX = estimatedPos.X;
+                    robot._currentY = estimatedPos.Y;
+
+                    if (estimatedPos.Theta > 0)
+                    {
+                        tempTheta = estimatedPos.Theta;
+                    }
+                    else
+                    {
+                        tempTheta = 360 + estimatedPos.Theta;
+                    }
+                    tempTheta = 360 - tempTheta;
+
+                    // addToTextBox($"{tempTheta} | {robot.getThetaActual()} {Environment.NewLine}");
+
+                    robot.setThetaActual(tempTheta);
+
                     var SmallGoal_BigGoal = FindLookaheadPoint(estimatedPos.X, estimatedPos.Y, currentGoal, path, maxLookahead);
                     currentGoal = SmallGoal_BigGoal.Item2;
-                    var steeringAngle = CalculateSteeringAngle(estimatedPos.X, estimatedPos.Y, estimatedPos.Theta, SmallGoal_BigGoal.Item1);
+                    var steeringAngle = CalculateSteeringAngle(estimatedPos.X, estimatedPos.Y, tempTheta, SmallGoal_BigGoal.Item1);
                     SetWheelVelocities(robot, steeringAngle, baseVelocity);
-                      await UpdatePosition(robot, dt);
-                   // addToTextBox($"{robot.getThetaActual() + Environment.NewLine}");
-                        //SafeUpdate(() => RefreshPicture());
-                        //  addToTextBox($"Current:{string.Format("{0:0.00}", estimatedPos.X)}|{string.Format("{0:0.00}", estimatedPos.Y)} Wanted:{string.Format("{0:0.00}", SmallGoal_BigGoal.Item1.X)}|{string.Format("{0:0.00}", SmallGoal_BigGoal.Item1.Y)}");
+                    //  await UpdatePosition(robot, dt);
 
-                    if(sw.ElapsedMilliseconds > 100)
+                    if (sw.ElapsedMilliseconds > 150)
                     {
+                        SafeUpdate(RefreshPicture);
+                        if (firstInstance == 1)
+                        {
+                            var message = new
+                            {
+                                firstInstance = firstInstance,
+                                stopSignal = "false",
+                                leftVelocity = robot.LeftWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
+                                rightVelocity = robot.RightWheelVelocity
+                            };
+                            await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                            firstInstance = 0;
+                        }
+                        else
+                        {
+                            var message = new
+                            {
+                                stopSignal = "false",
+                                leftVelocity = robot.LeftWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
+                                rightVelocity = robot.RightWheelVelocity
+                            };
+                            PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                        }
                         sw.Restart();
                     }
-               // goals.Add($"Current:{string.Format("{0:0.00}", estimatedPos.X)}|{string.Format("{0:0.00}", estimatedPos.Y)} Wanted:{string.Format("{0:0.00}", currentGoal.X)}|{string.Format("{0:0.00}", currentGoal.Y)}");
-                //againGoals.Add(new (SmallGoal_BigGoal.Item1.X, SmallGoal_BigGoal.Item1.Y, SmallGoal_BigGoal.Item2.X, SmallGoal_BigGoal.Item2.Y));
-                    //if (firstInstance == 1)
-                    //{
-                    //    var message = new
-                    //    {
-                    //         firstInstance = firstInstance,
-                    //         stopSignal = "false",
-                    //         leftVelocity = robot.RightWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
-                    //         rightVelocity = robot.LeftWheelVelocity
-                    //    };
-                    //   await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-                    //    firstInstance = 0;
-                    //}
-                    //else
-                    //{
-                    //    var message = new
-                    //    {
-                    //        stopSignal = "false",
-                    //        leftVelocity = robot.RightWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
-                    //        rightVelocity = robot.LeftWheelVelocity
-                    //    };
-                    //    PublishJsonMessageAsync("LeftRightSpeed", message, 0);
-                    //}
+                }
 
+            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
 
-                    //try
-                    //{
-                    //    // SafeUpdate(()=> RefreshPicture());
-
-                    //    // DrawParticles();
-                    //    custom.SetPixel((int)currentX, (int)currentY, Color.DarkBlue);
-                    //    custom.SetPixel((int)estimatedPos.X, (int)estimatedPos.Y, Color.Red);
-
-                    //}
-                    //catch (Exception)
-                    //{
-
-                    //    throw;
-                    //}
-                //}
-
-
-
-            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 5 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
+            var messagelast = new
+            {
+              
+                stopSignal = "true",
+              
+            };
+            await PublishJsonMessageAsync("LeftRightSpeed", messagelast, 2);
 
             SafeUpdate(() => RefreshPicture());
             startX = (int)estimatedPos.X;
@@ -1412,10 +1415,10 @@ namespace RobotAppControl
         {
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             stopPurePursuitFLAG = false;
-            // Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5));
-             // purePursuitTask.Start();
-            await PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5);
-          //  RefreshPicture();
+            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5));
+            purePursuitTask.Start();
+            //await PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5);
+            //  RefreshPicture();
 
         }
         private async void btn_ExecuteRoute_Click(object sender, EventArgs e)
@@ -1519,31 +1522,23 @@ namespace RobotAppControl
                 }
             }
         }
-        int countHowManyReceivedForMCL = 0;
+        private bool mclIsON = false;
         private async void HandleTopicMap(string payload)
         {
             JsonMessageClass? message = JsonConvert.DeserializeObject<JsonMessageClass>(payload);
             if (message != null)
             {
-                if (message.mappingFlag == 1)
+                if (message.mappingFlag == 1 && !mclIsON && currentlyMapping)
                 {
                     stringsToBeInterpreted.Enqueue(("mapPoint", message));
                     feedback.Add(message);
                 }
-                else
+                else if(mclIsON && !currentlyMapping)
                 {
-                    //await MonteLocalization.StartTasksToMoveParticles((message.leftMovement + message.rightMovement) / 20, message.direction); // comes as mm
-                    //await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                    //MonteLocalization.Resample(false,0);
-                    //await MonteLocalization.StartTasksToUpdateWeights([message.midSensor, message.leftSensor, message.rightSensor], 2);
-                    //estimatedPos = MonteLocalization.EstimatePosition();
-                    //currentRotation = estimatedPos.Theta;
-                    //newInfoForAutoMovement_FLAG = true;
-                    //feedback.Add(message);
-                    //countHowManyReceivedForMCL++;
-                    // comment the above if simulating
-                }
-                //TotalRevievedStrings.Enqueue((message.leftSensor, message.rightSensor, message.midSensor));
+
+                    stringsToBeInterpreted.Enqueue(("MCL", message));
+                    feedback.Add(message);
+                }              
             }
         }
 
@@ -1793,7 +1788,7 @@ namespace RobotAppControl
             };
             PublishJsonMessageAsync("location/robot", message, 2);
         }
-        
+
 
         private async void btnArmDown_Click(object sender, EventArgs e)
         {
@@ -1823,13 +1818,17 @@ namespace RobotAppControl
 
         private async void btnGrab_Click(object sender, EventArgs e)
         {
-            var message = new
-            {
-                stopServos = false,
-                posArmTwo = 150
-            };
+            interpreter = new Interpreter(ref stringsToBeInterpreted, ref custom, ref currentX, ref currentY, ref currentRotation, this, 63);
+            //var message = new
+            //{
+            //    stopServos = false,
+            //    posArmTwo = 150
+            //};
 
-            await PublishJsonMessageAsync("HandServoControl", message, 2);
+            //await PublishJsonMessageAsync("HandServoControl", message, 2);
+
+            currentlyMapping = false;
+            mclIsON = true;
         }
 
         private async void btnRelease_Click(object sender, EventArgs e)
@@ -1890,7 +1889,7 @@ namespace RobotAppControl
                     //{
                     //    simulatedActualRobot._currentX += d * Math.Cos(theta);
                     //    simulatedActualRobot._currentY += d * Math.Sin(theta);
-                       
+
 
                     //}
                     //else  // If rotating, move along an arc
@@ -1998,7 +1997,7 @@ namespace RobotAppControl
                         right -= 360;
                     }
 
-                   
+
                     var jsonMessage = new
                     {
                         direction = (float)simulatedActualRobot.getThetaActual(),
@@ -2080,23 +2079,23 @@ namespace RobotAppControl
                     rightSpeed = 0
                 };
                 PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-                
+
             }
             else
             {
 
 
-            if (testing_firstInstance == 1)
-            {
-                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-                testing_firstInstance = 0;
-                testing_lastClicked = 1;
-            }
-            else
-            {
-                PublishJsonMessageAsync("LeftRightSpeed", message, 0);
-                testing_lastClicked = 1;
-            }
+                if (testing_firstInstance == 1)
+                {
+                    PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                    testing_firstInstance = 0;
+                    testing_lastClicked = 1;
+                }
+                else
+                {
+                    PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                    testing_lastClicked = 1;
+                }
             }
 
         }

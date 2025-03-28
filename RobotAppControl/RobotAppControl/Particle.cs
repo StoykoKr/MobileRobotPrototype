@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RobotAppControl
 {
-    internal class Particle
+    public class Particle
     {
         public double X { get; set; }
         public double Y { get; set; }

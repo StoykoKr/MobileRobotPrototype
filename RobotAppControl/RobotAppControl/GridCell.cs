@@ -10,7 +10,10 @@ namespace RobotAppControl
     {
         public int IsPossible { get; set; } = 0; 
         public int IsProvenEmpty { get; set; } = 0;
+        public bool WasWithinBoundingBox { get; set; } = false;
+        public bool WasSpottedFromTooClose { get; set; } = false;
 
+        public bool RobotCenterPassedHere { get; set; } = false;
         public void IncreaseIsProvenEmpty()
         {
             IsProvenEmpty++;

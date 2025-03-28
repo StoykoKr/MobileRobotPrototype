@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace RobotAppControl
 {
-    internal class KalmanFilter
+    public class KalmanFilter
     {
         private float Xt, Xt_update, Xt_prev;
         private float Pt, Pt_update, Pt_prev;

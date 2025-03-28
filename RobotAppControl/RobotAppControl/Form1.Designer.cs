@@ -272,11 +272,11 @@
             // 
             // btnGrab
             // 
-            btnGrab.Location = new Point(1063, 173);
+            btnGrab.Location = new Point(1063, 212);
             btnGrab.Name = "btnGrab";
-            btnGrab.Size = new Size(75, 23);
+            btnGrab.Size = new Size(90, 23);
             btnGrab.TabIndex = 32;
-            btnGrab.Text = "Grab";
+            btnGrab.Text = "ToggleMCL";
             btnGrab.UseVisualStyleBackColor = true;
             btnGrab.Click += btnGrab_Click;
             // 

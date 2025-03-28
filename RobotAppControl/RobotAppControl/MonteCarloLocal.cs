@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Drawing;
 using System.Drawing.Text;
 using System.IO;
 using System.Linq;
@@ -13,7 +14,7 @@ using static System.Windows.Forms.VisualStyles.VisualStyleElement.Rebar;
 
 namespace RobotAppControl
 {
-    internal class MonteCarloLocal
+    public class MonteCarloLocal
     {
 
         public bool isStarted { private set; get; }
@@ -24,11 +25,12 @@ namespace RobotAppControl
         public int numberOfTasksToRunOn { private set; get; }
         private double resampleNoiseFactor = 4;
         private double weightScale = 1;
-        public double totalWeightPublic = 666;  
+        public double totalWeightPublic = 666;
         private bool enterChaos = false;
         private (double, double, double) lastEstimatedPos = (700, 700, 120);
         // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
         public List<Particle> Particles { private set; get; }
+        private readonly object _particlesLock = new object();
         private ConcurrentDictionary<int, Particle> keyValueParticles;
 
         public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, int tastksCount, Grid map)
@@ -102,9 +104,9 @@ namespace RobotAppControl
         {
             for (int i = startingIndex; i <= finalIndex; i++)
             {
-                Particles[i].Theta = RecalcDegree(Angle, 5);
-                Particles[i].X += (forwardMove + MovementVariation(0.3)) * Math.Cos(Particles[i].Theta * Math.PI / 180);
-                Particles[i].Y += (forwardMove + MovementVariation(0.3)) * Math.Sin(Particles[i].Theta * Math.PI / 180);
+                Particles[i].Theta = RecalcDegree(Angle, 3);
+                Particles[i].X += (forwardMove) * Math.Cos(Particles[i].Theta * Math.PI / 180);
+                Particles[i].Y += (forwardMove) * Math.Sin(Particles[i].Theta * Math.PI / 180);
             }
         }
         public async Task StartTasksToMoveParticles(float move, float dir)
@@ -128,20 +130,28 @@ namespace RobotAppControl
             }
             await Task.WhenAll(tasks);
         }
-      
 
-      
+
         public void UpdateWeights(double[] observedData, double sigma, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
         {
             double total = 0;
             for (int i = startingIndex; i <= finalIndex; i++)
             {
-                double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
+                double likelihood = CalculateLikelihood(Particles[i], observedData,sigma);
+                if (likelihood <= 0) {
+                    likelihood = double.Epsilon;
+                        }
+                if( double.IsNaN(likelihood) || likelihood < 1e-5) { // just a small value 
+                   // likelihood = 1e-5;              
+                }
                 Particles[i].Weight = Math.Max(Particles[i].Weight * likelihood, double.Epsilon);
                 total += Particles[i].Weight;
             }
+            if (total == 0)
+            {
+                total = double.Epsilon;
+            }
             doubles.Enqueue(total);
-
         }
 
         public async Task StartTasksToUpdateWeights(double[] observedData, double sigma)
@@ -149,12 +159,7 @@ namespace RobotAppControl
             ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
             int remainingIndexes = allParticleCount;
             List<Task> tasks = new List<Task>();
-            //  int starIndex = 0;   //FCKING muthithreading bullsh*t if I make these two outside of the loop it breaks everything.. God damn funky logic
-            // int endIndex = 0;
-            /*   for (int i = 0; i < allParticleCount; i++)
-               {
-                   keyValueParticles[i] = Particles[i];
-               }*/
+            
             for (int j = 1; j <= numberOfTasksToRunOn; j++)
             {
                 int endIndex = remainingIndexes - 1;
@@ -169,10 +174,7 @@ namespace RobotAppControl
                 task.Start();
             }
             await Task.WhenAll(tasks);
-            /*   for (int i = 0; i < allParticleCount; i++)
-               {
-                   Particles[i] = keyValueParticles[i];
-               }*/
+        
             double totalWeight = 0;
             while (weights.TryDequeue(out double result))
             {
@@ -182,24 +184,106 @@ namespace RobotAppControl
             {
                 throw new Exception("wtf");
             }
-            //if (totalWeight < 0.002)
-            // {
-            // totalWeight = 0.1;
-            //   enterChaos = true;
-            //  }
-            //  else
-            //  {
-
-            //       enterChaos = false;
+            double normalizationFactor = 1.0 / totalWeight; // gpt shenanigans
             for (int i = 0; i < Particles.Count; i++)
             {
-                Particles[i].Weight /= totalWeight;
+                // Particles[i].Weight /= totalWeight;
+                Particles[i].Weight *= normalizationFactor;
             }
+
             lastEstimatedPos = EstimatePosition();
-            //  }
             totalWeightPublic = totalWeight;
 
         }
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.35)
+        {
+            return Math.Max(baseFactor * expectedValue, 10); 
+        }
+        public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
+        {
+            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap); 
+            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap); 
+            double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
+
+
+            double frontDiff = observedData[0] - predictedFront;
+            double leftDiff = observedData[1] - predictedLeft;
+            double rightDiff = observedData[2] - predictedRight;
+
+            double frontLikelihood = GaussianProbability(frontDiff, GetDynamicSigma(predictedFront));  //experiment with dynamic sigma
+            double leftLikelihood = GaussianProbability(leftDiff, GetDynamicSigma(predictedLeft));
+            double rightLikelihood = GaussianProbability(rightDiff, GetDynamicSigma(predictedRight));
+
+            // return frontLikelihood * leftLikelihood * rightLikelihood;
+            return Math.Exp(Math.Log(frontLikelihood) + Math.Log(leftLikelihood) + Math.Log(rightLikelihood));
+        }
+       
+        public double GaussianProbability(double difference, double sigma)
+        {
+            double exponent = -Math.Pow(difference, 2) / (2 * Math.Pow(sigma, 2));
+            double coefficient = 1.0 / (sigma * Math.Sqrt(2 * Math.PI));
+            double probability = coefficient * Math.Exp(exponent);
+
+            return Math.Max(probability, 1e-10); // Prevent underflow
+        }
+
+        public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt,double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
+        {
+
+            double angl = theta + sensorDirectionLookingAt;
+            if (angl < 0)
+            {
+                angl += 360;
+            }
+            if (angl > 360)
+            {
+                angl -= 360;
+            }
+            double shiftedX = x + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Cos((theta + startingPointDegreeOffsets) * Math.PI / 180));
+            double shiftedY = y + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Sin((theta + startingPointDegreeOffsets) * Math.PI / 180));
+
+            return RaycastCone(shiftedX,shiftedY, angl,330,GlobalConstants.SensorDispersion,map);
+          //  return Raycast(x, y, angl, 300, map);
+
+        }
+
+        public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)
+        {
+            double stepSize = 1.5;
+            double distance = 0;
+
+            double tempAngle;
+
+           while (distance < maxRange)
+            {
+                for (int i = 0; i <= dispersion; i++)
+                {
+
+                    tempAngle = angle - dispersion / 2 + i;
+                    if (tempAngle < 0)
+                    {
+                        tempAngle += 360;
+                    }
+                    if(tempAngle > 360)
+                    {
+                        tempAngle -= 360;
+                    }
+                    
+                    double radians = tempAngle * Math.PI / 180.0;
+                    int targetX = (int)Math.Round(startX + Math.Abs(distance) * Math.Cos(radians));
+                    int targetY = (int)Math.Round(startY + Math.Abs(distance) * Math.Sin(radians));
+
+                    if (!map.IsWalkable(targetX, targetY) == true)
+                    {
+                        return distance;
+                    }
+                   
+                }
+                distance += stepSize;
+            }
+            return maxRange;
+        }
+
         public void Resample(bool forceTheta, double thetaToBeForced)
         {
             List<Particle> newParticles = new List<Particle>();
@@ -262,7 +346,7 @@ namespace RobotAppControl
                     {
                         resampledParticle.Theta = thetaToBeForced;
 
-                    }                  
+                    }
                     resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * (resampleNoiseFactor / 2) * weightScale;
 
                     newParticles.Add(resampledParticle);
@@ -272,77 +356,29 @@ namespace RobotAppControl
             Particles = newParticles; // Replace old particles with resampled set
         }
 
-        public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
-        {
-            // Example: We assume observedData contains distance measurements (front, left, right)
-            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, 0, MapMap); // Front
-            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, -90, MapMap); // Left
-            double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, 90, MapMap); // Right
 
-
-            double frontDiff = observedData[0] - predictedFront;
-            double leftDiff = observedData[1] - predictedLeft;
-            double rightDiff = observedData[2] - predictedRight;
-
-            // Use Gaussian probability for each sensor
-            double frontLikelihood = GaussianProbability(frontDiff, sigma);
-            double leftLikelihood = GaussianProbability(leftDiff, sigma);
-            double rightLikelihood = GaussianProbability(rightDiff, sigma);
-
-            // Combine likelihoods (product of independent probabilities)
-            return frontLikelihood * leftLikelihood * rightLikelihood;
-        }
-        public double GaussianProbability(double difference, double sigma)
-        {
-            double exponent = -Math.Pow(difference, 2) / (2 * Math.Pow(sigma, 2));
-            double coefficient = 1.0 / (sigma * Math.Sqrt(2 * Math.PI));
-            return coefficient * Math.Exp(exponent);
-        }
-      
-        public double GetPredictedDistance(double x, double y, double theta, double offset, Grid map)
-        {
-            
-            double angl = theta + offset;
-            if (angl < 0)
-            {
-                angl += 360;
-            }
-            if (angl > 360)
-            {
-                angl -= 360;
-            }
-
-            return Raycast(x, y, angl, 300, map); 
-        }
-        //public (double X, double Y, double Theta) EstimatePosition()
-        //{
-        //    var snapshot = Particles.ToList();
-        //    snapshot.Sort((x, y) =>
-        //    {
-        //        if (double.IsNaN(x.Weight)) return 1;
-        //        if (double.IsNaN(y.Weight)) return -1;
-        //        return y.Weight.CompareTo(x.Weight);
-        //    });
-        //    int parCount = snapshot.Count / 2;
-        //    double x = 0.0, y = 0.0, theta = 0.0;
-        //    for (int i = 0; i < parCount; i++)
-        //    {
-        //        x += snapshot[i].X;
-        //        y += snapshot[i].Y;
-
-        //        theta += snapshot[i].Theta;
-        //    }
-        //    return (x / parCount, y / parCount, theta / parCount);
-        //}
-
+        private const double TOLERANCE = 1e-7; // Adjust based on needed precision
         public (double X, double Y, double Theta) EstimatePosition()
         {
-            var snapshot = Particles.ToList();
+            List<Particle> snapshot;
+
+            lock (_particlesLock)
+            {
+                snapshot = Particles.ToList(); 
+            }
             snapshot.Sort((x, y) =>
             {
-                if (double.IsNaN(x.Weight)) return 1;
-                if (double.IsNaN(y.Weight)) return -1;
-                return y.Weight.CompareTo(x.Weight);
+                bool xNaN = double.IsNaN(x.Weight);
+                bool yNaN = double.IsNaN(y.Weight);
+
+                if (xNaN && yNaN) return 0;  
+                if (xNaN) return 1;         
+                if (yNaN) return -1;
+
+                double diff = y.Weight - x.Weight;
+                if (Math.Abs(diff) < TOLERANCE) return 0; // Treat as equal
+                return diff > 0 ? 1 : -1;
+
             });
 
             int parCount = snapshot.Count / 2;
@@ -361,7 +397,7 @@ namespace RobotAppControl
             double avgX = x / parCount;
             double avgY = y / parCount;
 
-            // Convert averaged unit vectors back to angle
+
             double avgTheta = Math.Atan2(sumSin, sumCos) * 180.0 / Math.PI;
 
             return (avgX, avgY, avgTheta);
@@ -385,35 +421,29 @@ namespace RobotAppControl
         }
         public static double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // WILL NOT work for the final thing but this will help with basic MCL testing
         {
-            // Define step size (how much to move along the ray each iteration)
-            double stepSize = 1.25; // Small step size for accuracy
+
+            double stepSize = 1.25;
             double distance = 0;
 
-            // Calculate ray's direction (based on the angle)
+
             double dirX = Math.Cos(angle * Math.PI / 180);
             double dirY = Math.Sin(angle * Math.PI / 180);
 
-            // Current position of the ray (starting at the particle's position)
             double currentX = startX;
             double currentY = startY;
 
-            // Move along the ray until we hit an obstacle or exceed max range
+
             while (distance < maxRange)
             {
-                // Move the ray forward by one step
                 currentX += dirX * stepSize;
                 currentY += dirY * stepSize;
                 distance += stepSize;
 
-                // Check if the ray has gone out of bounds
-                if (!map.IsWalkable((int)currentX, (int)currentY) == true)//!map.IsValidPosition((int)currentX, (int)currentY))
+                if (!map.IsWalkable((int)currentX, (int)currentY) == true)
                 {
-                    // If the ray is out of bounds or hits an obstacle, stop
                     return distance;
                 }
             }
-
-            // If no obstacle was hit, return the max range (sensor sees no obstacle)
             return maxRange;
         }
 

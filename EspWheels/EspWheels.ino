@@ -29,7 +29,7 @@
 
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.6";  //"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.4";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -125,14 +125,16 @@ bool movingDirectionRight = false;
 bool autoMovementWantedDirLeftWheelIsForward = true;
 bool autoMovementWantedDirRightWheelIsForward = true;
 int justForwardDirVar = 1;
+#define MIDISTHISDEGREE 65
+#define FULLTURNISTHISDEGREE 167
 const double hard_iron[3] = {  // with magneto the values are new
-  161.435337, 457.451646, -354.171764
+  -69.865552, 480.905599, -377.007678
 };
 
 const double soft_iron[3][3] = {
-  { 1.419622, -0.045275, -0.019007},
-  { -0.045275,1.288103, 0.096391 },
-  { -0.019007, 0.096391,1.911295 }
+  { 1.468001, -0.043461, 0.074858 },
+  { -0.043461, 1.276501, 0.106481 },
+  { 0.074858, 0.106481, 1.927471 }
 };
 
 /* FIRST CONFIG
@@ -576,14 +578,14 @@ void justLeftRight(int direction) {
     if (direction > 0) {
       if (!turnedLeft) {
         startingServoPosReached = false;
-        AdjustPosTo(0/*35*/, true);
+        AdjustPosTo(FULLTURNISTHISDEGREE /*35*/, true);
         turnedLeft = true;
         goingForward = false;
         turnedRight = false;
       } else if (startingServoPosReached && movingDirectionLeft == false && movingDirectionRight == false) {
         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-          double changeLEft = PidControllerSpeedLeft(1.5, 0.045, GetCurrentSpeedLeft());
-          double changeRight = PidControllerSpeedRight(1.5, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+          double changeLEft = PidControllerSpeedLeft(1, 0.045, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
           if (fabs(changeLEft) > 0.0001) {
             if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -595,14 +597,14 @@ void justLeftRight(int direction) {
               PWMRightCoefficient += changeRight;
             }
           }
-          if (millis() - previousTimeThereWasAnObstacle <= 250) {
-            StopMovement();
-          } else {
-            setPWMRight(0.1 * PWMRightCoefficient);
-            setPWMLeft(0.1 * PWMLeftCoefficient);
-           // setPWMLeft(0);
-            //setPWMRight(1);
-          }
+          // if (millis() - previousTimeThereWasAnObstacle <= 250) {
+          //   StopMovement();
+          // } else {
+          setPWMRight(0.1 * PWMRightCoefficient);
+          setPWMLeft(0.1 * PWMLeftCoefficient);
+          // setPWMLeft(0);
+          //setPWMRight(1);
+          //   }
           speedAdjustTimer = millis();
         }
 
@@ -616,14 +618,14 @@ void justLeftRight(int direction) {
     } else {
       if (!turnedRight) {
         startingServoPosReached = false;
-        AdjustPosTo(180/*145*/, true);
+        AdjustPosTo(FULLTURNISTHISDEGREE /*145*/, true);
         turnedLeft = false;
         goingForward = false;
         turnedRight = true;
       } else if (startingServoPosReached && movingDirectionLeft == true && movingDirectionRight == true) {
         if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-          double changeLEft = PidControllerSpeedLeft(1.5, 0.045, GetCurrentSpeedLeft());
-          double changeRight = PidControllerSpeedRight(1.5, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+          double changeLEft = PidControllerSpeedLeft(1, 0.045, GetCurrentSpeedLeft());
+          double changeRight = PidControllerSpeedRight(1, 0.045, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
           if (fabs(changeLEft) > 0.0001) {
             if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -635,15 +637,15 @@ void justLeftRight(int direction) {
               PWMRightCoefficient += changeRight;
             }
           }
-          if (millis() - previousTimeThereWasAnObstacle <= 250) {
-            StopMovement();
-          } else {
-            setPWMRight(0.1 * PWMRightCoefficient);
-            setPWMLeft(0.1 * PWMLeftCoefficient);
-           // setPWMRight(0);
-            //setPWMLeft(0);
-            //setPWMRight(1);
-          }
+          //  if (millis() - previousTimeThereWasAnObstacle <= 250) {
+          //    StopMovement();
+          //  } else {
+          setPWMRight(0.1 * PWMRightCoefficient);
+          setPWMLeft(0.1 * PWMLeftCoefficient);
+          // setPWMRight(0);
+          //setPWMLeft(0);
+          //setPWMRight(1);
+          //   }
           speedAdjustTimer = millis();
         }
       } else if (!alreadySendDirSignal) {
@@ -706,7 +708,7 @@ void keepDirection() {
   }
   degreeChangeFromStartKeepDir += changeKeepDir;
   lastDegKeepDir = currentDeg;
-  AdjustPosTo(90 + (degreeChangeFromStartKeepDir * 0.75), false);
+  AdjustPosTo(MIDISTHISDEGREE + (degreeChangeFromStartKeepDir * 0.75), false);
 }
 void AdjustPosTo(int wanted, bool waitAnswer) {
   StaticJsonDocument<200> jsonDoc;
@@ -738,7 +740,7 @@ void justForward(bool dir) {
     GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (!goingForward) {
       startingServoPosReached = false;
-      AdjustPosTo(90, true);
+      AdjustPosTo(MIDISTHISDEGREE, true);
       goingForward = true;
       turnedLeft = false;
       turnedRight = false;
@@ -755,8 +757,8 @@ void justForward(bool dir) {
       }
 
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-        double changeLEft = PidControllerSpeedLeft(2.5, 0.025, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(2.5, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+        double changeLEft = PidControllerSpeedLeft(2, 0.025, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(2, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
@@ -768,6 +770,15 @@ void justForward(bool dir) {
             PWMRightCoefficient += changeRight;
           }
         }
+
+        // Compute heading correction factor
+        double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
+        double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
+
+        // Apply correction
+        PWMLeftCoefficient -= headingCorrection;
+        PWMRightCoefficient += headingCorrection;
+
         if (millis() - previousTimeThereWasAnObstacle <= 250 && dir) {
           StopMovement();
         } else {
@@ -805,27 +816,34 @@ void SendDirSignal(bool signal, int whichOneToSwitchDir) {
   delay(150);
 }
 int CalcDirectionFrontServoFromSpeeds() {
-  return 90 + (leftVelocity - rightVelocity) * 25;
-  // this is not concrete so no idea if it will work remotely as wanted
+  if (autoMovementWantedDirLeftWheelIsForward != autoMovementWantedDirRightWheelIsForward) {
+    return FULLTURNISTHISDEGREE;
+  } else {
+    return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 25;
+  }
 }
+
 void autoMovement() {
   ResetEncoderValues();
   speedTimer = millis();
   speedAdjustTimer = millis();
-    justForwardDirVar = -1;
+  justForwardDirVar = -1;
   rightthing = 0;
   lastRight = 0;
   PWMLeftCoefficient = 1;
   PWMRightCoefficient = 1;
-  alreadySendDirSignal = false;
+  bool thereWasAJumpInDir = true;
+
+  startingServoPosReached = false;
+  AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-
-    if (movingDirectionLeft == false && movingDirectionRight == true) {
     GetUltrasoundData(MagneticSensorReading(), true, false, false);
 
-      if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
+    if (startingServoPosReached && autoMovementWantedDirLeftWheelIsForward != movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
+      if (millis() - speedTimer >= millisecToRecordTicksInterval) {  
         if (5 <= timeIntervalIndexCounter) {
           timeIntervalIndexCounter = 0;
         }
@@ -834,9 +852,14 @@ void autoMovement() {
         timeIntervalIndexCounter++;
         speedTimer = millis();
       }
+      if (CalcDirectionFrontServoFromSpeeds() > 130) {
+        startingServoPosReached = false;
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+      } else {
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
+      }
+      if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
 
-      if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
-    AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
         double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.025, GetCurrentSpeedLeft());
         double changeRight = PidControllerSpeedRight(rightVelocity, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
 
@@ -858,17 +881,18 @@ void autoMovement() {
         }
         speedAdjustTimer = millis();
       }
-
-    } else if (!alreadySendDirSignal) {
+    }else {
       setPWMRight(0);
       setPWMLeft(0);
-      SendDirSignal(true, LEFTDIRWHEEL);
-      SendDirSignal(false, RIGHTDIRWHEEL);
-      alreadySendDirSignal = true;
+      if (millis() - speedAdjustTimer >= 500) {
+        SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
+        SendDirSignal(!autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
+        speedAdjustTimer = millis();
+      }
     }
+
   }
   StopMovement();
-  
 }
 
 void publishJsonDataForMap(double direction, double leftDistance, double rightDistance, double left, double mid, double right, double hand, bool useDataForMap) {
@@ -946,10 +970,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("|");
     Serial.println(isFirstInstance);
 
-      if (leftVelo < 0) {
+    if (leftVelo < 0) {
       autoMovementWantedDirLeftWheelIsForward = false;
-    }
-    else {
+    } else {
       autoMovementWantedDirLeftWheelIsForward = true;
     }
     if (rightVelo < 0) {

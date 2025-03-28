@@ -19,7 +19,7 @@
 
 const char* ssid ="TheEvilWithin";//"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";//"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.6";//"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.4";//"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 
@@ -80,7 +80,7 @@ void setup() {
   ESP32PWM::allocateTimer(2);
   ESP32PWM::allocateTimer(3);
   frontMovementServo.setPeriodHertz(50);
-  frontMovementServo.attach(frontServoPin);
+  frontMovementServo.attach(frontServoPin,500,2500);
   servo1.setPeriodHertz(50);
   servo1.attach(ArmServoPinOne);
   servo2.setPeriodHertz(50);
@@ -93,6 +93,7 @@ void setup() {
   digitalWrite(RelayOne, LOW);
   pinMode(RelayTwo, OUTPUT);
   digitalWrite(RelayTwo, LOW);
+   
   resetConnectionParams();
 }
 void resetConnectionParams() {
