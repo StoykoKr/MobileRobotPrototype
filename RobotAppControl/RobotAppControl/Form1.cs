@@ -382,7 +382,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(500, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _MCL_grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(500, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 50, 5, _MCL_grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -746,7 +746,18 @@ namespace RobotAppControl
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90,0,(0,0), _MCL_grid)],
                         75);
                 // addToTextBox(MonteLocalization.totalWeightPublic.ToString() +""+ Environment.NewLine);
-                addToTextBox(currentRotation.ToString() + "" + Environment.NewLine);
+                var estimatedPos = MonteLocalization.GetEstimatedPos();
+                double tempTheta = 0;
+                if (estimatedPos.Theta > 0)
+                {
+                    tempTheta = estimatedPos.Theta;
+                }
+                else
+                {
+                    tempTheta = 360 + estimatedPos.Theta;
+                }
+                //tempTheta = 360 - tempTheta;
+                addToTextBox(tempTheta + "" + Environment.NewLine);
                 MonteLocalization.Resample(false, 0);
 
                 /*    MonteLocalization.UpdateWeightsOld(
@@ -754,7 +765,6 @@ namespace RobotAppControl
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90, _grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90, _grid)],
                         2);*/
-                var estimatedPos = MonteLocalization.EstimatePosition();
                 try
                 {
                     //      DrawParticles();
@@ -1121,7 +1131,7 @@ namespace RobotAppControl
             {
                 temp -= 360;
             }
-            temp = 360 - temp;
+           // temp = 360 - temp;
 
             try
             {
@@ -1134,7 +1144,7 @@ namespace RobotAppControl
                 throw;
             }
 
-            double steeringAngle = (temp * Math.PI/180)/*angleToTarget*/ - (theta * Math.PI / 180);
+            double steeringAngle = /*(temp * Math.PI/180)*/angleToTarget - (theta * Math.PI / 180);
             values_angleToTarget_SteeringAngle.Add((temp, steeringAngle, angleToTarget * 180 / Math.PI, theta));
             return steeringAngle;
         }
@@ -1155,7 +1165,7 @@ namespace RobotAppControl
 
 
 
-            if (robot.LeftWheelVelocity > 1.35 || robot.RightWheelVelocity > 1.35)
+            if (robot.LeftWheelVelocity > 1.5 || robot.RightWheelVelocity > 1.5)
             {
                 robot.LeftWheelVelocity -= 1;
                 robot.RightWheelVelocity -= 1;
@@ -1269,7 +1279,7 @@ namespace RobotAppControl
                 MonteLocalization.Resample(false, 0);
 
             }
-            estimatedPos = MonteLocalization.EstimatePosition();
+            estimatedPos = MonteLocalization.GetEstimatedPos();
 
             //  robot.currentLeftWheelVelocity -= 0.15;
             //  robot.currentRightWheelVelocity -= 0.15;
@@ -1312,7 +1322,7 @@ namespace RobotAppControl
                 {
                     newInfoForAutoMovement_FLAG = false;
 
-                    estimatedPos = MonteLocalization.EstimatePosition();
+                   // estimatedPos = MonteLocalization.EstimatePosition();
 
                     robot._currentX = estimatedPos.X;
                     robot._currentY = estimatedPos.Y;
@@ -1335,44 +1345,46 @@ namespace RobotAppControl
                     currentGoal = SmallGoal_BigGoal.Item2;
                     var steeringAngle = CalculateSteeringAngle(estimatedPos.X, estimatedPos.Y, tempTheta, SmallGoal_BigGoal.Item1);
                     SetWheelVelocities(robot, steeringAngle, baseVelocity);
-                    //  await UpdatePosition(robot, dt);
+                //await UpdatePosition(robot, dt);
 
-                    if (sw.ElapsedMilliseconds > 150)
+                if (sw.ElapsedMilliseconds > 150)
+                {
+                    SafeUpdate(RefreshPicture);
+                    if (firstInstance == 1)
                     {
-                        SafeUpdate(RefreshPicture);
-                        if (firstInstance == 1)
+                        var message = new
                         {
-                            var message = new
-                            {
-                                firstInstance = firstInstance,
-                                stopSignal = "false",
-                                leftVelocity = robot.LeftWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
-                                rightVelocity = robot.RightWheelVelocity
-                            };
-                            await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-                            firstInstance = 0;
-                        }
-                        else
-                        {
-                            var message = new
-                            {
-                                stopSignal = "false",
-                                leftVelocity = robot.LeftWheelVelocity,  // This is due to the algorithm spitting swapped values. Yes I once more confused left and right.
-                                rightVelocity = robot.RightWheelVelocity
-                            };
-                            PublishJsonMessageAsync("LeftRightSpeed", message, 0);
-                        }
-                        sw.Restart();
+                            firstInstance = firstInstance,
+                            stopSignal = "false",
+                            rightVelocity = robot.RightWheelVelocity, 
+                            leftVelocity = robot.LeftWheelVelocity
+                        };
+                        await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                        firstInstance = 0;
                     }
+                    else
+                    {
+                        var message = new
+                        {
+                            stopSignal = "false",
+                            rightVelocity = robot.RightWheelVelocity,  
+                            leftVelocity = robot.LeftWheelVelocity
+                        };
+                        PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                    }
+                    sw.Restart();
                 }
+            }
 
-            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 10 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
+            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 25 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
 
             var messagelast = new
             {
               
                 stopSignal = "true",
-              
+                rightVelocity = 0,
+                leftVelocity = 0
+
             };
             await PublishJsonMessageAsync("LeftRightSpeed", messagelast, 2);
 
@@ -1453,7 +1465,7 @@ namespace RobotAppControl
                             HandleTopicThree(str);
                             break;
                         case "ServoPosConfirm":
-                            HandleTopicThree(str);
+                           // HandleTopicThree(str);
                             break;
                         case "location/commands":
                             HandleTopicLocationCommands(str);
@@ -1547,13 +1559,14 @@ namespace RobotAppControl
             addToTextBox($"{payload}\n");
 
         }
-
+        public List<magDataMessage> testAgain = new List<magDataMessage>();
         private void HandleTopicThree(string payload)
         {
             magDataMessage? message = JsonConvert.DeserializeObject<magDataMessage>(payload);
             if (message != null)
             {
                 stringsToBeInterpreted.Enqueue(("calib", message));
+                testAgain.Add(message);
             }
         }
 
@@ -2060,65 +2073,66 @@ namespace RobotAppControl
 
         private int testing_firstInstance = 1;
         private int testing_lastClicked = 0; // 0 none clicked, 1 forward clicked, 2 backward clicked
-        private void btnSingleMotorSpeedTestForward_Click(object sender, EventArgs e)
+        private int countTimesMessageSent = 0;
+        private async void btnSingleMotorSpeedTestForward_Click(object sender, EventArgs e)
         {
             var message = new
             {
                 stopSignal = "false",
                 firstInstance = testing_firstInstance,
-                leftVelocity = 1.5,
-                rightSpeed = 0
+                leftVelocity = 1.0,
+                rightVelocity = 1.0
             };
             if (testing_lastClicked == 1)
             {
                 message = new
                 {
-                    stopSignal = "true",
+                    stopSignal = "false",
                     firstInstance = testing_firstInstance,
-                    leftVelocity = 0.0,
-                    rightSpeed = 0
+                    leftVelocity = 1.0,
+                    rightVelocity = -1.0
                 };
-                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
-
+                await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                testing_lastClicked = 0;
             }
             else
             {
-
-
                 if (testing_firstInstance == 1)
                 {
-                    PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                    countTimesMessageSent++;
+                    await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
                     testing_firstInstance = 0;
                     testing_lastClicked = 1;
                 }
                 else
                 {
-                    PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                    await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
                     testing_lastClicked = 1;
                 }
             }
-
+            
         }
 
-        private void btnSingleMotorTestBackward_Click(object sender, EventArgs e)
+        private async void btnSingleMotorTestBackward_Click(object sender, EventArgs e)
         {
             var message = new
             {
                 stopSignal = "false",
                 firstInstance = testing_firstInstance,
-                leftVelocity = -1.5,
-                rightSpeed = 0
+                leftVelocity = -1.0,
+                rightVelocity = 2.0
             };
             if (testing_lastClicked == 2)
             {
                 message = new
                 {
-                    stopSignal = "true",
+                    stopSignal = "false",
                     firstInstance = testing_firstInstance,
-                    leftVelocity = 0.0,
-                    rightSpeed = 0
+                    leftVelocity = 1.0,
+                    rightVelocity = 2.0
                 };
-                PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+               await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                testing_lastClicked = 0;
 
             }
             else
@@ -2127,13 +2141,13 @@ namespace RobotAppControl
 
                 if (testing_firstInstance == 1)
                 {
-                    PublishJsonMessageAsync("LeftRightSpeed", message, 2);
+                    await PublishJsonMessageAsync("LeftRightSpeed", message, 2);
                     testing_firstInstance = 0;
                     testing_lastClicked = 2;
                 }
                 else
                 {
-                    PublishJsonMessageAsync("LeftRightSpeed", message, 0);
+                   await PublishJsonMessageAsync("LeftRightSpeed", message, 0);
                     testing_lastClicked = 2;
                 }
             }

@@ -23,7 +23,7 @@ namespace RobotAppControl
         private Grid MapMap = null;
         public int allParticleCount { private set; get; }
         public int numberOfTasksToRunOn { private set; get; }
-        private double resampleNoiseFactor = 4;
+        private double resampleNoiseFactor = 10;
         private double weightScale = 1;
         public double totalWeightPublic = 666;
         private bool enterChaos = false;
@@ -31,6 +31,7 @@ namespace RobotAppControl
         // ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
         public List<Particle> Particles { private set; get; }
         private readonly object _particlesLock = new object();
+        private readonly object _estimatedPosLock = new object();
         private ConcurrentDictionary<int, Particle> keyValueParticles;
 
         public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, int tastksCount, Grid map)
@@ -141,8 +142,8 @@ namespace RobotAppControl
                 if (likelihood <= 0) {
                     likelihood = double.Epsilon;
                         }
-                if( double.IsNaN(likelihood) || likelihood < 1e-5) { // just a small value 
-                   // likelihood = 1e-5;              
+                if( double.IsNaN(likelihood) || likelihood < 1e-12) { // just a small value 
+                    likelihood = 1e-12;              
                 }
                 Particles[i].Weight = Math.Max(Particles[i].Weight * likelihood, double.Epsilon);
                 total += Particles[i].Weight;
@@ -190,12 +191,14 @@ namespace RobotAppControl
                 // Particles[i].Weight /= totalWeight;
                 Particles[i].Weight *= normalizationFactor;
             }
-
+            lock (_estimatedPosLock)
+            {
             lastEstimatedPos = EstimatePosition();
+            }
             totalWeightPublic = totalWeight;
 
         }
-        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.35)
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.25)
         {
             return Math.Max(baseFactor * expectedValue, 10); 
         }
@@ -293,7 +296,7 @@ namespace RobotAppControl
             {
                 for (int i = 0; i < Particles.Count; i++)
                 {
-                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1, lastEstimatedPos.Item2, lastEstimatedPos.Item3), 650, 650, 90));
+                    newParticles.Add(ParticleMaker(new Particle(lastEstimatedPos.Item1, lastEstimatedPos.Item2, lastEstimatedPos.Item3), 650, 650, 0));
                 }
             }
             else
@@ -316,10 +319,12 @@ namespace RobotAppControl
                 }
 
                 int quarter = snapshot.Count / 4;
+                double randomValue = 0;
+                int index = 0;
                 for (int i = 0; i < snapshot.Count; i++)
                 {
-                    double randomValue = rand.NextDouble() * cumulativeWeights.Last();
-                    int index = Array.BinarySearch(cumulativeWeights, randomValue);
+                    randomValue = rand.NextDouble() * cumulativeWeights.Last();
+                    index = Array.BinarySearch(cumulativeWeights, randomValue);
                     if (index < 0) index = ~index;
 
                     Particle resampledParticle = snapshot[index].Clone();
@@ -333,11 +338,11 @@ namespace RobotAppControl
                     }
                     else if (index < quarter * 3)
                     {
-                        weightScale = 2.5;
+                        weightScale = 1.5;
                     }
                     else
                     {
-                        weightScale = 4;
+                        weightScale = 2.5;
                     }
 
                     resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
@@ -352,12 +357,19 @@ namespace RobotAppControl
                     newParticles.Add(resampledParticle);
                 }
             }
-            // Правилно ли е освобождава паметта?!?
             Particles = newParticles; // Replace old particles with resampled set
         }
 
 
-        private const double TOLERANCE = 1e-7; // Adjust based on needed precision
+        private const double TOLERANCE = 1e-5; // Adjust based on needed precision
+
+        public (double X, double Y, double Theta) GetEstimatedPos()
+        {
+            lock (_estimatedPosLock)
+            {
+            return lastEstimatedPos;                
+            }
+        }
         public (double X, double Y, double Theta) EstimatePosition()
         {
             List<Particle> snapshot;

@@ -87,10 +87,8 @@ unsigned long timeOfLastTrigger = millis();
 unsigned long timeOfLastSendSensorData = millis();
 double weMoved = 0;
 double weMovedAuto = 0;
-int lastRightEncoderCounterUsedToCalculate = 0;
-int lastLeftEncoderCounterUsedToCalculate = 0;
-int lastRightEncoderCounterUsedToCalculateAuto = 0;
-int lastLeftEncoderCounterUsedToCalculateAuto = 0;
+volatile int lastRightEncoderCounterUsedToCalculate = 0;
+volatile int lastLeftEncoderCounterUsedToCalculate = 0;
 Adafruit_HMC5883_Unified mag;
 sensors_event_t event;
 unsigned long previousTimeThereWasAnObstacle = millis();
@@ -118,13 +116,20 @@ bool stopSignal = false;
 bool startingServoPosReached = false;
 bool alreadySendDirSignal = false;
 int remainningMapDataToTransmit = 0;
-double leftVelocity = 0;
-double rightVelocity = 0;
-bool movingDirectionLeft = false;
-bool movingDirectionRight = false;
-bool autoMovementWantedDirLeftWheelIsForward = true;
-bool autoMovementWantedDirRightWheelIsForward = true;
-int justForwardDirVar = 1;
+volatile double leftVelocity = 0;
+volatile double rightVelocity = 0;
+volatile bool movingDirectionLeft = false;
+volatile bool movingDirectionRight = false;
+volatile bool autoMovementWantedDirLeftWheelIsForward = true;
+volatile bool autoMovementWantedDirRightWheelIsForward = true;
+volatile int justForwardDirVar = 1;
+volatile bool gotResponseLeft = false;
+volatile bool gotResponseRight = false;
+volatile float leftVelo = 0;
+volatile float rightVelo = 0;
+
+
+
 #define MIDISTHISDEGREE 65
 #define FULLTURNISTHISDEGREE 167
 const double hard_iron[3] = {  // with magneto the values are new
@@ -211,8 +216,6 @@ void ResetEncoderValues() {
   leftEncoderCounter = 0;
   lastRightEncoderCounterUsedToCalculate = 0;
   lastLeftEncoderCounterUsedToCalculate = 0;
-  lastRightEncoderCounterUsedToCalculateAuto = 0;
-  lastLeftEncoderCounterUsedToCalculateAuto = 0;
 }
 void IRS_HandSensor() {
   if (digitalRead(echoPinHand) == 0x0) {
@@ -719,6 +722,15 @@ void AdjustPosTo(int wanted, bool waitAnswer) {
   serializeJson(jsonDoc, jsonBuffer);
   client.publish(publishTopicServoControl, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
 }
+void SendThisDataToCalibForTest(float a, float b, float c) {
+  StaticJsonDocument<300> jsonDoc;
+  jsonDoc["x"] = a;
+  jsonDoc["y"] = b;
+  jsonDoc["z"] = c;
+  char jsonBuffer[256];
+  serializeJson(jsonDoc, jsonBuffer);
+  client.publish(publishTopicMagCalibration, (const uint8_t*)jsonBuffer, strlen(jsonBuffer), false);
+}
 void justForward(bool dir) {
   ResetEncoderValues();
   speedTimer = millis();
@@ -738,6 +750,15 @@ void justForward(bool dir) {
 
 
     GetUltrasoundData(MagneticSensorReading(), true, true, false);
+    if (millis() - speedTimer >= millisecToRecordTicksInterval) {
+      if (5 <= timeIntervalIndexCounter) {
+        timeIntervalIndexCounter = 0;
+      }
+      UpdateTicksRight();
+      UpdateTicksLeft();
+      timeIntervalIndexCounter++;
+      speedTimer = millis();
+    }
     if (!goingForward) {
       startingServoPosReached = false;
       AdjustPosTo(MIDISTHISDEGREE, true);
@@ -745,17 +766,6 @@ void justForward(bool dir) {
       turnedLeft = false;
       turnedRight = false;
     } else if (startingServoPosReached && movingDirectionLeft == !dir && movingDirectionRight == dir) {
-
-      if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
-        if (5 <= timeIntervalIndexCounter) {
-          timeIntervalIndexCounter = 0;
-        }
-        UpdateTicksRight();
-        UpdateTicksLeft();
-        timeIntervalIndexCounter++;
-        speedTimer = millis();
-      }
-
       if (millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
         double changeLEft = PidControllerSpeedLeft(2, 0.025, GetCurrentSpeedLeft());
         double changeRight = PidControllerSpeedRight(2, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
@@ -771,20 +781,19 @@ void justForward(bool dir) {
           }
         }
 
-        // Compute heading correction factor
         double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
-        double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
+        double headingCorrection = 0.1 * speedDifference;  // Adjust the weight of correction
 
-        // Apply correction
         PWMLeftCoefficient -= headingCorrection;
         PWMRightCoefficient += headingCorrection;
 
         if (millis() - previousTimeThereWasAnObstacle <= 250 && dir) {
           StopMovement();
         } else {
+
           setPWMRight(0.1 * PWMRightCoefficient);
           setPWMLeft(0.1 * PWMLeftCoefficient);
-          keepDirection();
+          // keepDirection();
         }
         speedAdjustTimer = millis();
       }
@@ -792,8 +801,8 @@ void justForward(bool dir) {
     } else if (!alreadySendDirSignal) {
       setPWMRight(0);
       setPWMLeft(0);
-      SendDirSignal(dir, LEFTDIRWHEEL);
-      SendDirSignal(!dir, RIGHTDIRWHEEL);
+      SendDirSignal(!dir, LEFTDIRWHEEL);
+      SendDirSignal(dir, RIGHTDIRWHEEL);
       alreadySendDirSignal = true;
     }
   }
@@ -804,10 +813,10 @@ void justForward(bool dir) {
 }
 void SendDirSignal(bool signal, int whichOneToSwitchDir) {
   StaticJsonDocument<200> jsonDoc;
-  if (whichOneToSwitchDir == RIGHTDIRWHEEL) {  // Just switched left and right here 13/3/25
+  if (whichOneToSwitchDir == LEFTDIRWHEEL) {
     jsonDoc["dirLeft"] = signal;
   }
-  if (whichOneToSwitchDir == LEFTDIRWHEEL) {
+  if (whichOneToSwitchDir == RIGHTDIRWHEEL) {
     jsonDoc["dirRight"] = signal;
   }
   char jsonBuffer[256];
@@ -819,10 +828,9 @@ int CalcDirectionFrontServoFromSpeeds() {
   if (autoMovementWantedDirLeftWheelIsForward != autoMovementWantedDirRightWheelIsForward) {
     return FULLTURNISTHISDEGREE;
   } else {
-    return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 25;
+    return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 50;
   }
 }
-
 void autoMovement() {
   ResetEncoderValues();
   speedTimer = millis();
@@ -832,37 +840,85 @@ void autoMovement() {
   lastRight = 0;
   PWMLeftCoefficient = 1;
   PWMRightCoefficient = 1;
-  bool thereWasAJumpInDir = true;
-
-  startingServoPosReached = false;
+  bool servoRequestWasPublished = false;
+  bool wasTurning = false;
+  bool canMove = false;
+  if (CalcDirectionFrontServoFromSpeeds() > 140) {
+    wasTurning = true;
+  }
+  startingServoPosReached = true;
   AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+  alreadySendDirSignal = false;
+  float lastLeftVelo = leftVelo;
+  float lastRightVelo = rightVelo;
+  unsigned long lastTimeThereWasChange = millis();
 
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    GetUltrasoundData(MagneticSensorReading(), true, false, false);
+    //GetUltrasoundData(MagneticSensorReading(), true, true, false);
 
-    if (startingServoPosReached && autoMovementWantedDirLeftWheelIsForward != movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
-      if (millis() - speedTimer >= millisecToRecordTicksInterval) {  
-        if (5 <= timeIntervalIndexCounter) {
-          timeIntervalIndexCounter = 0;
-        }
-        UpdateTicksRight();
-        UpdateTicksLeft();
-        timeIntervalIndexCounter++;
-        speedTimer = millis();
+
+    if (!alreadySendDirSignal && leftVelo > 0 && rightVelo > 0) {
+      alreadySendDirSignal = true;
+      setPWMRight(0);
+      setPWMLeft(0);
+      SendDirSignal(false, LEFTDIRWHEEL);
+      SendDirSignal(true, RIGHTDIRWHEEL);
+      lastLeftVelo = leftVelo;
+      lastRightVelo = rightVelo;
+      PWMLeftCoefficient = 1;
+      PWMRightCoefficient = 1;
+      justForwardDirVar = -1;
+    } else if (!alreadySendDirSignal && leftVelo < 0 && rightVelo > 0) {
+      alreadySendDirSignal = true;
+      setPWMRight(0);
+      setPWMLeft(0);
+      SendDirSignal(false, LEFTDIRWHEEL);
+      SendDirSignal(false, RIGHTDIRWHEEL);
+      lastLeftVelo = leftVelo;
+      lastRightVelo = rightVelo;
+      PWMLeftCoefficient = 1;
+      PWMRightCoefficient = 1;
+      justForwardDirVar = 1;
+    } else if (!alreadySendDirSignal && leftVelo > 0 && rightVelo < 0) {
+      alreadySendDirSignal = true;
+      setPWMRight(0);
+      setPWMLeft(0);
+      SendDirSignal(true, LEFTDIRWHEEL);
+      SendDirSignal(true, RIGHTDIRWHEEL);
+      lastLeftVelo = leftVelo;
+      lastRightVelo = rightVelo;
+      PWMLeftCoefficient = 1;
+      PWMRightCoefficient = 1;
+      justForwardDirVar = 1;
+    }
+
+    if ((lastLeftVelo > 0 && leftVelo < 0) || (lastLeftVelo < 0 && leftVelo > 0) || (lastRightVelo > 0 && rightVelo < 0) || (lastRightVelo < 0 && rightVelo > 0)) {
+      alreadySendDirSignal = false;
+    }
+
+    if (millis() - speedTimer >= millisecToRecordTicksInterval) {
+      if (5 <= timeIntervalIndexCounter) {
+        timeIntervalIndexCounter = 0;
       }
-      if (CalcDirectionFrontServoFromSpeeds() > 130) {
-        startingServoPosReached = false;
-        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
-      } else {
-        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
-      }
-      if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {  // Minimum time between pwm changes
+      UpdateTicksRight();
+      UpdateTicksLeft();
+      timeIntervalIndexCounter++;
+      GetUltrasoundData(MagneticSensorReading(), true, true, false);
+      speedTimer = millis();
+    }
 
-        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.025, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(rightVelocity, 0.025, GetCurrentSpeedRight());  // IMPORTANT the signs will likely be reversed so if it refuses to go try reversing them aka PID returns - when it should be +
+    if (autoMovementWantedDirLeftWheelIsForward == !movingDirectionLeft && autoMovementWantedDirRightWheelIsForward == movingDirectionRight) {
+      canMove = true;
+    }
 
+    if (startingServoPosReached && canMove && millis() - lastTimeThereWasChange > 500) {
+      lastTimeThereWasChange = millis();
+      if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
+        servoRequestWasPublished = false;
+        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
@@ -879,22 +935,89 @@ void autoMovement() {
           setPWMRight(0.1 * PWMRightCoefficient);
           setPWMLeft(0.1 * PWMLeftCoefficient);
         }
-        speedAdjustTimer = millis();
-      }
-    }else {
-      setPWMRight(0);
-      setPWMLeft(0);
-      if (millis() - speedAdjustTimer >= 500) {
-        SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
-        SendDirSignal(!autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
+
         speedAdjustTimer = millis();
       }
     }
+    /* if (gotResponseRight && gotResponseLeft) {
+      alreadySendDirSignal = false;
+    }
 
+
+    if (autoMovementWantedDirLeftWheelIsForward && autoMovementWantedDirRightWheelIsForward) {
+      if (!autoMovementWantedDirLeftWheelIsForward == movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
+        canMove = true;
+        justForwardDirVar = -1;
+      } else {
+        canMove = false;
+        if (!alreadySendDirSignal) {
+          setPWMRight(0);
+          setPWMLeft(0);
+          alreadySendDirSignal = true;
+          gotResponseRight = false;
+          gotResponseLeft = false;
+          SendDirSignal(!autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
+          SendDirSignal(autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
+        }
+      }
+    } else if (autoMovementWantedDirLeftWheelIsForward || autoMovementWantedDirRightWheelIsForward) {
+      if (autoMovementWantedDirLeftWheelIsForward == movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
+        canMove = true;
+        justForwardDirVar = 1;
+      } else {
+        canMove = false;
+        if (!alreadySendDirSignal) {
+          setPWMRight(0);
+          setPWMLeft(0);
+          alreadySendDirSignal = true;
+          gotResponseRight = false;
+          gotResponseLeft = false;
+          SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
+          SendDirSignal(autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
+        }
+      }
+    }
+
+    if (startingServoPosReached && canMove) {
+
+      if (CalcDirectionFrontServoFromSpeeds() > 130 && !wasTurning) {
+        wasTurning = true;
+        if (!servoRequestWasPublished) {
+          startingServoPosReached = false;
+          AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+          servoRequestWasPublished = true;
+        }
+      } else if (CalcDirectionFrontServoFromSpeeds() < 140) {
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
+        wasTurning = false;
+      }
+      if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
+        servoRequestWasPublished = false;
+        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
+        if (fabs(changeLEft) > 0.0001) {
+          if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
+            PWMLeftCoefficient += changeLEft;
+          }
+        }
+        if (fabs(changeRight) > 0.0001) {
+          if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
+            PWMRightCoefficient += changeRight;
+          }
+        }
+        if (millis() - previousTimeThereWasAnObstacle <= 250) {
+          StopMovement();
+        } else {
+          setPWMRight(0.1 * PWMRightCoefficient);
+          setPWMLeft(0.1 * PWMLeftCoefficient);
+        }
+
+        speedAdjustTimer = millis();
+      }
+    }*/
   }
   StopMovement();
 }
-
 void publishJsonDataForMap(double direction, double leftDistance, double rightDistance, double left, double mid, double right, double hand, bool useDataForMap) {
   StaticJsonDocument<300> jsonDoc;
   jsonDoc["direction"] = direction;
@@ -960,28 +1083,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
     ManualMovement(signal);
   }
   if (jsonDoc.containsKey("leftVelocity")) {
-    double leftVelo = jsonDoc["leftVelocity"];
-    double rightVelo = jsonDoc["rightVelocity"];
+    leftVelo = jsonDoc["leftVelocity"];
+    rightVelo = jsonDoc["rightVelocity"];
     int isFirstInstance = jsonDoc["firstInstance"];
 
-    Serial.print(leftVelo);
-    Serial.print("|");
-    Serial.print(rightVelo);
-    Serial.print("|");
-    Serial.println(isFirstInstance);
-
-    if (leftVelo < 0) {
-      autoMovementWantedDirLeftWheelIsForward = false;
-    } else {
-      autoMovementWantedDirLeftWheelIsForward = true;
-    }
-    if (rightVelo < 0) {
+    if (leftVelo < 0) {   // I know this is swapped but it may be needed
       autoMovementWantedDirRightWheelIsForward = false;
     } else {
       autoMovementWantedDirRightWheelIsForward = true;
     }
+    if (rightVelo < 0) {
+      autoMovementWantedDirLeftWheelIsForward = false;
+    } else {
+      autoMovementWantedDirLeftWheelIsForward = true;
+    }
     leftVelocity = fabs(leftVelo);
     rightVelocity = fabs(rightVelo);
+    //SendThisDataToCalibForTest(leftVelocity, rightVelocity, 0);
     if (isFirstInstance == 1) {
       autoMovement();
     }
@@ -990,18 +1108,40 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (jsonDoc.containsKey("wantedDirLeftReached")) {
     String tempAnswer = jsonDoc["wantedDirLeftReached"];
     if (tempAnswer == "true") {
+      if (movingDirectionLeft == false) {
+        leftEncoderCounter = 0;
+        lastLeftEncoderCounterUsedToCalculate = 0;
+        lastLeft = 0;
+      }
       movingDirectionLeft = true;
     } else {
+      if (movingDirectionLeft == true) {
+        leftEncoderCounter = 0;
+        lastLeftEncoderCounterUsedToCalculate = 0;
+        lastLeft = 0;
+      }
       movingDirectionLeft = false;
     }
+    gotResponseLeft = true;
   }
   if (jsonDoc.containsKey("wantedDirRightReached")) {
     String tempAnswer = jsonDoc["wantedDirRightReached"];
     if (tempAnswer == "true") {
+      if (movingDirectionRight == false) {
+        rightEncoderCounter = 0;
+        lastRightEncoderCounterUsedToCalculate = 0;
+        lastRight = 0;
+      }
       movingDirectionRight = true;
     } else {
+      if (movingDirectionRight == true) {
+        rightEncoderCounter = 0;
+        lastRightEncoderCounterUsedToCalculate = 0;
+        lastRight = 0;
+      }
       movingDirectionRight = false;
     }
+    gotResponseRight = true;
   }
   if (jsonDoc.containsKey("wantedPosReached")) {
     String tempAnswer = jsonDoc["wantedPosReached"];
@@ -1050,18 +1190,13 @@ void loop() {
   client.loop();
   delay(5);
   GetUltrasoundData(MagneticSensorReading(), true, true, false);
-  /*setPWMRight(0);
-  setPWMLeft(0);
-  delay(1000);
-  SendDirSignal(true, LEFTDIRWHEEL);
-  delay(1500);
-  setPWMLeft(0.3);
-  delay(2500);
-  setPWMRight(0);
-  setPWMLeft(0);
-  delay(1000);
-  SendDirSignal(false, LEFTDIRWHEEL);
-  delay(1500);
-  setPWMLeft(0.3);
-  delay(2500);*/
+  if (millis() - speedTimer >= millisecToRecordTicksInterval) {
+    if (5 <= timeIntervalIndexCounter) {
+      timeIntervalIndexCounter = 0;
+    }
+    UpdateTicksRight();
+    UpdateTicksLeft();
+    timeIntervalIndexCounter++;
+    speedTimer = millis();
+  }
 }

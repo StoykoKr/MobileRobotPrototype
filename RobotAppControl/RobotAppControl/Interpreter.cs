@@ -555,8 +555,26 @@ namespace RobotAppControl
                 formControl.MonteLocalization.Resample(false, 0);
                 await formControl.MonteLocalization.StartTasksToUpdateWeights(
                        [midValue, leftValue, rightValue], 75);
-            }
-            var currentEstimate = formControl.MonteLocalization.EstimatePosition();
+             }
+
+            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+            //          [midValue, leftValue, rightValue], 75);
+            //formControl.MonteLocalization.Resample(false, 0);
+            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+            //       [midValue, leftValue, rightValue], 75);
+
+
+            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+            //          [midValue, leftValue, rightValue], 75);
+            //formControl.MonteLocalization.Resample(false, 0);
+            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+            //       [midValue, leftValue, rightValue], 75);
+
+
+
+
+
+            var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
 
             //formControl.estimatedPos = formControl.MonteLocalization.EstimatePosition();
             formControl.newInfoForAutoMovement_FLAG = true;
@@ -621,8 +639,6 @@ namespace RobotAppControl
                             }
                             else if (entry.key == "MCL")
                             {
-
-
                                 UpdateMCL((JsonMessageClass)entry.value);
 
                                 counter++;
