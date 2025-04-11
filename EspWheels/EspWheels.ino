@@ -127,7 +127,7 @@ volatile bool gotResponseLeft = false;
 volatile bool gotResponseRight = false;
 volatile float leftVelo = 0;
 volatile float rightVelo = 0;
-
+volatile bool servoRequestWasPublished = false;
 
 
 #define MIDISTHISDEGREE 65
@@ -840,7 +840,6 @@ void autoMovement() {
   lastRight = 0;
   PWMLeftCoefficient = 1;
   PWMRightCoefficient = 1;
-  bool servoRequestWasPublished = false;
   bool wasTurning = false;
   bool canMove = false;
   if (CalcDirectionFrontServoFromSpeeds() > 140) {
@@ -852,11 +851,11 @@ void autoMovement() {
   float lastLeftVelo = leftVelo;
   float lastRightVelo = rightVelo;
   unsigned long lastTimeThereWasChange = millis();
+  unsigned long lastTimeFrontWasMovedForForward = millis();
 
   while (client.connected() && !stopSignal) {
     CheckWiFiConnection();
     client.loop();
-    //GetUltrasoundData(MagneticSensorReading(), true, true, false);
 
 
     if (!alreadySendDirSignal && leftVelo > 0 && rightVelo > 0) {
@@ -913,10 +912,34 @@ void autoMovement() {
       canMove = true;
     }
 
+    if (CalcDirectionFrontServoFromSpeeds() > 130) {
+      wasTurning = true;
+      if (!servoRequestWasPublished) {
+        StopMovement();
+        startingServoPosReached = false;
+        servoRequestWasPublished = true;
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+      }
+    } else if (CalcDirectionFrontServoFromSpeeds() < 130 && wasTurning) {
+      wasTurning = false;
+      if (!servoRequestWasPublished) {
+        StopMovement();
+        startingServoPosReached = false;
+        servoRequestWasPublished = true;
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
+      }
+    } else if (CalcDirectionFrontServoFromSpeeds() < 130 && !wasTurning) {
+      wasTurning = false;
+      if (millis() - lastTimeFrontWasMovedForForward > 330) {
+        lastTimeFrontWasMovedForForward = millis();
+        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
+      }
+    }
+
     if (startingServoPosReached && canMove && millis() - lastTimeThereWasChange > 500) {
+      servoRequestWasPublished = false;
       lastTimeThereWasChange = millis();
       if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
-        servoRequestWasPublished = false;
         double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
         double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
         if (fabs(changeLEft) > 0.0001) {
@@ -939,82 +962,6 @@ void autoMovement() {
         speedAdjustTimer = millis();
       }
     }
-    /* if (gotResponseRight && gotResponseLeft) {
-      alreadySendDirSignal = false;
-    }
-
-
-    if (autoMovementWantedDirLeftWheelIsForward && autoMovementWantedDirRightWheelIsForward) {
-      if (!autoMovementWantedDirLeftWheelIsForward == movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
-        canMove = true;
-        justForwardDirVar = -1;
-      } else {
-        canMove = false;
-        if (!alreadySendDirSignal) {
-          setPWMRight(0);
-          setPWMLeft(0);
-          alreadySendDirSignal = true;
-          gotResponseRight = false;
-          gotResponseLeft = false;
-          SendDirSignal(!autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
-          SendDirSignal(autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
-        }
-      }
-    } else if (autoMovementWantedDirLeftWheelIsForward || autoMovementWantedDirRightWheelIsForward) {
-      if (autoMovementWantedDirLeftWheelIsForward == movingDirectionLeft && movingDirectionRight == autoMovementWantedDirRightWheelIsForward) {
-        canMove = true;
-        justForwardDirVar = 1;
-      } else {
-        canMove = false;
-        if (!alreadySendDirSignal) {
-          setPWMRight(0);
-          setPWMLeft(0);
-          alreadySendDirSignal = true;
-          gotResponseRight = false;
-          gotResponseLeft = false;
-          SendDirSignal(autoMovementWantedDirLeftWheelIsForward, LEFTDIRWHEEL);
-          SendDirSignal(autoMovementWantedDirRightWheelIsForward, RIGHTDIRWHEEL);
-        }
-      }
-    }
-
-    if (startingServoPosReached && canMove) {
-
-      if (CalcDirectionFrontServoFromSpeeds() > 130 && !wasTurning) {
-        wasTurning = true;
-        if (!servoRequestWasPublished) {
-          startingServoPosReached = false;
-          AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
-          servoRequestWasPublished = true;
-        }
-      } else if (CalcDirectionFrontServoFromSpeeds() < 140) {
-        AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
-        wasTurning = false;
-      }
-      if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
-        servoRequestWasPublished = false;
-        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
-        if (fabs(changeLEft) > 0.0001) {
-          if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
-            PWMLeftCoefficient += changeLEft;
-          }
-        }
-        if (fabs(changeRight) > 0.0001) {
-          if (PWMRightCoefficient + changeRight < 9 && PWMRightCoefficient + changeRight > 0.1) {
-            PWMRightCoefficient += changeRight;
-          }
-        }
-        if (millis() - previousTimeThereWasAnObstacle <= 250) {
-          StopMovement();
-        } else {
-          setPWMRight(0.1 * PWMRightCoefficient);
-          setPWMLeft(0.1 * PWMLeftCoefficient);
-        }
-
-        speedAdjustTimer = millis();
-      }
-    }*/
   }
   StopMovement();
 }
@@ -1087,7 +1034,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     rightVelo = jsonDoc["rightVelocity"];
     int isFirstInstance = jsonDoc["firstInstance"];
 
-    if (leftVelo < 0) {   // I know this is swapped but it may be needed
+    if (leftVelo < 0) {  // I know this is swapped but it may be needed
       autoMovementWantedDirRightWheelIsForward = false;
     } else {
       autoMovementWantedDirRightWheelIsForward = true;
@@ -1147,6 +1094,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     String tempAnswer = jsonDoc["wantedPosReached"];
     if (tempAnswer == "true") {
       startingServoPosReached = true;
+
     } else {
       startingServoPosReached = false;
     }

@@ -514,103 +514,118 @@ namespace RobotAppControl
             double dR = whatWeKnow.rightMovement * 0.1;  // Right wheel movement
             double dL = whatWeKnow.leftMovement * 0.1;   // Left wheel movement
 
-            double d = (dL + dR) / 2.0;  // Linear displacement
-            currentRotation = whatWeKnow.direction;
-
-            double tempValueToCalcNewRotation = 0;
-
-            tempValueToCalcNewRotation = 360 - currentRotation;  // ADD SOMETHING LIKE THIS TO MCL
-
-            currentRotation = tempValueToCalcNewRotation;
-
-            midValue = kalmanMid.Output(whatWeKnow.midSensor); // This should be changed for real data I think. By this I mean the whole method
-            if (Math.Abs(midValue - midValuePrevious) < 5)
+            if (true)//dR != 0 || dL != 0)
             {
-                midIsRelevant = true;
+
+
+                double d = (dL + dR) / 2.0;  // Linear displacement
+                currentRotation = whatWeKnow.direction;
+
+                double tempValueToCalcNewRotation = 0;
+
+                tempValueToCalcNewRotation = 360 - currentRotation;  // ADD SOMETHING LIKE THIS TO MCL
+
+                currentRotation = tempValueToCalcNewRotation;
+
+
+                if (whatWeKnow.midSensor < 310)
+                {
+                    midValue = kalmanMid.Output(whatWeKnow.midSensor); // This should be changed for real data I think. By this I mean the whole method
+                    if (Math.Abs(midValue - midValuePrevious) < 5)
+                    {
+                        midIsRelevant = true;
+                    }
+                    midValuePrevious = midValue;
+                }
+
+                if (whatWeKnow.leftSensor < 310)
+                {
+                    leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
+                    if (Math.Abs(leftValue - leftValuePrevious) < 5)
+                    {
+                        leftIsRelevant = true;
+                    }
+
+                    leftValuePrevious = leftValue;
+                }
+                if (whatWeKnow.rightSensor < 310)
+                {
+
+                    rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
+                    if (Math.Abs(rightValue - rightValuePrevious) < 5)
+                    {
+                        rightIsRelevant = true;
+                    }
+                    rightValuePrevious = rightValue;
+                }
+
+                await formControl.MonteLocalization.StartTasksToMoveParticles((float)d, (float)currentRotation);
+
+
+                if (midIsRelevant || leftIsRelevant || rightIsRelevant)
+                {
+                    await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                           [midValue, leftValue, rightValue], 75);
+                    formControl.MonteLocalization.Resample(false, 0);
+                    await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                           [midValue, leftValue, rightValue], 75);
+                }
+
+                //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                //          [midValue, leftValue, rightValue], 75);
+                //formControl.MonteLocalization.Resample(false, 0);
+                //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                //       [midValue, leftValue, rightValue], 75);
+
+
+                //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                //          [midValue, leftValue, rightValue], 75);
+                //formControl.MonteLocalization.Resample(false, 0);
+                //await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                //       [midValue, leftValue, rightValue], 75);
+
+
+
+
+
+                var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
+
+                //formControl.estimatedPos = formControl.MonteLocalization.EstimatePosition();
+                formControl.newInfoForAutoMovement_FLAG = true;
+
+                double tempTheta = 0;
+                if (currentEstimate.Theta > 0)
+                {
+                    tempTheta = currentEstimate.Theta;
+                }
+                else
+                {
+                    tempTheta = 360 + currentEstimate.Theta;
+                }
+
+                try
+                {
+                    //double shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
+                    //double shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
+                    //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Blue);
+
+                    //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
+                    //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
+                    //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
+
+                    //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
+                    //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
+                    //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
+                    // formControl.DrawParticles();
+                    bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
+
+                }
+                catch (Exception)
+                {
+                    throw;
+                }
+
             }
-            midValuePrevious = midValue;
-
-            leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
-            if (Math.Abs(leftValue - leftValuePrevious) < 5)
-            {
-                leftIsRelevant = true;
-            }
-
-            leftValuePrevious = leftValue;
-
-            rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
-            if (Math.Abs(rightValue - rightValuePrevious) < 5)
-            {
-                rightIsRelevant = true;
-            }
-            rightValuePrevious = rightValue;
-
-            await formControl.MonteLocalization.StartTasksToMoveParticles((float)d, (float)currentRotation);
-
-
-            if (midIsRelevant && leftIsRelevant && rightIsRelevant)
-            {
-                await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                       [midValue, leftValue, rightValue], 75);
-                formControl.MonteLocalization.Resample(false, 0);
-                await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                       [midValue, leftValue, rightValue], 75);
-             }
-
-            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
-            //          [midValue, leftValue, rightValue], 75);
-            //formControl.MonteLocalization.Resample(false, 0);
-            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
-            //       [midValue, leftValue, rightValue], 75);
-
-
-            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
-            //          [midValue, leftValue, rightValue], 75);
-            //formControl.MonteLocalization.Resample(false, 0);
-            //await formControl.MonteLocalization.StartTasksToUpdateWeights(
-            //       [midValue, leftValue, rightValue], 75);
-
-
-
-
-
-            var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
-
-            //formControl.estimatedPos = formControl.MonteLocalization.EstimatePosition();
-            formControl.newInfoForAutoMovement_FLAG = true;
-            
-            double tempTheta = 0;
-            if (currentEstimate.Theta > 0)
-            {
-                tempTheta = currentEstimate.Theta;
-            }
-            else
-            {
-                tempTheta = 360 + currentEstimate.Theta;
-            }
-
-            try
-            {
-                //double shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
-                //double shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
-                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Blue);
-
-                //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
-                //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
-                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
-
-                //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
-                //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
-                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
-
-                bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
-
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-           
         }
         public void StartInterpreting()
         {

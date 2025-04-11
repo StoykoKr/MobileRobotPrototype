@@ -40,7 +40,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\Interpreter.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Interpreter.cs",
               "RelativeToolTip": "RobotAppControl\\Interpreter.cs",
-              "ViewState": "AQIAACsCAAAAAAAAAAASwD0CAAAAAAAA",
+              "ViewState": "AQIAAEACAAAAAAAAAAAqwJACAAAgAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-17T09:56:06.956Z"
             },
@@ -52,7 +52,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\MonteCarloLocal.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\MonteCarloLocal.cs",
               "RelativeToolTip": "RobotAppControl\\MonteCarloLocal.cs",
-              "ViewState": "AQIAADkBAAAAAAAAAAAowGMBAAAAAAAA",
+              "ViewState": "AQIAAAsCAAAAAAAAAAAEwEoCAAAQAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-14T15:38:00.285Z"
             },
@@ -64,7 +64,7 @@
               "RelativeDocumentMoniker": "RobotAppControl\\Form1.cs",
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs",
               "RelativeToolTip": "RobotAppControl\\Form1.cs",
-              "ViewState": "AQIAAJ0GAAAAAAAAAAAAAKoGAAAiAAAA",
+              "ViewState": "AQIAADUAAAAAAAAAAAAQwEwAAABsAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-03-12T13:08:21.607Z",
               "EditorCaption": ""
@@ -78,7 +78,8 @@
               "ToolTip": "D:\\MobileRobot\\MobileRobotPrototype\\RobotAppControl\\RobotAppControl\\Form1.cs [Design]",
               "RelativeToolTip": "RobotAppControl\\Form1.cs [Design]",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-03-12T13:08:16.724Z"
+              "WhenOpened": "2025-03-12T13:08:16.724Z",
+              "EditorCaption": " [Design]"
             }
           ]
         }

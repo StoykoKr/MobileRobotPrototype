@@ -131,21 +131,20 @@ namespace RobotAppControl
             }
             await Task.WhenAll(tasks);
         }
-
-
         public void UpdateWeights(double[] observedData, double sigma, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
         {
             double total = 0;
             for (int i = startingIndex; i <= finalIndex; i++)
             {
                 double likelihood = CalculateLikelihood(Particles[i], observedData,sigma);
-                if (likelihood <= 0) {
+                if (likelihood <= 0)
+                {
                     likelihood = double.Epsilon;
-                        }
+                }
                 if( double.IsNaN(likelihood) || likelihood < 1e-12) { // just a small value 
                     likelihood = 1e-12;              
                 }
-                Particles[i].Weight = Math.Max(Particles[i].Weight * likelihood, double.Epsilon);
+                Particles[i].Weight = likelihood;//Math.Max(Particles[i].Weight * likelihood, double.Epsilon);
                 total += Particles[i].Weight;
             }
             if (total == 0)
@@ -154,7 +153,6 @@ namespace RobotAppControl
             }
             doubles.Enqueue(total);
         }
-
         public async Task StartTasksToUpdateWeights(double[] observedData, double sigma)
         {
             ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
@@ -195,32 +193,90 @@ namespace RobotAppControl
             {
             lastEstimatedPos = EstimatePosition();
             }
+           
             totalWeightPublic = totalWeight;
 
         }
-        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.25)
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.17)
         {
-            return Math.Max(baseFactor * expectedValue, 10); 
+            return Math.Max(baseFactor * expectedValue, 5); 
         }
         public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
         {
-            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap); 
-            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap); 
+            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap);
+            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap);
             double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
+
+            //double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, 0, (0, 0), MapMap);
+            //double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, 0, (0, 0), MapMap);
+            //double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetRight, 0, (0, 0), MapMap);
 
 
             double frontDiff = observedData[0] - predictedFront;
             double leftDiff = observedData[1] - predictedLeft;
             double rightDiff = observedData[2] - predictedRight;
+            /*
 
-            double frontLikelihood = GaussianProbability(frontDiff, GetDynamicSigma(predictedFront));  //experiment with dynamic sigma
-            double leftLikelihood = GaussianProbability(leftDiff, GetDynamicSigma(predictedLeft));
-            double rightLikelihood = GaussianProbability(rightDiff, GetDynamicSigma(predictedRight));
+            double frontSigma = GetDynamicSigma(predictedFront);
+            double leftSigma = GetDynamicSigma(predictedLeft);
+            double rightSigma = GetDynamicSigma(predictedRight);
 
-            // return frontLikelihood * leftLikelihood * rightLikelihood;
-            return Math.Exp(Math.Log(frontLikelihood) + Math.Log(leftLikelihood) + Math.Log(rightLikelihood));
+            double frontLikelihood = GaussianProbability(frontDiff, frontSigma);
+            double leftLikelihood = GaussianProbability(leftDiff, leftSigma);
+            double rightLikelihood = GaussianProbability(rightDiff, rightSigma);
+
+
+            double likelihood = frontLikelihood * leftLikelihood * rightLikelihood;
+            return likelihood / maxLikelihood;
+            */
+
+
+
+            double threshold = 320;
+            double minProbability = 1e-5;
+
+            double totalLogLikelihood = 0;
+
+            (double predicted, double actual)[] sensors = {
+        (predictedFront, observedData[0]),
+        (predictedLeft, observedData[1]),
+        (predictedRight, observedData[2])
+            };
+
+            foreach (var (predicted, actual) in sensors)
+            {
+                if (predicted > threshold && actual > threshold)
+                {
+                    // Ignore this sensor
+                    continue;
+                }
+                else if (predicted > threshold || actual > threshold)
+                {
+                    // One is above threshold → very unlikely
+                    totalLogLikelihood += Math.Log(minProbability);
+                }
+                else
+                {
+                    double diff = actual - predicted;
+                    double sigmaaa = GetDynamicSigma(diff);
+                    double likelihood = GaussianProbability(diff, sigmaaa);
+                    totalLogLikelihood += Math.Log(likelihood);
+                }
+            }
+            double frontSigma = GetDynamicSigma(frontDiff);//predictedFront);
+            double leftSigma = GetDynamicSigma(leftDiff);
+            double rightSigma = GetDynamicSigma(rightDiff);
+
+            double maxLikelihood = GaussianProbability(0, frontSigma)
+                    * GaussianProbability(0, leftSigma)
+                    * GaussianProbability(0, rightSigma);
+
+
+            return Math.Exp(totalLogLikelihood)/maxLikelihood;
+
+
+
         }
-       
         public double GaussianProbability(double difference, double sigma)
         {
             double exponent = -Math.Pow(difference, 2) / (2 * Math.Pow(sigma, 2));
@@ -229,7 +285,6 @@ namespace RobotAppControl
 
             return Math.Max(probability, 1e-10); // Prevent underflow
         }
-
         public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt,double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
         {
 
@@ -245,11 +300,10 @@ namespace RobotAppControl
             double shiftedX = x + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Cos((theta + startingPointDegreeOffsets) * Math.PI / 180));
             double shiftedY = y + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Sin((theta + startingPointDegreeOffsets) * Math.PI / 180));
 
-            return RaycastCone(shiftedX,shiftedY, angl,330,GlobalConstants.SensorDispersion,map);
-          //  return Raycast(x, y, angl, 300, map);
+           // return RaycastCone(shiftedX,shiftedY, angl,330,GlobalConstants.SensorDispersion,map);
+            return Raycast(shiftedX, shiftedY, angl, 335, map);
 
         }
-
         public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)
         {
             double stepSize = 1.5;
@@ -286,7 +340,6 @@ namespace RobotAppControl
             }
             return maxRange;
         }
-
         public void Resample(bool forceTheta, double thetaToBeForced)
         {
             List<Particle> newParticles = new List<Particle>();
@@ -301,49 +354,114 @@ namespace RobotAppControl
             }
             else
             {
-
                 var snapshot = Particles.ToList();
-                snapshot.Sort((x, y) =>
-                {
-                    if (double.IsNaN(x.Weight)) return 1;
-                    if (double.IsNaN(y.Weight)) return -1;
-                    return y.Weight.CompareTo(x.Weight);
-                });
+                //snapshot.Sort((x, y) =>
+                //{
+                //    bool xNaN = double.IsNaN(x.Weight);
+                //    bool yNaN = double.IsNaN(y.Weight);
 
-                if (snapshot.Count > 0)
-                    cumulativeWeights[0] = snapshot[0].Weight;
+                //    if (xNaN && yNaN) return 0;
+                //    if (xNaN) return 1;
+                //    if (yNaN) return -1;
 
-                for (int i = 1; i < snapshot.Count; i++)
-                {
-                    cumulativeWeights[i] = cumulativeWeights[i - 1] + snapshot[i].Weight;
-                }
+                //    double diff = y.Weight - x.Weight;
+                //    if (Math.Abs(diff) < TOLERANCE) return 0;
+                //    return diff < 0 ? 1 : -1;
 
-                int quarter = snapshot.Count / 4;
-                double randomValue = 0;
+                //});
+
+                //if (snapshot.Count > 0)
+                //{
+                //    cumulativeWeights[0] = snapshot[0].Weight;
+                //}
+
+                //for (int i = 1; i < snapshot.Count; i++)
+                //{
+                //    cumulativeWeights[i] = cumulativeWeights[i - 1] + snapshot[i].Weight;
+                //}
+
+                //int quarter = snapshot.Count / 4;
+                //double randomValue = 0;
+                //int index = 0;
+                //int passedThrough = 0;
+                //for (int i = 0; i < snapshot.Count; i++)
+                //{
+                //    randomValue = rand.NextDouble() * cumulativeWeights.Last();
+                //    index = Array.BinarySearch(cumulativeWeights, randomValue);
+                //    if (index < 0) index = ~index;
+
+                //    Particle resampledParticle = snapshot[index].Clone();
+
+
+
+                //    if (passedThrough < quarter)
+                //    {
+                //        weightScale = 0.1;
+                //    }
+                //    else if (passedThrough < quarter * 2)
+                //    {
+                //        weightScale = 0.75;
+                //    }
+                //    else if (passedThrough < quarter * 3)
+                //    {
+                //        weightScale = 1.5;
+                //    }
+                //    else
+                //    {
+                //        weightScale = 2.5;
+                //    }
+                //    passedThrough++;
+
+                //    resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
+                //    resampledParticle.Y += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
+                //    if (forceTheta)
+                //    {
+                //        resampledParticle.Theta = thetaToBeForced;
+
+                //    }
+                //    resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * (resampleNoiseFactor / 2) * weightScale;
+
+                //    newParticles.Add(resampledParticle);
+                //}
+
+                double weightSum = snapshot.Sum(p => p.Weight);
+                int numberToSample = snapshot.Count();
+                double step = weightSum / numberToSample;
+                double start = rand.NextDouble() * step;
+
+                double cumulative = 0.0;
                 int index = 0;
-                for (int i = 0; i < snapshot.Count; i++)
-                {
-                    randomValue = rand.NextDouble() * cumulativeWeights.Last();
-                    index = Array.BinarySearch(cumulativeWeights, randomValue);
-                    if (index < 0) index = ~index;
 
-                    Particle resampledParticle = snapshot[index].Clone();
-                    if (index < quarter)
+                for (int i = 0; i < numberToSample; i++)
+                {
+                    double threshold = start + i * step;
+
+                    while (cumulative < threshold && index < snapshot.Count)
                     {
-                        weightScale = 0.1;
+                        cumulative += snapshot[index].Weight;
+                        index++;
                     }
-                    else if (index < quarter * 2)
-                    {
-                        weightScale = 0.75;
-                    }
-                    else if (index < quarter * 3)
-                    {
-                        weightScale = 1.5;
-                    }
-                    else
-                    {
-                        weightScale = 2.5;
-                    }
+
+                    int selectedIndex = Math.Min(index - 1, snapshot.Count - 1);
+
+                    Particle resampledParticle = snapshot[selectedIndex].Clone();
+                   // double randVal = rand.NextDouble();
+                  //  if (randVal < 0.25)
+                  //  {
+                        weightScale = 0.22;
+                  //  }
+                  //  else if (randVal < 0.5)
+                 //   {
+                 //       weightScale = 0.75;
+                 //   }
+                //    else if (randVal < 0.75)
+                //    {
+                //        weightScale = 1.5;
+               //     }
+                //    else
+                //    {
+                //        weightScale = 2.5;
+                //    }
 
                     resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
                     resampledParticle.Y += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
@@ -356,13 +474,12 @@ namespace RobotAppControl
 
                     newParticles.Add(resampledParticle);
                 }
+
             }
-            Particles = newParticles; // Replace old particles with resampled set
+            Particles = newParticles; 
         }
 
-
         private const double TOLERANCE = 1e-5; // Adjust based on needed precision
-
         public (double X, double Y, double Theta) GetEstimatedPos()
         {
             lock (_estimatedPosLock)
@@ -376,45 +493,61 @@ namespace RobotAppControl
 
             lock (_particlesLock)
             {
-                snapshot = Particles.ToList(); 
+                snapshot = Particles.ToList();
             }
-            snapshot.Sort((x, y) =>
-            {
-                bool xNaN = double.IsNaN(x.Weight);
-                bool yNaN = double.IsNaN(y.Weight);
+            //snapshot.Sort((x, y) =>
+            //{
+            //    bool xNaN = double.IsNaN(x.Weight);
+            //    bool yNaN = double.IsNaN(y.Weight);
 
-                if (xNaN && yNaN) return 0;  
-                if (xNaN) return 1;         
-                if (yNaN) return -1;
+            //    if (xNaN && yNaN) return 0;  
+            //    if (xNaN) return 1;         
+            //    if (yNaN) return -1;
 
-                double diff = y.Weight - x.Weight;
-                if (Math.Abs(diff) < TOLERANCE) return 0; // Treat as equal
-                return diff > 0 ? 1 : -1;
+            //    double diff = y.Weight - x.Weight;
+            //    if (Math.Abs(diff) < TOLERANCE) return 0; // Treat as equal
+            //    return diff > 0 ? 1 : -1;
 
-            });
+            //});
+            double weightSum = snapshot.Sum(p => p.Weight);
+            int numberToSample = snapshot.Count()/3;
+            double step = weightSum / numberToSample;
+            double start = rand.NextDouble() * step;
 
-            int parCount = snapshot.Count / 2;
+            double cumulative = 0.0;
+            int index = 0;
+
             double x = 0.0, y = 0.0;
             double sumSin = 0.0, sumCos = 0.0;
-
-            for (int i = 0; i < parCount; i++)
+            for (int i = 0; i < numberToSample; i++)
             {
+                double threshold = start + i * step;
+
+                while (cumulative < threshold && index < snapshot.Count)
+                {
+                    cumulative += snapshot[index].Weight;
+                    index++;
+                }
+
+                int selectedIndex = Math.Min(index - 1, snapshot.Count - 1);
+
                 x += snapshot[i].X;
                 y += snapshot[i].Y;
 
                 sumCos += Math.Cos(snapshot[i].Theta * Math.PI / 180.0);
                 sumSin += Math.Sin(snapshot[i].Theta * Math.PI / 180.0);
-            }
 
-            double avgX = x / parCount;
-            double avgY = y / parCount;
+            } 
+       
 
 
+
+            double avgX = x / numberToSample;
+            double avgY = y / numberToSample;
             double avgTheta = Math.Atan2(sumSin, sumCos) * 180.0 / Math.PI;
 
             return (avgX, avgY, avgTheta);
         }
-
         private Particle ParticleMaker(Particle model, int xRange, int yRange, int thetaRange)
         {
             Random rand = new Random();
@@ -434,7 +567,7 @@ namespace RobotAppControl
         public static double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // WILL NOT work for the final thing but this will help with basic MCL testing
         {
 
-            double stepSize = 1.25;
+            double stepSize = 2;
             double distance = 0;
 
 
