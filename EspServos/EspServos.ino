@@ -175,8 +175,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 void AdjustFrontServoToPos() {
   while (!stoppedServos && WantedposFrontServo != posFrontServo) {
-    CheckConnections();
-    client.loop();
     if (posFrontServo >= WantedposFrontServo) {
       posFrontServo--;
       frontMovementServo.write(posFrontServo);

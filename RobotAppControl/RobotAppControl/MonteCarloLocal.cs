@@ -188,6 +188,8 @@ namespace RobotAppControl
             {
                 // Particles[i].Weight /= totalWeight;
                 Particles[i].Weight *= normalizationFactor;
+
+
             }
             lock (_estimatedPosLock)
             {
@@ -203,9 +205,36 @@ namespace RobotAppControl
         }
         public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
         {
-            double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap);
-            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap);
-            double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
+            double usedTheta = /*360 -*/particle.Theta// + 90;
+            if (usedTheta < 0)
+            {
+                usedTheta += 360;
+            }
+            if(usedTheta > 0)
+            {
+                usedTheta -= 360;
+            }
+
+            //double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap);
+            //double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap);
+            //double predictedRight = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
+
+
+            double predictedFront = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap);
+            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap);
+            double predictedRight = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
+
+
+
+
+
+
+
+
+
+
+
+
 
             //double predictedFront = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetMid, 0, (0, 0), MapMap);
             //double predictedLeft = GetPredictedDistance(particle.X, particle.Y, particle.Theta, GlobalConstants.DegreeOffsetLeft, 0, (0, 0), MapMap);
@@ -283,27 +312,49 @@ namespace RobotAppControl
             double coefficient = 1.0 / (sigma * Math.Sqrt(2 * Math.PI));
             double probability = coefficient * Math.Exp(exponent);
 
-            return Math.Max(probability, 1e-10); // Prevent underflow
+            return Math.Max(probability, 1e-10); 
         }
-        public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt,double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
+        //public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt,double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
+        //{
+
+        //    double angl = theta + sensorDirectionLookingAt;
+        //    if (angl < 0)
+        //    {
+        //        angl += 360;
+        //    }
+        //    if (angl > 360)
+        //    {
+        //        angl -= 360;
+        //    }
+        //    double shiftedX = x + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Cos((theta + startingPointDegreeOffsets) * Math.PI / 180));
+        //    double shiftedY = y + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Sin((theta + startingPointDegreeOffsets) * Math.PI / 180));
+
+        //    return Raycast(shiftedX, shiftedY, angl, 335, map);
+
+        //}
+        public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt, double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
         {
+            // 1. First, compute the rotated offset correctly
+            double headingRadians = theta * Math.PI / 180.0;
+
+            double offsetX = startingPointOffsets.Item1 * Math.Cos(headingRadians) - startingPointOffsets.Item2 * Math.Sin(headingRadians);
+            double offsetY = startingPointOffsets.Item1 * Math.Sin(headingRadians) + startingPointOffsets.Item2 * Math.Cos(headingRadians);
+
+            double shiftedX = x + offsetX;
+            double shiftedY = y + offsetY;
 
             double angl = theta + sensorDirectionLookingAt;
+
+            // Normalize angl to [0,360)
             if (angl < 0)
-            {
                 angl += 360;
-            }
-            if (angl > 360)
-            {
+            if (angl >= 360)
                 angl -= 360;
-            }
-            double shiftedX = x + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Cos((theta + startingPointDegreeOffsets) * Math.PI / 180));
-            double shiftedY = y + (int)Math.Round(Math.Sqrt(Math.Pow(startingPointOffsets.Item1, 2) + Math.Pow(startingPointOffsets.Item2, 2)) * Math.Sin((theta + startingPointDegreeOffsets) * Math.PI / 180));
 
-           // return RaycastCone(shiftedX,shiftedY, angl,330,GlobalConstants.SensorDispersion,map);
+            // 3. Perform the raycast starting from the corrected shifted point
             return Raycast(shiftedX, shiftedY, angl, 335, map);
-
         }
+
         public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)
         {
             double stepSize = 1.5;

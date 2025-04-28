@@ -25,7 +25,7 @@
 #define TICKS_PER_REV 45  //42
 #define MM_PER_TICK (((WHEEL_DIAM * PI) / TICKS_PER_REV))
 #define MM_TO_TICKS(A) ((double)(A)) / MM_PER_TICK
-#define millisecToRecordTicksInterval 200
+#define millisecToRecordTicksInterval 100
 
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
@@ -99,8 +99,8 @@ double PWMLeftCoefficient = 1;
 double PWMRightCoefficient = 1;
 unsigned long speedTimer = 0;
 unsigned long speedAdjustTimer = 0;
-int LastSecondTicksLeft[] = { 0, 0, 0, 0, 0 };
-int LastSecondTicksRight[] = { 0, 0, 0, 0, 0 };
+int LastSecondTicksLeft[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+int LastSecondTicksRight[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 int timeIntervalIndexCounter = 0;
 int rightthing = 0;
 long lastRight = 0;
@@ -132,30 +132,51 @@ volatile bool servoRequestWasPublished = false;
 
 #define MIDISTHISDEGREE 65
 #define FULLTURNISTHISDEGREE 167
-const double hard_iron[3] = {  // with magneto the values are new
-  -69.865552, 480.905599, -377.007678
+double used_hard_iron[3] = {  // with magneto the values are new
+  0, 0, 0
 };
 
-const double soft_iron[3][3] = {
-  { 1.468001, -0.043461, 0.074858 },
-  { -0.043461, 1.276501, 0.106481 },
-  { 0.074858, 0.106481, 1.927471 }
-};
-
-/* FIRST CONFIG
-const double hard_iron[3] = {  
-  86.871459, 291.309730, -243.015002
-};
-
-const double soft_iron[3][3] = {
-  { 1.335313, -0.050415, -0.051339 },
-  { -0.050415, 1.185457, 0.090977 },
-  { -0.051339, 0.090977, 1.769086 }
+double used_soft_iron[3][3] = {
+  { 0, 0, 0 },
+  { 0, 0, 0 },
+  { 0, 0, 0 }
 };
 
 
+const double forward_HardCalib[3] = {
+  450.645814,90.958456, -384.024894
+};
 
-*/
+const double forward_SoftCalib[3][3] = {
+  { 1.237346, -0.055574, 0.005999 },
+  { -0.055574, 1.135259, 0.059303 },
+  { 0.005999, 0.059303, 1.672839 }
+};
+
+const double left_HardCalib[3] = {
+  483.295379, -29.534362, -172.398481
+};
+
+const double left_SoftCalib[3][3] = {
+  { 1.716694, -0.040556, -0.038640 },
+  { -0.040556,1.713829, 0.047988 },
+  { -0.038640, 0.047988, 2.418407}
+};
+
+const double right_HardCalib[3] = {
+ 414.695782, 125.303879, -114.712749
+};
+
+const double right_SoftCalib[3][3] = {
+  {1.805899, -0.053353,-0.035820 },
+  {-0.053353, 1.775993, 0.021426 },
+  { -0.035820,0.021426, 2.528929}
+};
+
+
+
+
+
 
 void setup() {
   pinMode(signalOutputInterruptPinRight, INPUT);
@@ -493,15 +514,43 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
 }
 double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
+
+  // if (movingDirectionLeft == false && movingDirectionRight == true) {
+  //   used_hard_iron = forward_HardCalib;
+  //   used_soft_iron = forward_SoftCalib;
+  // } else if (movingDirectionLeft == false && movingDirectionRight == false) {
+  //   used_hard_iron = left_HardCalib;
+  //   used_soft_iron = left_SoftCalib;
+  // } else if (movingDirectionLeft == true && movingDirectionRight == true) {
+  //   used_hard_iron = right_HardCalib;
+  //   used_soft_iron = right_SoftCalib;
+  // }
+
+
   double hi_cal[3];
   double mag_data[] = { event.magnetic.x * 10 * 1.3,
                         event.magnetic.y * 10 * 1.3,
                         event.magnetic.z * 10 * 1.3 };
   for (uint8_t i = 0; i < 3; i++) {
-    hi_cal[i] = mag_data[i] - hard_iron[i];
+    // hi_cal[i] = mag_data[i] - used_hard_iron[i];
+
+    if (movingDirectionLeft == false && movingDirectionRight == true) {
+      hi_cal[i] = mag_data[i] - forward_HardCalib[i];
+    } else if (movingDirectionLeft == false && movingDirectionRight == false) {
+      hi_cal[i] = mag_data[i] - left_HardCalib[i];
+    } else if (movingDirectionLeft == true && movingDirectionRight == true) {
+      hi_cal[i] = mag_data[i] - right_HardCalib[i];
+    }
   }
   for (uint8_t i = 0; i < 3; i++) {
-    mag_data[i] = (soft_iron[i][0] * hi_cal[0]) + (soft_iron[i][1] * hi_cal[1]) + (soft_iron[i][2] * hi_cal[2]);
+    // mag_data[i] = (used_soft_iron[i][0] * hi_cal[0]) + (used_soft_iron[i][1] * hi_cal[1]) + (used_soft_iron[i][2] * hi_cal[2]);
+    if (movingDirectionLeft == false && movingDirectionRight == true) {
+      mag_data[i] = (forward_SoftCalib[i][0] * hi_cal[0]) + (forward_SoftCalib[i][1] * hi_cal[1]) + (forward_SoftCalib[i][2] * hi_cal[2]);
+    } else if (movingDirectionLeft == false && movingDirectionRight == false) {
+      mag_data[i] = (left_SoftCalib[i][0] * hi_cal[0]) + (left_SoftCalib[i][1] * hi_cal[1]) + (left_SoftCalib[i][2] * hi_cal[2]);
+    } else if (movingDirectionLeft == true && movingDirectionRight == true) {
+      mag_data[i] = (right_SoftCalib[i][0] * hi_cal[0]) + (right_SoftCalib[i][1] * hi_cal[1]) + (right_SoftCalib[i][2] * hi_cal[2]);
+    }
   }
   double heading = atan2(mag_data[0], mag_data[1]);
   if (heading < 0)
@@ -569,7 +618,7 @@ void justLeftRight(int direction) {
 
     GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (millis() - speedTimer >= millisecToRecordTicksInterval) {  // update the speed count o feach wheel every X seconds. In this case 200ms so the array of 5 records is the speed from last second
-      if (5 <= timeIntervalIndexCounter) {
+      if (10 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
       }
       UpdateTicksRight();
@@ -691,10 +740,10 @@ void UpdateTicksLeft() {
   LastSecondTicksLeft[timeIntervalIndexCounter] = leftthing;
 }
 double GetCurrentSpeedRight() {
-  return (LastSecondTicksRight[0] + LastSecondTicksRight[1] + LastSecondTicksRight[2] + LastSecondTicksRight[3] + LastSecondTicksRight[4]) * MM_PER_TICK * 0.0036;
+  return (LastSecondTicksRight[0] + LastSecondTicksRight[1] + LastSecondTicksRight[2] + LastSecondTicksRight[3] + LastSecondTicksRight[4] + LastSecondTicksRight[5] + LastSecondTicksRight[6] + LastSecondTicksRight[7] + LastSecondTicksRight[8] + LastSecondTicksRight[9]) * MM_PER_TICK * 0.0036;
 }
 double GetCurrentSpeedLeft() {
-  return (LastSecondTicksLeft[0] + LastSecondTicksLeft[1] + LastSecondTicksLeft[2] + LastSecondTicksLeft[3] + LastSecondTicksLeft[4]) * MM_PER_TICK * 0.0036;
+  return (LastSecondTicksLeft[0] + LastSecondTicksLeft[1] + LastSecondTicksLeft[2] + LastSecondTicksLeft[3] + LastSecondTicksLeft[4] + LastSecondTicksLeft[5] + LastSecondTicksLeft[6] + LastSecondTicksLeft[7] + LastSecondTicksLeft[8] + LastSecondTicksLeft[9]) * MM_PER_TICK * 0.0036;
 }
 void ResetKeepDir() {
   lastDegKeepDir = 0;
@@ -751,7 +800,7 @@ void justForward(bool dir) {
 
     GetUltrasoundData(MagneticSensorReading(), true, true, false);
     if (millis() - speedTimer >= millisecToRecordTicksInterval) {
-      if (5 <= timeIntervalIndexCounter) {
+      if (10 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
       }
       UpdateTicksRight();
@@ -782,7 +831,7 @@ void justForward(bool dir) {
         }
 
         double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
-        double headingCorrection = 0.1 * speedDifference;  // Adjust the weight of correction
+        double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
 
         PWMLeftCoefficient -= headingCorrection;
         PWMRightCoefficient += headingCorrection;
@@ -842,15 +891,14 @@ void autoMovement() {
   PWMRightCoefficient = 1;
   bool wasTurning = false;
   bool canMove = false;
-  if (CalcDirectionFrontServoFromSpeeds() > 140) {
+  if (CalcDirectionFrontServoFromSpeeds() > 130) {
     wasTurning = true;
   }
-  startingServoPosReached = true;
+  startingServoPosReached = false;
   AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), true);
   alreadySendDirSignal = false;
   float lastLeftVelo = leftVelo;
   float lastRightVelo = rightVelo;
-  unsigned long lastTimeThereWasChange = millis();
   unsigned long lastTimeFrontWasMovedForForward = millis();
 
   while (client.connected() && !stopSignal) {
@@ -898,21 +946,36 @@ void autoMovement() {
     }
 
     if (millis() - speedTimer >= millisecToRecordTicksInterval) {
-      if (5 <= timeIntervalIndexCounter) {
+      if (10 <= timeIntervalIndexCounter) {
         timeIntervalIndexCounter = 0;
       }
       UpdateTicksRight();
       UpdateTicksLeft();
       timeIntervalIndexCounter++;
       GetUltrasoundData(MagneticSensorReading(), true, true, false);
+      SendThisDataToCalibForTest(0, leftVelocity, GetCurrentSpeedLeft());
+      SendThisDataToCalibForTest(1, rightVelocity, GetCurrentSpeedRight());
+      SendThisDataToCalibForTest(2, PWMLeftCoefficient, PWMRightCoefficient);
+      int canMoveint = 0;
+      int reached = 0;
+      if (canMove) {
+        canMoveint = 1;
+      }
+      if (startingServoPosReached) {
+        reached = 1;
+      }
+      SendThisDataToCalibForTest(3, canMoveint, reached);
+      SendThisDataToCalibForTest(4, CalcDirectionFrontServoFromSpeeds(), 0);
       speedTimer = millis();
     }
 
     if (autoMovementWantedDirLeftWheelIsForward == !movingDirectionLeft && autoMovementWantedDirRightWheelIsForward == movingDirectionRight) {
       canMove = true;
+    } else {
+      canMove = false;
     }
 
-    if (CalcDirectionFrontServoFromSpeeds() > 130) {
+    if (CalcDirectionFrontServoFromSpeeds() > 130 && !wasTurning) {
       wasTurning = true;
       if (!servoRequestWasPublished) {
         StopMovement();
@@ -936,9 +999,8 @@ void autoMovement() {
       }
     }
 
-    if (startingServoPosReached && canMove && millis() - lastTimeThereWasChange > 500) {
-      servoRequestWasPublished = false;
-      lastTimeThereWasChange = millis();
+    if (startingServoPosReached && canMove) {
+      //servoRequestWasPublished = false;
       if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
         double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
         double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
@@ -1098,6 +1160,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else {
       startingServoPosReached = false;
     }
+    servoRequestWasPublished = false;
   }
 }
 void StopMovement() {  //викам го ако изгубя връзка или има сигнал за стоп
@@ -1139,7 +1202,7 @@ void loop() {
   delay(5);
   GetUltrasoundData(MagneticSensorReading(), true, true, false);
   if (millis() - speedTimer >= millisecToRecordTicksInterval) {
-    if (5 <= timeIntervalIndexCounter) {
+    if (10 <= timeIntervalIndexCounter) {
       timeIntervalIndexCounter = 0;
     }
     UpdateTicksRight();

@@ -8,20 +8,20 @@ namespace RobotAppControl
 {
     public static class GlobalConstants
     {
-        public static readonly double MidDegrees = Math.Atan2(14, 30) * (180.0 / Math.PI);  
-        public static readonly double LeftDegrees = Math.Atan2(-22, 8) * (180.0 / Math.PI);  
-        public static readonly double RightDegrees = Math.Atan2(25, 7) * (180.0 / Math.PI);
+        public static readonly double MidDegrees = Math.Atan2(-4, 33) * (180.0 / Math.PI);  
+        public static readonly double LeftDegrees = Math.Atan2(23, 26) * (180.0 / Math.PI);  
+        public static readonly double RightDegrees = Math.Atan2(-27, 25) * (180.0 / Math.PI);
 
         public static readonly double DegreeOffsetMid = 0;
-        public static readonly double DegreeOffsetLeft = -90;
-        public static readonly double DegreeOffsetRight = 90;
+        public static readonly double DegreeOffsetLeft = -60;
+        public static readonly double DegreeOffsetRight = 52;
 
 
-        public static readonly (double, double) MidSensorOffsets = (14,-30);
-        public static readonly (double, double) LeftSensorOffsets = (-22, -8);
-        public static readonly (double, double) RightSensorOffsets = (25, -7);
+        public static readonly (double, double) MidSensorOffsets = (-4,33);
+        public static readonly (double, double) LeftSensorOffsets = (23, 26);
+        public static readonly (double, double) RightSensorOffsets = (-27, 25);
 
-        public static readonly double SensorDispersion = 30; //assumed... how much the sensor wave thing expands
+        public static readonly double SensorDispersion = 25; 
 
 
     }
