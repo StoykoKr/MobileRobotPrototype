@@ -602,7 +602,7 @@ namespace RobotAppControl
 
         private void StartConvertingToOcccupancyThread()
         {
-            Task task = new Task(() => ConvertToOccMap(36, false));
+            Task task = new Task(() => ConvertToOccMap(35, false));
             task.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
@@ -1244,9 +1244,9 @@ namespace RobotAppControl
 
         private bool turning = false;
         private Queue<double> steeringAngleHistory = new Queue<double>();
-        private const int smoothingWindow = 4; // Adjust as needed
-        private const double turningThreshold = 0.65; // Base threshold
-        private const double hysteresisMargin = 0.2; // Extra margin to prevent flipping
+        private const int smoothingWindow = 3; // Adjust as needed
+        private const double turningThreshold = 0.45; // Base threshold
+        private const double hysteresisMargin = 0.1; // Extra margin to prevent flipping
 
         // Method to smooth the steering angle
         private double GetSmoothedSteeringAngle(double newSteeringAngle)
@@ -1268,7 +1268,6 @@ namespace RobotAppControl
 
             if (Math.Abs(steeringAngle) < 1e-6)
             {
-                // Going straight
                 newLeftValue = baseVelocity;
                 newRightValue = baseVelocity;
             }
@@ -1279,7 +1278,6 @@ namespace RobotAppControl
                 newRightValue = baseVelocity * (1 + (robot.WheelBase / (2 * radius)));
             }
 
-            // Hysteresis logic for turning detection
             if (!turning && Math.Abs(steeringAngle) > (turningThreshold + hysteresisMargin))
             {
                 turning = true;
@@ -1290,17 +1288,15 @@ namespace RobotAppControl
                 turning = false;
             }
 
-            // Handle wheel velocities during turning
-            if (turning && swTwo.ElapsedMilliseconds < 1250)
+            if (turning && swTwo.ElapsedMilliseconds < 750)
             {
-                // Forced slow turn behavior
-                newLeftValue = newLeftValue < 0 ? -0.45 : 0.45;
-                newRightValue = newRightValue < 0 ? -0.45 : 0.45;
+                newLeftValue = newLeftValue < 0 ? -0.4 : 0.4;
+                newRightValue = newRightValue < 0 ? -0.4 : 0.4;
             }
 
             // Set final velocities
             robot.LeftWheelVelocity = newLeftValue;
-            robot.RightWheelVelocity = newRightValue;
+            robot.RightWheelVelocity  = newRightValue;
 
             values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
         }
@@ -1510,7 +1506,7 @@ namespace RobotAppControl
         private List<double> angles = new List<double>();
         private List<string> goals = new List<string>();
         private Stopwatch swTwo;
-        public async Task PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)
+        public async Task PurePursuitControlAdaptive(Robot robot, List<Node> path, double maxLookahead, double baseVelocity, double dt)  // The task responsible for auto movement. Very dumb thing and currently I think left and right were wrong or something. Was trying different things while looking for solution.
         {
             Node currentGoal = path[0];
             RequestDataFromBot();
@@ -1631,7 +1627,7 @@ namespace RobotAppControl
         {
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             stopPurePursuitFLAG = false;
-            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 20, 0.7, 0.5));
+            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 20, 0.4, 0.5));
             purePursuitTask.Start();
             //await PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5);
             //  RefreshPicture();

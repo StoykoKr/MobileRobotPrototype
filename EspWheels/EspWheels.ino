@@ -29,7 +29,7 @@
 
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.4";  //"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.3";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -461,7 +461,7 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
         }
       }
     }
-    if (_medianMid < 50) {
+    if (_medianMid < 10) {
       previousTimeThereWasAnObstacle = millis();
     }
   }
