@@ -373,7 +373,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(500, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 50, 5, _MCL_grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(400, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _MCL_grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -515,7 +515,7 @@ namespace RobotAppControl
                     if (item.Value > 5)
                     {
                         rectangle = new Rectangle(item.Key.Item1, item.Key.Item2, 1, 1);
-                        rectangle.Inflate(size, size);  
+                        rectangle.Inflate(size, size);
                         g.FillRectangle(Brushes.Black, rectangle);
                     }
                 }
@@ -602,7 +602,7 @@ namespace RobotAppControl
 
         private void StartConvertingToOcccupancyThread()
         {
-            Task task = new Task(() => ConvertToOccMap(35, false));
+            Task task = new Task(() => ConvertToOccMap(31, false));
             task.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
@@ -836,13 +836,13 @@ namespace RobotAppControl
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, _MCL_grid),
                                     MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, _MCL_grid)],
                         75);
-          //      await MonteLocalization.StartTasksToUpdateWeights(
-          //[MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0,0,(0,0), _MCL_grid),
-          //                         MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90,0,(0,0), _MCL_grid),
-          //                          MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90,0,(0,0), _MCL_grid)],
-          //75);
+                //      await MonteLocalization.StartTasksToUpdateWeights(
+                //[MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0,0,(0,0), _MCL_grid),
+                //                         MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90,0,(0,0), _MCL_grid),
+                //                          MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 90,0,(0,0), _MCL_grid)],
+                //75);
 
-              
+
                 // addToTextBox(MonteLocalization.totalWeightPublic.ToString() +""+ Environment.NewLine);
                 var estimatedPos = MonteLocalization.GetEstimatedPos();
                 double tempTheta = 0;
@@ -859,7 +859,7 @@ namespace RobotAppControl
 
                 try
                 {
-                          DrawParticles();
+                    DrawParticles();
                     if (_grid.IsWalkable((int)currentX, (int)currentY) == true)
                     {
                         custom.SetPixel((int)currentX, (int)currentY, Color.Green);
@@ -893,24 +893,24 @@ namespace RobotAppControl
             {
                 if (_grid.IsWalkable((int)item.X, (int)item.Y) == true)
                 {
+                    custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
+                    //if (item.Theta < 90)
+                    //{
+                    //    custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
 
-                    if (item.Theta < 90)
-                    {
-                        custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
-
-                    }
-                    else if (item.Theta < 180)
-                    {
-                        custom.SetPixel((int)item.X, (int)item.Y, Color.Red);
-                    }
-                    else if (item.Theta < 270)
-                    {
-                        custom.SetPixel((int)item.X, (int)item.Y, Color.Purple);
-                    }
-                    else
-                    {
-                        custom.SetPixel((int)item.X, (int)item.Y, Color.Green);
-                    }
+                    //}
+                    //else if (item.Theta < 180)
+                    //{
+                    //    custom.SetPixel((int)item.X, (int)item.Y, Color.Red);
+                    //}
+                    //else if (item.Theta < 270)
+                    //{
+                    //    custom.SetPixel((int)item.X, (int)item.Y, Color.Purple);
+                    //}
+                    //else
+                    //{
+                    //    custom.SetPixel((int)item.X, (int)item.Y, Color.Green);
+                    //}
                 }
             }
         }
@@ -1209,25 +1209,30 @@ namespace RobotAppControl
             result.Add("moveForward~" + (Math.Abs(movedy + movedx) * 10).ToString() + "~");
             return result;
         }
-
+        public static double NormalizeAngle(double angle)
+        {
+            while (angle > Math.PI) angle -= 2 * Math.PI;
+            while (angle < -Math.PI) angle += 2 * Math.PI;
+            return angle;
+        }
         public double CalculateSteeringAngle(double x, double y, double theta, Node lookaheadPoint)
         {
             double dx = lookaheadPoint.X - x;
             double dy = -(lookaheadPoint.Y - y);
             double angleToTarget = Math.Atan2(dy, dx);
 
-            double heading = theta * Math.PI / 180.0;
+            double heading = -theta * Math.PI / 180.0;
 
             double steeringAngle = angleToTarget - heading;
             steeringAngle = NormalizeAngle(steeringAngle);
 
             values_angleToTarget_SteeringAngle.Add((
-       angleToTarget * 180 / Math.PI,
-       steeringAngle,
-       steeringAngle * 180 / Math.PI,
-       theta
-   ));
-            
+                angleToTarget * 180 / Math.PI,
+                  steeringAngle,
+                steeringAngle * 180 / Math.PI,
+                 theta
+               ));
+
             try
             {
                 custom.SetPixel((int)lookaheadPoint.X, (int)lookaheadPoint.Y, Color.Cyan);
@@ -1243,12 +1248,24 @@ namespace RobotAppControl
 
 
         private bool turning = false;
-        private Queue<double> steeringAngleHistory = new Queue<double>();
-        private const int smoothingWindow = 3; // Adjust as needed
-        private const double turningThreshold = 0.45; // Base threshold
-        private const double hysteresisMargin = 0.1; // Extra margin to prevent flipping
+         private Queue<double> steeringAngleHistory = new Queue<double>();
+           private const int smoothingWindow = 3; // Adjust as needed
+        private const double enterTurningThreshold = 0.2; // Lower to enter turning
+        private const double exitTurningThreshold = 0.5;  // Higher to exit turning
+                                                          //private double GetSmoothedVelocity(double left, double right)
+                                                          //{
+                                                          //    double avg = (left + right) / 2.0;
+                                                          //    steeringAngleHistory.Enqueue(avg);
+                                                          //    if (steeringAngleHistory.Count > smoothingWindow)
+                                                          //        steeringAngleHistory.Dequeue();
+                                                          //    return steeringAngleHistory.Average();
+                                                          //}
+                                                          // private Queue<double> steeringAngleHistory = new Queue<double>();
+                                                          //   private const int smoothingWindow = 3; // Adjust as needed
+        private const double turningThreshold = 0.2; // Base threshold
+        private const double hysteresisMargin = 0.05; // Extra margin to prevent flipping
 
-        // Method to smooth the steering angle
+      
         private double GetSmoothedSteeringAngle(double newSteeringAngle)
         {
             steeringAngleHistory.Enqueue(newSteeringAngle);
@@ -1257,10 +1274,9 @@ namespace RobotAppControl
 
             return steeringAngleHistory.Average();
         }
-
         public void SetWheelVelocities(Robot robot, double rawSteeringAngle, double baseVelocity)
         {
-            double steeringAngle = GetSmoothedSteeringAngle(rawSteeringAngle);
+            double steeringAngle = /*rawSteeringAngle;*/GetSmoothedSteeringAngle(rawSteeringAngle);
 
             double newLeftValue = 0;
             double newRightValue = 0;
@@ -1277,26 +1293,28 @@ namespace RobotAppControl
                 newLeftValue = baseVelocity * (1 - (robot.WheelBase / (2 * radius)));
                 newRightValue = baseVelocity * (1 + (robot.WheelBase / (2 * radius)));
             }
+            // double smoothedVelocity = GetSmoothedVelocity(newLeftValue, newRightValue);
 
-            if (!turning && Math.Abs(steeringAngle) > (turningThreshold + hysteresisMargin))
+            if (!turning && Math.Abs(steeringAngle) > turningThreshold + hysteresisMargin)//&&( newLeftValue < enterTurningThreshold || newRightValue < enterTurningThreshold ))
             {
                 turning = true;
                 swTwo.Restart();
             }
-            else if (turning && Math.Abs(steeringAngle) < (turningThreshold - hysteresisMargin))
+            else if (turning && Math.Abs(steeringAngle) < turningThreshold - hysteresisMargin)
             {
                 turning = false;
+            
             }
-
-            if (turning && swTwo.ElapsedMilliseconds < 750)
+            values.Add((newLeftValue, newRightValue, 0, 0));
+            if (turning)
             {
-                newLeftValue = newLeftValue < 0 ? -0.4 : 0.4;
-                newRightValue = newRightValue < 0 ? -0.4 : 0.4;
+                newLeftValue = newLeftValue < 0.4 ? -0.4 : 0.4;
+                newRightValue = newRightValue < 0.4 ? -0.4 : 0.4;
             }
 
             // Set final velocities
-            robot.LeftWheelVelocity = newLeftValue;
-            robot.RightWheelVelocity  = newRightValue;
+            robot.LeftWheelVelocity =  newLeftValue;
+            robot.RightWheelVelocity =newRightValue;
 
             values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
         }
@@ -1366,12 +1384,7 @@ namespace RobotAppControl
         //    values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
 
         //}
-        public static double NormalizeAngle(double angle)
-        {
-            while (angle > Math.PI) angle -= 2 * Math.PI;
-            while (angle < -Math.PI) angle += 2 * Math.PI;
-            return angle;
-        }
+     
         public (double X, double Y, double Theta) estimatedPos;
         private double PidControllerSpeedLeft(double target, double kp, double current)
         {
@@ -1535,12 +1548,12 @@ namespace RobotAppControl
                     {
                         tempTheta = 360 + estimatedPos.Theta;
                     }
-                    tempTheta = 360 - tempTheta;
-
-                    // addToTextBox($"{tempTheta} | {robot.getThetaActual()} {Environment.NewLine}");
-
+                 
+                    if (tempTheta > 360)
+                        tempTheta -= 360;
+                 
                     robot.setThetaActual(tempTheta);
-
+                  
                     var SmallGoal_BigGoal = FindLookaheadPoint(estimatedPos.X, estimatedPos.Y, currentGoal, path, maxLookahead);
                     currentGoal = SmallGoal_BigGoal.Item2;
                     var steeringAngle = CalculateSteeringAngle(estimatedPos.X, estimatedPos.Y, tempTheta, SmallGoal_BigGoal.Item1);
@@ -1627,7 +1640,7 @@ namespace RobotAppControl
         {
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             stopPurePursuitFLAG = false;
-            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 20, 0.4, 0.5));
+            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 25, 0.4, 0.5));
             purePursuitTask.Start();
             //await PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5);
             //  RefreshPicture();
@@ -1759,7 +1772,7 @@ namespace RobotAppControl
             addToTextBox($"{payload}\n");
 
         }
-   
+
         private void HandleTopicThree(string payload)
         {
             magDataMessage? message = JsonConvert.DeserializeObject<magDataMessage>(payload);

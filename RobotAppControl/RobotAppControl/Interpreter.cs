@@ -201,7 +201,7 @@ namespace RobotAppControl
             FillRotatedRectangle(bitmap, expandedCorners, Color.Yellow);
 
         }
-        private void MakeMap(JsonMessageClass whatWeKnow) 
+        private void MakeMap(JsonMessageClass whatWeKnow)
         {
             if (bitmap != null)
             {
@@ -211,14 +211,14 @@ namespace RobotAppControl
                     (double, double, double, double) log1 = new(0, 0, 0, 0);
                     int tempY = bitmap.Height / 2;
                     int tempX = bitmap.Width / 2;
-                    currentRotation = whatWeKnow.direction;   
+                    currentRotation = whatWeKnow.direction;
 
                     if (prevMagnetometerReading < 0)
                     {
                         prevMagnetometerReading = currentRotation;
                     }
 
-                    if(whatWeKnow.leftSensor > 500)
+                    if (whatWeKnow.leftSensor > 500)
                     {
                         formControl.addToTextBox("left is too much" + Environment.NewLine);
                     }
@@ -238,14 +238,14 @@ namespace RobotAppControl
 
 
 
-                    double dL = whatWeKnow.rightMovement * 0.1;  // Right wheel movement
-                    double dR = whatWeKnow.leftMovement * 0.1;   // Left wheel movement
+                    double dR = whatWeKnow.rightMovement * 0.1;  // Right wheel movement
+                    double dL = whatWeKnow.leftMovement * 0.1;   // Left wheel movement
 
-                    double d = (dL + dR) / 2.0;  
+                    double d = (dL + dR) / 2.0;
 
-                    double newTheta = currentRotation * Math.PI / 180; 
-                    double deltaTheta = newTheta - (prevMagnetometerReading * Math.PI / 180);  
-                    prevMagnetometerReading = currentRotation; 
+                    double newTheta = currentRotation * Math.PI / 180;
+                    double deltaTheta = newTheta - (prevMagnetometerReading * Math.PI / 180);
+                    prevMagnetometerReading = currentRotation;
 
                     if (Math.Abs(deltaTheta) < 1e-6)
                     {
@@ -278,11 +278,14 @@ namespace RobotAppControl
 
                     newColor = Color.Red;
                     double tempValueToCalcNewRotation = 0;
+
+
                     tempValueToCalcNewRotation = 360 - currentRotation;  // ADD SOMETHING LIKE THIS TO MCL
-
                     currentRotation = tempValueToCalcNewRotation;
-
                     currentRotation -= 90;
+
+
+
                     while (currentRotation < 0)
                     {
                         currentRotation += 360;
@@ -300,9 +303,6 @@ namespace RobotAppControl
                         currentRotation -= 360;
                     }
 
-
-                    // double sensorDirAngle = whatWeKnow.direction;
-                    //  double sensorDirAngle = 360 - whatWeKnow.direction;
                     double sensorDirAngle = 360 - whatWeKnow.direction;
 
                     while (sensorDirAngle < 0)
@@ -331,8 +331,8 @@ namespace RobotAppControl
                         midValue = kalmanMid.Output(whatWeKnow.midSensor);
                         if (Math.Abs(midValue - midValuePrevious) < 5)
                         {
-                            //var tempMin = GlobalConstants.DegreeOffsetMid + currentRotation - 15;
-                            //var tempMax = GlobalConstants.DegreeOffsetMid + currentRotation + 15;
+                            //  var tempMin = GlobalConstants.DegreeOffsetMid + currentRotation - 15;
+                            //  var tempMax = GlobalConstants.DegreeOffsetMid + currentRotation + 15;
                             var tempMin = GlobalConstants.DegreeOffsetMid + sensorDirAngle - 15;
                             var tempMax = GlobalConstants.DegreeOffsetMid + sensorDirAngle + 15;
                             while (tempMin < 0)
@@ -367,7 +367,7 @@ namespace RobotAppControl
 
 
                             //gridForMapping[targetX, targetY].RobotCenterPassedHere = true;
-                            newColor = Color.Red;
+                            newColor = Color.Yellow;
                             bitmap.SetPixel(
                                  targetX,
                                 targetY, newColor);
@@ -638,131 +638,157 @@ namespace RobotAppControl
                 formControl.addToTextBox("right is too much" + Environment.NewLine);
             }
 
-                double d = (dL + dR) / 2.0;
+            double d = (dL + dR) / 2.0;
 
-                currentRotation = whatWeKnow.direction;  // These few lines are almost sure to need changing. The problem is I'm still not sure how the differences between the data from the actual robot reflects on the digital map and the opposite.
-                double tempValueToCalcNewRotation = 0;
-                tempValueToCalcNewRotation = 360 - currentRotation; 
-                currentRotation = tempValueToCalcNewRotation;
+            // currentRotation = (450 - whatWeKnow.direction) % 360;
 
+            currentRotation = whatWeKnow.direction;  // These few lines are almost sure to need changing. The problem is I'm still not sure how the differences between the data from the actual robot reflects on the digital map and the opposite.
+            double tempValueToCalcNewRotation = 0;
+            tempValueToCalcNewRotation = 360 - currentRotation;
+            currentRotation = tempValueToCalcNewRotation;
+            //  currentRotation -= 90;
+            if (currentRotation < 0)
+            {
+                currentRotation += 360;
+            }
 
-                if (whatWeKnow.midSensor < 310)
+            if (whatWeKnow.midSensor < 310)
+            {
+                midValue = kalmanMid.Output(whatWeKnow.midSensor);
+                if (Math.Abs(midValue - midValuePrevious) < 5)
                 {
-                    midValue = kalmanMid.Output(whatWeKnow.midSensor); 
-                    if (Math.Abs(midValue - midValuePrevious) < 5)
-                    {
-                        midIsRelevant = true;
-                    }
-                    midValuePrevious = midValue;
-                }  // if the sensors have data in an acceptable range we check with a simple 1D kalman filter if there is a big jump and if we like the data then tag it as relevant.
-                if (whatWeKnow.leftSensor < 310)
-                {
-                    leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
-                    if (Math.Abs(leftValue - leftValuePrevious) < 5)
-                    {
-                        leftIsRelevant = true;
-                    }
-
-                    leftValuePrevious = leftValue;
+                    midIsRelevant = true;
                 }
-                if (whatWeKnow.rightSensor < 310)
+                midValuePrevious = midValue;
+            }  // if the sensors have data in an acceptable range we check with a simple 1D kalman filter if there is a big jump and if we like the data then tag it as relevant.
+            if (whatWeKnow.leftSensor < 310)
+            {
+                leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
+                if (Math.Abs(leftValue - leftValuePrevious) < 5)
                 {
-
-                    rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
-                    if (Math.Abs(rightValue - rightValuePrevious) < 5)
-                    {
-                        rightIsRelevant = true;
-                    }
-                    rightValuePrevious = rightValue;
+                    leftIsRelevant = true;
                 }
 
-                await formControl.MonteLocalization.StartTasksToMoveParticles((float)d, (float)currentRotation); // move the particles as much as the robot moved. Here direction could be entirely wrong still no idea.
+                leftValuePrevious = leftValue;
+            }
+            if (whatWeKnow.rightSensor < 310)
+            {
 
-
-                if (midIsRelevant || leftIsRelevant || rightIsRelevant) // Wanted to only work if there was some usable data. Not sure if the idea is usable.
+                rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
+                if (Math.Abs(rightValue - rightValuePrevious) < 5)
                 {
-                    await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                           [midValue, leftValue, rightValue], 75);
-                    formControl.MonteLocalization.Resample(false, 0);
-                    await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                           [midValue, leftValue, rightValue], 75);
+                    rightIsRelevant = true;
                 }
+                rightValuePrevious = rightValue;
+            }
+
+            await formControl.MonteLocalization.StartTasksToMoveParticles((float)d, (float)currentRotation); // move the particles as much as the robot moved. Here direction could be entirely wrong still no idea.
 
 
-                var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
-                formControl.newInfoForAutoMovement_FLAG = true;  // Raise flag for the auto movement that there is new data. And yes this entire class uses this dumb way to communicate with the main class where things happen.
+            if (midIsRelevant && leftIsRelevant && rightIsRelevant && d != 0) // Wanted to only work if there was some usable data. Not sure if the idea is usable.
+            {
+                await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                       [midValue, leftValue, rightValue], 75);
+                formControl.MonteLocalization.Resample(false, 0);
+                await formControl.MonteLocalization.StartTasksToUpdateWeights(
+                       [midValue, leftValue, rightValue], 75);
+            }
 
-                try  //Here I have been tryin gto debug by drawing things on the screen. If anyone is reading this then I failed.
-                {
+
+            var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
+            formControl.newInfoForAutoMovement_FLAG = true;  // Raise flag for the auto movement that there is new data. And yes this entire class uses this dumb way to communicate with the main class where things happen.
+
+            try  //Here I have been tryin gto debug by drawing things on the screen. If anyone is reading this then I failed.
+            {
 
                 bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
-                // foreach (var part in formControl.MonteLocalization.Particles)
-                // {
+                //foreach (var part in formControl.MonteLocalization.Particles)
+                //{
 
-                //     //double predictedFront = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid);
-                //     //double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid);
-                //     //double predictedRight = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid);
+                //    //double predictedFront = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid);
+                //    //double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid);
+                //    //double predictedRight = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid);
 
-                //     //double headingRadians = (part.Theta - 90) * Math.PI / 180.0;
+                //double usedTheta = currentEstimate.Theta;
+                //if (usedTheta < 0)
+                //    usedTheta += 360;
+                //double headingRadians = usedTheta * Math.PI / 180.0;
 
-                //     //double offsetX = GlobalConstants.MidSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.MidSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //     //double offsetY = GlobalConstants.MidSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.MidSensorOffsets.Item2 * Math.Cos(headingRadians);
+                //    double offsetX = GlobalConstants.MidSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.MidSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //    double offsetY = GlobalConstants.MidSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.MidSensorOffsets.Item2 * Math.Cos(headingRadians);
 
-                //     //double shiftedX = part.X + offsetX;
-                //     //double shiftedY = part.Y + offsetY;
+                //    double shiftedX = part.X + offsetX;
+                //    double shiftedY = part.Y + offsetY;
 
-                //     //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Blue);
-
-
-                //     // offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //     // offsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(headingRadians);
-
-                //     // shiftedX = part.X + offsetX;
-                //     // shiftedY = part.Y + offsetY;
-
-                //     //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
+                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
 
 
-                //     //offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //     //offsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(headingRadians);
+                //    offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //    offsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(headingRadians);
 
-                //     //shiftedX = part.X + offsetX;
-                //     //shiftedY = part.Y + offsetY;
+                //    shiftedX = part.X + offsetX;
+                //    shiftedY = part.Y + offsetY;
 
-                //     //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Purple);
+                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
 
 
-                // }
+                //    offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //    offsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(headingRadians);
 
-                //// formControl.addToTextBox($"Actual: {whatWeKnow.leftSensor} | {whatWeKnow.midSensor} | {whatWeKnow.rightSensor} | {whatWeKnow.direction} {Environment.NewLine}");
-                // //formControl.addToTextBox($"Estimated: {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetLeft , GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid)} |" +
-                // //    $" {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetMid , GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid)} |" +
-                // //    $" {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetRight , GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid)} | {currentEstimate.Theta} {Environment.NewLine}");
-                // //formControl.addToTextBox($"-------------{Environment.NewLine}");
+                //    shiftedX = part.X + offsetX;
+                //    shiftedY = part.Y + offsetY;
 
-                // //double shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
-                // //double shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
-                // //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Blue);
+                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Purple);
 
-                // //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
-                // //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
-                // //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
 
-                // //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
-                // //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((tempTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
-                // //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
-                // // formControl.DrawParticles();
-                // //  formControl.MonteLocalization.DrawStartingPosForSensors(bitmap);
+                //}
 
+                //formControl.addToTextBox($"Actual: {whatWeKnow.leftSensor} | {whatWeKnow.midSensor} | {whatWeKnow.rightSensor} | {whatWeKnow.direction} {Environment.NewLine}");
+
+                //formControl.addToTextBox($"Estimated:" +
+                //    $" {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid)} |" +
+                //    $" {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid)} |" +
+                //    $" {formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid)} |" +
+                //    $" {360 - currentEstimate.Theta} {Environment.NewLine}");
+                //formControl.addToTextBox($"-------------{Environment.NewLine}");
+
+                //double shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Cos((usedTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
+                //double shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Sin((usedTheta + GlobalConstants.LeftDegrees) * Math.PI / 180));
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Blue);
+
+                //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Cos((usedTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
+                //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Sin((usedTheta + GlobalConstants.MidDegrees) * Math.PI / 180));
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
+
+                //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((usedTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
+                //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((usedTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
+               // formControl.DrawParticles();
+                // formControl.MonteLocalization.DrawStartingPosForSensors(bitmap);
+                //formControl.addToTextBox($"Theta is {formControl.MonteLocalization.Particles[0].Theta} While input is {whatWeKnow.direction} {Environment.NewLine}");
 
                 // formControl.MonteLocalization.comparing.Add($"Actual: {whatWeKnow.leftSensor} | {whatWeKnow.midSensor} | {whatWeKnow.rightSensor}");
             }
-                catch (Exception)
-                {
-                    throw;
-                }
+            catch (Exception)
+            {
+                throw;
+            }
+            //var estimatedPos = formControl.MonteLocalization.GetEstimatedPos();
+            //double tempTheta = 0;
+            //if (estimatedPos.Theta > 0)
+            //{
+            //    tempTheta = estimatedPos.Theta;
+            //}
+            //else
+            //{
+            //    tempTheta = 360 + estimatedPos.Theta;
+            //}
+            //// tempTheta = 360 - tempTheta - 90;
+            //// tempTheta += 90;
+            //if (tempTheta > 360)
+            //    tempTheta -= 360;
+            //formControl.addToTextBox(tempTheta + "" + Environment.NewLine);
 
-            
         }
 
         public void StartInterpreting()

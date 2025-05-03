@@ -204,7 +204,7 @@ namespace RobotAppControl
                 if (angl >= 360)
                     angl -= 360;
 
-                //   DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.MediumBlue);
+                   DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.MediumBlue);
                 // bitmap.SetPixel((int)shiftedX,(int) shiftedY, Color.MediumBlue);
 
                 offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
@@ -220,7 +220,7 @@ namespace RobotAppControl
                     angl -= 360;
 
 
-                // DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.Lavender);
+                 DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.Lavender);
                 //   bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Lavender);
 
                 offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
@@ -235,13 +235,13 @@ namespace RobotAppControl
                 if (angl >= 360)
                     angl -= 360;
 
-                //  DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.OrangeRed);
+                  DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.OrangeRed);
                 //  bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.OrangeRed);
 
             }
         }
 
-        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.17)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.01)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
         {
             return Math.Max(baseFactor * expectedValue, 5);
         }
@@ -341,19 +341,23 @@ namespace RobotAppControl
             if (angl >= 360)
                 angl -= 360;
 
-            return Raycast(shiftedX, shiftedY, angl, 335, map);
+           // return Raycast(shiftedX, shiftedY, angl, 335, map);
+            return RaycastCone(shiftedX, shiftedY, angl, 335,GlobalConstants.SensorDispersion, map);
         }
 
         public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)  // tried something. not good yet
         {
-            double stepSize = 1.5;
+            double stepSize = 7;
             double distance = 0;
 
             double tempAngle;
 
+            double radians = 0;
+            int targetX =0;
+            int targetY =0;
             while (distance < maxRange)
             {
-                for (int i = 0; i <= dispersion; i++)
+                for (int i = 0; i <= dispersion; i+=6)
                 {
 
                     tempAngle = angle - dispersion / 2 + i;
@@ -365,10 +369,9 @@ namespace RobotAppControl
                     {
                         tempAngle -= 360;
                     }
-
-                    double radians = tempAngle * Math.PI / 180.0;
-                    int targetX = (int)Math.Round(startX + Math.Abs(distance) * Math.Cos(radians));
-                    int targetY = (int)Math.Round(startY + Math.Abs(distance) * Math.Sin(radians));
+                    radians = tempAngle * Math.PI / 180.0;
+                     targetX = (int)Math.Round(startX + Math.Abs(distance) * Math.Cos(radians));
+                     targetY = (int)Math.Round(startY + Math.Abs(distance) * Math.Sin(radians));
 
                     if (!map.IsWalkable(targetX, targetY) == true)
                     {
