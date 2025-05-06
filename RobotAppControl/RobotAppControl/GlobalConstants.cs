@@ -21,7 +21,7 @@ namespace RobotAppControl
         public static readonly (double, double) LeftSensorOffsets = (23, 26);
         public static readonly (double, double) RightSensorOffsets = (-27, 25);
 
-        public static readonly double SensorDispersion = 25; 
+        public static readonly double SensorDispersion = 15; 
 
 
     }

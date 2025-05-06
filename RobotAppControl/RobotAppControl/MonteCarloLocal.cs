@@ -241,9 +241,9 @@ namespace RobotAppControl
             }
         }
 
-        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.01)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.07)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
         {
-            return Math.Max(baseFactor * expectedValue, 5);
+            return Math.Max(baseFactor * expectedValue, 2);
         }
         public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
         {
@@ -357,7 +357,7 @@ namespace RobotAppControl
             int targetY =0;
             while (distance < maxRange)
             {
-                for (int i = 0; i <= dispersion; i+=6)
+                for (int i = 0; i <= dispersion; i+=3)
                 {
 
                     tempAngle = angle - dispersion / 2 + i;

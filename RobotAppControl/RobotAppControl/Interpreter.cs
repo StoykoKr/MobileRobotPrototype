@@ -78,7 +78,7 @@ namespace RobotAppControl
             HashSet<(int, int)> arcBoundaryPoints = new();
             HashSet<(int, int)> interiorPoints = new();
             var tempAngle = 0;
-            for (int i = 0; i <= 30; i++)
+            for (int i = 0; i <= GlobalConstants.SensorDispersion; i++)
             {
                 tempAngle = angleMin + i;
                 if (tempAngle >= 360)
@@ -333,8 +333,8 @@ namespace RobotAppControl
                         {
                             //  var tempMin = GlobalConstants.DegreeOffsetMid + currentRotation - 15;
                             //  var tempMax = GlobalConstants.DegreeOffsetMid + currentRotation + 15;
-                            var tempMin = GlobalConstants.DegreeOffsetMid + sensorDirAngle - 15;
-                            var tempMax = GlobalConstants.DegreeOffsetMid + sensorDirAngle + 15;
+                            var tempMin = GlobalConstants.DegreeOffsetMid + sensorDirAngle - GlobalConstants.SensorDispersion/2;
+                            var tempMax = GlobalConstants.DegreeOffsetMid + sensorDirAngle + GlobalConstants.SensorDispersion / 2;
                             while (tempMin < 0)
                             {
                                 tempMin += 360;
@@ -412,15 +412,14 @@ namespace RobotAppControl
 
                     if (whatWeKnow.leftSensor < 330)
                     {
-                        newColor = Color.Yellow;
+                      
 
                         leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
                         if (Math.Abs(leftValue - leftValuePrevious) < 5)
                         {
-                            //currentDegrees = GlobalConstants.LeftDegrees;
 
-                            var tempMin = GlobalConstants.DegreeOffsetLeft + sensorDirAngle - 15;
-                            var tempMax = GlobalConstants.DegreeOffsetLeft + sensorDirAngle + 15;
+                            var tempMin = GlobalConstants.DegreeOffsetLeft + sensorDirAngle - GlobalConstants.SensorDispersion / 2;
+                            var tempMax = GlobalConstants.DegreeOffsetLeft + sensorDirAngle + GlobalConstants.SensorDispersion / 2;
                             while (tempMin < 0)
                             {
                                 tempMin += 360;
@@ -437,6 +436,7 @@ namespace RobotAppControl
                             {
                                 tempMax -= 360;
                             }
+
 
                             var rotatedOffsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(currentRotation * Math.PI / 180) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(currentRotation * Math.PI / 180);
                             var rotatedOffsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(currentRotation * Math.PI / 180) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(currentRotation * Math.PI / 180);
@@ -484,22 +484,13 @@ namespace RobotAppControl
                     }
 
                     if (whatWeKnow.rightSensor < 330)
-                    {
-                        if (!formControl.currentlyMappingSimulation)
-                        {
-                            //offsedY = -7;  //   CHANGE OFFSETS ACCORDING TO THE ACTUAL DISTANCE NEEDS TO BE MEASURED
-                            //offsedX = 25;
-                        }
-                        newColor = Color.Blue;
+                    {                       
 
                         rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
                         if (Math.Abs(rightValue - rightValuePrevious) < 5)
-                        {
-                            //   currentDegrees = GlobalConstants.RightDegrees;
-
-
-                            var tempMin = GlobalConstants.DegreeOffsetRight + sensorDirAngle - 15;
-                            var tempMax = GlobalConstants.DegreeOffsetRight + sensorDirAngle + 15;
+                        {                          
+                            var tempMin = GlobalConstants.DegreeOffsetRight + sensorDirAngle - GlobalConstants.SensorDispersion / 2;
+                            var tempMax = GlobalConstants.DegreeOffsetRight + sensorDirAngle + GlobalConstants.SensorDispersion / 2;
                             while (tempMin < 0)
                             {
                                 tempMin += 360;
@@ -517,9 +508,7 @@ namespace RobotAppControl
                                 tempMax -= 360;
                             }
 
-                            // inputLog.Add($"Right Arc with:{x}| {y} | {rightValue} | {(int)tempMin} | {(int)tempMax}");
-
-
+                          
                             var rotatedOffsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(currentRotation * Math.PI / 180) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(currentRotation * Math.PI / 180);
                             var rotatedOffsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(currentRotation * Math.PI / 180) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(currentRotation * Math.PI / 180);
 
@@ -642,7 +631,15 @@ namespace RobotAppControl
 
             // currentRotation = (450 - whatWeKnow.direction) % 360;
 
-            currentRotation = whatWeKnow.direction;  // These few lines are almost sure to need changing. The problem is I'm still not sure how the differences between the data from the actual robot reflects on the digital map and the opposite.
+            lock (formControl._lockLeftDistance) lock(formControl._lockRightDistance)
+            {
+                    formControl.leftDistance = whatWeKnow.leftSensor;
+                    formControl.rightDistance = whatWeKnow.rightSensor;
+            }
+
+
+
+        currentRotation = whatWeKnow.direction;  // These few lines are almost sure to need changing. The problem is I'm still not sure how the differences between the data from the actual robot reflects on the digital map and the opposite.
             double tempValueToCalcNewRotation = 0;
             tempValueToCalcNewRotation = 360 - currentRotation;
             currentRotation = tempValueToCalcNewRotation;

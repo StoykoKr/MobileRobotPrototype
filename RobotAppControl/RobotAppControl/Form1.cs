@@ -602,7 +602,7 @@ namespace RobotAppControl
 
         private void StartConvertingToOcccupancyThread()
         {
-            Task task = new Task(() => ConvertToOccMap(31, false));
+            Task task = new Task(() => ConvertToOccMap(30, false));
             task.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
@@ -1248,8 +1248,8 @@ namespace RobotAppControl
 
 
         private bool turning = false;
-         private Queue<double> steeringAngleHistory = new Queue<double>();
-           private const int smoothingWindow = 3; // Adjust as needed
+        private Queue<double> steeringAngleHistory = new Queue<double>();
+        private const int smoothingWindow = 2; // Adjust as needed
         private const double enterTurningThreshold = 0.2; // Lower to enter turning
         private const double exitTurningThreshold = 0.5;  // Higher to exit turning
                                                           //private double GetSmoothedVelocity(double left, double right)
@@ -1262,10 +1262,14 @@ namespace RobotAppControl
                                                           //}
                                                           // private Queue<double> steeringAngleHistory = new Queue<double>();
                                                           //   private const int smoothingWindow = 3; // Adjust as needed
-        private const double turningThreshold = 0.2; // Base threshold
+        private const double turningThreshold = 0.55; // Base threshold
         private const double hysteresisMargin = 0.05; // Extra margin to prevent flipping
 
-      
+        public readonly object _lockRightDistance = new object();
+        public readonly object _lockLeftDistance = new object();
+
+        public double rightDistance = 0;
+        public double leftDistance = 0;
         private double GetSmoothedSteeringAngle(double newSteeringAngle)
         {
             steeringAngleHistory.Enqueue(newSteeringAngle);
@@ -1303,7 +1307,7 @@ namespace RobotAppControl
             else if (turning && Math.Abs(steeringAngle) < turningThreshold - hysteresisMargin)
             {
                 turning = false;
-            
+
             }
             values.Add((newLeftValue, newRightValue, 0, 0));
             if (turning)
@@ -1311,10 +1315,49 @@ namespace RobotAppControl
                 newLeftValue = newLeftValue < 0.4 ? -0.4 : 0.4;
                 newRightValue = newRightValue < 0.4 ? -0.4 : 0.4;
             }
+            else
+            {
 
+                lock (_lockRightDistance) lock (_lockLeftDistance)
+                    {
+
+                        if (leftDistance < 15 && rightDistance < 15) 
+                        {
+
+                            if (leftDistance > rightDistance) {
+                                //newRightValue = 0.05;
+                                //newLeftValue = -0.4;
+                                newRightValue *= 1.5;
+                                newLeftValue *= 0.7;
+                            }
+                            else
+                            {
+                                //newRightValue = -0.4;
+                                //newLeftValue = 0.05;
+                                newRightValue *= 0.7;
+                                newLeftValue *= 1.5;
+                            }
+                           
+                        } else if (leftDistance < 25) // left is too close 
+                        {
+                            //newRightValue = -0.4;
+                            //newLeftValue = 0.05;
+
+                            newRightValue *= 0.2;
+                            newLeftValue *= 1.7;
+                        }
+                        else if (rightDistance < 25)
+                        {
+                            //newRightValue = 0.05;
+                            //newLeftValue = -0.4;
+                            newRightValue *= 1.7;
+                            newLeftValue *= 0.2;
+                        }
+                    }
+            }
             // Set final velocities
-            robot.LeftWheelVelocity =  newLeftValue;
-            robot.RightWheelVelocity =newRightValue;
+            robot.LeftWheelVelocity = newLeftValue;
+            robot.RightWheelVelocity = newRightValue;
 
             values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
         }
@@ -1384,7 +1427,7 @@ namespace RobotAppControl
         //    values.Add((robot.LeftWheelVelocity, robot.RightWheelVelocity, radius, steeringAngle));
 
         //}
-     
+
         public (double X, double Y, double Theta) estimatedPos;
         private double PidControllerSpeedLeft(double target, double kp, double current)
         {
@@ -1548,12 +1591,12 @@ namespace RobotAppControl
                     {
                         tempTheta = 360 + estimatedPos.Theta;
                     }
-                 
+
                     if (tempTheta > 360)
                         tempTheta -= 360;
-                 
+
                     robot.setThetaActual(tempTheta);
-                  
+
                     var SmallGoal_BigGoal = FindLookaheadPoint(estimatedPos.X, estimatedPos.Y, currentGoal, path, maxLookahead);
                     currentGoal = SmallGoal_BigGoal.Item2;
                     var steeringAngle = CalculateSteeringAngle(estimatedPos.X, estimatedPos.Y, tempTheta, SmallGoal_BigGoal.Item1);
@@ -1589,7 +1632,7 @@ namespace RobotAppControl
                     }
                 }
 
-            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 25 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
+            } while (((Math.Abs(estimatedPos.X - currentGoal.X) + Math.Abs(estimatedPos.Y - currentGoal.Y)) > 15 || currentGoal != path.Last()) && !stopPurePursuitFLAG);
 
             var messagelast = new
             {
@@ -1640,7 +1683,7 @@ namespace RobotAppControl
         {
             txtBox_TextOutput.AppendText($"Execute Plan Pressed\n");
             stopPurePursuitFLAG = false;
-            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 25, 0.4, 0.5));
+            Task purePursuitTask = new Task(() => PurePursuitControlAdaptive(_robot, finalPath, 10, 0.4, 0.5));
             purePursuitTask.Start();
             //await PurePursuitControlAdaptive(_robot, finalPath, 20, 1, 0.5);
             //  RefreshPicture();

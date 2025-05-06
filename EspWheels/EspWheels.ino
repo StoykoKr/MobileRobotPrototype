@@ -877,7 +877,7 @@ int CalcDirectionFrontServoFromSpeeds() {
   if (autoMovementWantedDirLeftWheelIsForward != autoMovementWantedDirRightWheelIsForward) {
     return FULLTURNISTHISDEGREE;
   } else {
-    return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 50;
+    return MIDISTHISDEGREE + (rightVelocity - leftVelocity) * 100;
   }
 }
 void autoMovement() {
@@ -887,8 +887,8 @@ void autoMovement() {
   justForwardDirVar = -1;
   rightthing = 0;
   lastRight = 0;
-  PWMLeftCoefficient = 1;
-  PWMRightCoefficient = 1;
+  PWMLeftCoefficient = 0.2;
+  PWMRightCoefficient = 0.2;
   bool wasTurning = false;
   bool canMove = false;
   if (CalcDirectionFrontServoFromSpeeds() > 130) {
@@ -953,9 +953,9 @@ void autoMovement() {
       UpdateTicksLeft();
       timeIntervalIndexCounter++;
       GetUltrasoundData(MagneticSensorReading(), true, true, false);
-      SendThisDataToCalibForTest(0, leftVelocity, GetCurrentSpeedLeft());
-      SendThisDataToCalibForTest(1, rightVelocity, GetCurrentSpeedRight());
-      SendThisDataToCalibForTest(2, PWMLeftCoefficient, PWMRightCoefficient);
+     // SendThisDataToCalibForTest(0, leftVelocity, GetCurrentSpeedLeft());
+    //  SendThisDataToCalibForTest(1, rightVelocity, GetCurrentSpeedRight());
+   //   SendThisDataToCalibForTest(2, PWMLeftCoefficient, PWMRightCoefficient);
       int canMoveint = 0;
       int reached = 0;
       if (canMove) {
@@ -964,8 +964,8 @@ void autoMovement() {
       if (startingServoPosReached) {
         reached = 1;
       }
-      SendThisDataToCalibForTest(3, canMoveint, reached);
-      SendThisDataToCalibForTest(4, CalcDirectionFrontServoFromSpeeds(), 0);
+  //    SendThisDataToCalibForTest(3, canMoveint, reached);
+  //    SendThisDataToCalibForTest(4, CalcDirectionFrontServoFromSpeeds(), 0);
       speedTimer = millis();
     }
 
@@ -993,7 +993,7 @@ void autoMovement() {
       }
     } else if (CalcDirectionFrontServoFromSpeeds() < 130 && !wasTurning) {
       wasTurning = false;
-      if (millis() - lastTimeFrontWasMovedForForward > 330) {
+      if (millis() - lastTimeFrontWasMovedForForward > 150) {
         lastTimeFrontWasMovedForForward = millis();
         AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
       }
@@ -1002,8 +1002,8 @@ void autoMovement() {
     if (startingServoPosReached && canMove) {
       //servoRequestWasPublished = false;
       if (startingServoPosReached && millis() - speedAdjustTimer >= 75) {
-        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.05, GetCurrentSpeedLeft());
-        double changeRight = PidControllerSpeedRight(rightVelocity, 0.05, GetCurrentSpeedRight());
+        double changeLEft = PidControllerSpeedLeft(leftVelocity, 0.075, GetCurrentSpeedLeft());
+        double changeRight = PidControllerSpeedRight(rightVelocity, 0.075, GetCurrentSpeedRight());
         if (fabs(changeLEft) > 0.0001) {
           if (PWMLeftCoefficient + changeLEft < 9 && PWMLeftCoefficient + changeLEft > 0.1) {
             PWMLeftCoefficient += changeLEft;
