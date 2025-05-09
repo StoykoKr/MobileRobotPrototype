@@ -373,7 +373,7 @@ namespace RobotAppControl
 
             if (MonteLocalization == null)
             {
-                MonteLocalization = new MonteCarloLocal(400, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _MCL_grid);// _grid is old
+                MonteLocalization = new MonteCarloLocal(100, coordinates.X - picture_offsetX, coordinates.Y - picture_offsetY, 20, 5, _MCL_grid);// _grid is old
                 currentX = coordinates.X - picture_offsetX;
                 currentY = coordinates.Y - picture_offsetY;
                 txtBox_TextOutput.AppendText($"MonteLocalization started \n");
@@ -602,7 +602,7 @@ namespace RobotAppControl
 
         private void StartConvertingToOcccupancyThread()
         {
-            Task task = new Task(() => ConvertToOccMap(30, false));
+            Task task = new Task(() => ConvertToOccMap(32, false));
             task.Start();
         }
         private void btn_ConvertLoadedToOccupancyGrid_Click(object sender, EventArgs e)
@@ -829,13 +829,22 @@ namespace RobotAppControl
 
 
                 currentRotation = _robot.getThetaActual();
+                if (currentRotation < 0)
+                {
+                    currentRotation = 360 + currentRotation;
+                }
 
-                await MonteLocalization.StartTasksToMoveParticles((movementLeft + movementRight) / 2, (float)currentRotation);
+
+                double deltaThetat = (movementRight - movementLeft) / _robot.WheelBase;
+                await MonteLocalization.StartTasksToMoveParticles((movementLeft + movementRight) / 2, currentRotation, (deltaThetat * 180 / Math.PI)/*currentRotation*/);
+
+
+                //   await MonteLocalization.StartTasksToMoveParticles((movementLeft + movementRight) / 2, (float)currentRotation);
+                addToTextBox(currentRotation + Environment.NewLine);
                 await MonteLocalization.StartTasksToUpdateWeights(
                         [MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, _MCL_grid),
                                    MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, _MCL_grid),
-                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, _MCL_grid)],
-                        75);
+                                    MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, _MCL_grid)]);
                 //      await MonteLocalization.StartTasksToUpdateWeights(
                 //[MonteLocalization.GetPredictedDistance(currentX, currentY, currentRotation, 0,0,(0,0), _MCL_grid),
                 //                         MonteLocalization.GetPredictedDistance(currentX, currentY,currentRotation, -90,0,(0,0), _MCL_grid),
@@ -892,8 +901,8 @@ namespace RobotAppControl
             foreach (var item in MonteLocalization.Particles)
             {
                 if (_grid.IsWalkable((int)item.X, (int)item.Y) == true)
-                {
                     custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
+                {
                     //if (item.Theta < 90)
                     //{
                     //    custom.SetPixel((int)item.X, (int)item.Y, Color.Blue);
@@ -1459,7 +1468,7 @@ namespace RobotAppControl
         public async Task UpdatePosition(Robot robot, double dt)  // This needs to be looked at again very carefully before real test
         {
 
-            bool midIsRelevant = false;
+           /* bool midIsRelevant = false;
             bool leftIsRelevant = false;
             bool rightIsRelevant = false;
 
@@ -1553,7 +1562,7 @@ namespace RobotAppControl
 
                 throw;
             }
-
+           */
 
         }
         public List<(double, double)> tempAngles = new List<(double, double)>();

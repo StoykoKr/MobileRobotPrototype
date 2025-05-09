@@ -36,7 +36,15 @@ namespace RobotAppControl
             int index = x + (y * Width);
             int col = colour.ToArgb();
 
+            try
+            {
             Bits[index] = col;
+
+            }
+            catch (Exception)
+            {
+
+            }
         }
         public void WriteToBits(int index, Color colour)
         {

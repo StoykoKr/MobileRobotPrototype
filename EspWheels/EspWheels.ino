@@ -830,11 +830,11 @@ void justForward(bool dir) {
           }
         }
 
-        double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
-        double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
+      //  double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
+       // double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
 
-        PWMLeftCoefficient -= headingCorrection;
-        PWMRightCoefficient += headingCorrection;
+      //  PWMLeftCoefficient -= headingCorrection;
+      //  PWMRightCoefficient += headingCorrection;
 
         if (millis() - previousTimeThereWasAnObstacle <= 250 && dir) {
           StopMovement();
@@ -877,7 +877,7 @@ int CalcDirectionFrontServoFromSpeeds() {
   if (autoMovementWantedDirLeftWheelIsForward != autoMovementWantedDirRightWheelIsForward) {
     return FULLTURNISTHISDEGREE;
   } else {
-    return MIDISTHISDEGREE + (rightVelocity - leftVelocity) * 100;
+    return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 85;
   }
 }
 void autoMovement() {

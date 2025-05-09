@@ -23,8 +23,8 @@ namespace RobotAppControl
         private Grid MapMap = null;
         public int allParticleCount { private set; get; }
         public int numberOfTasksToRunOn { private set; get; }
-        private double resampleNoiseFactor = 10;
-        private double weightScale = 1;
+        private double resampleNoiseFactor = 12;  // here
+        private double weightScale = 0.4;
         public double totalWeightPublic = 666;
         private (double, double, double) lastEstimatedPos = (700, 700, 120);
         public List<Particle> Particles { private set; get; }
@@ -77,21 +77,59 @@ namespace RobotAppControl
             }
             else
             {
-               
+
             }
             return newAngle;
         }
 
-        private void MoveParticles(double forwardMove, double Angle, int startingIndex, int finalIndex) // Hmm the problem could be here? No idea if the particle.theta is the correct one or should be modified
+        public List<string> logOfParticleChanges = new List<string>();
+        private void MoveParticles(double forwardMove, double Angle, double theta, int startingIndex, int finalIndex) // Hmm the problem could be here? No idea if the particle.theta is the correct one or should be modified
         {
+
+            if (startingIndex == 0)
+            {
+
+                logOfParticleChanges.Add($"Old way: theta = {RecalcDegree(Angle, 3)} | x = {Particles[0].X + (forwardMove) * Math.Cos(Particles[0].Theta * Math.PI / 180)} | y = {Particles[0].Y + (forwardMove) * Math.Sin(Particles[0].Theta * Math.PI / 180)}");
+
+
+                double newTheta = NormalizeAngleDeg(NormalizeAngleDeg(Particles[0].Theta) + theta);
+                //double thetaMid = NormalizeAngleDeg(360 - (Particles[i].Theta + Angle / 2.0));
+                double thetaMid = NormalizeAngleDeg(NormalizeAngleDeg(Particles[0].Theta) + theta / 2.0);
+                double thetaMidRad = (360 - thetaMid) * Math.PI / 180.0;
+
+                logOfParticleChanges.Add($"Correct? way: theta = {newTheta} | x = {Particles[0].X + forwardMove * Math.Cos(thetaMidRad)} | y = {Particles[0].Y - forwardMove * Math.Sin(thetaMidRad)}");
+
+            }
+
+            // changes at 7/5/2025  angle is now deltaTheta
             for (int i = startingIndex; i <= finalIndex; i++)
             {
+                //Particles[i].X += (forwardMove) * Math.Cos((Particles[i].Theta + absoluteAngle / 2) * Math.PI / 180);
+                //Particles[i].Y -= (forwardMove) * Math.Sin((Particles[i].Theta + absoluteAngle / 2) * Math.PI / 180);
+                //Particles[i].Theta += absoluteAngle;
                 Particles[i].Theta = RecalcDegree(Angle, 3);
                 Particles[i].X += (forwardMove) * Math.Cos(Particles[i].Theta * Math.PI / 180);
                 Particles[i].Y += (forwardMove) * Math.Sin(Particles[i].Theta * Math.PI / 180);
+
+                //double newTheta = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + Angle);
+                ////double thetaMid = NormalizeAngleDeg(360 - (Particles[i].Theta + Angle / 2.0));
+                //double thetaMid = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + Angle / 2.0);
+                //double thetaMidRad = (360 - thetaMid) * Math.PI / 180.0;
+
+                //// Update position (adjust Y for inverted axis)
+                //Particles[i].X += forwardMove * Math.Cos(thetaMidRad);
+                //Particles[i].Y -= forwardMove * Math.Sin(thetaMidRad);
+
+                //Particles[i].Theta = newTheta;
             }
         }
-        public async Task StartTasksToMoveParticles(float move, float dir)
+        private double NormalizeAngleDeg(double angle)
+        {
+            while (angle < 0) angle += 360;
+            while (angle >= 360) angle -= 360;
+            return angle;
+        }
+        public async Task StartTasksToMoveParticles(double move, double dir, double theta)
         {
             int remainingIndexes = allParticleCount;
             List<Task> tasks = new List<Task>();
@@ -106,24 +144,46 @@ namespace RobotAppControl
                     remainingIndexes -= allParticleCount % numberOfTasksToRunOn;
                 }
                 starIndex = remainingIndexes;
-                Task task = new Task(() => MoveParticles(move, dir, starIndex, endIndex));
+                var usedDir = RecalcDegree(dir, 2);
+                Task task = new Task(() => MoveParticles(move, dir, theta, starIndex, endIndex));
                 task.Start();
                 tasks.Add(task);
             }
             await Task.WhenAll(tasks);
         }
-        public void UpdateWeights(double[] observedData, double sigma, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
+
+        public ConcurrentQueue<string> listOfbigWeights = new ConcurrentQueue<string>();
+
+        public ConcurrentQueue<string> listOfSmallbigWeights = new ConcurrentQueue<string>();
+        public void UpdateWeights(double[] observedData, int startingIndex, int finalIndex, ConcurrentQueue<double> doubles)
         {
             double total = 0;
+
+            if(startingIndex == 0)
+            {
+                logOfParticleChanges.Add($"Likelihood of particle is {CalculateLikelihood(Particles[0], observedData)}");
+
+            }
+
+
             for (int i = startingIndex; i <= finalIndex; i++)
             {
-                double likelihood = CalculateLikelihood(Particles[i], observedData, sigma);
+                double likelihood = CalculateLikelihood(Particles[i], observedData);
+                if( likelihood > 10 )
+                {
+                    listOfbigWeights.Enqueue($"Particle with values {Particles[i].X}|{Particles[i].Y}|{Particles[i].Theta} has likeHood of {likelihood}| with observed data of {observedData[0]}|{observedData[1]}|{observedData[2]}");
+                }
+                if( likelihood > 1 && likelihood< 10)
+                {
+                    listOfSmallbigWeights.Enqueue($"Particle with values {Particles[i].X}|{Particles[i].Y}|{Particles[i].Theta} has likeHood of {likelihood}| with observed data of {observedData[0]}|{observedData[1]}|{observedData[2]}");
+                }
+
                 if (likelihood <= 0)
                 {
                     likelihood = double.Epsilon;
                 }
                 if (double.IsNaN(likelihood) || likelihood < 1e-12) // honestly don't even remember what madness drove me to these values.
-                { 
+                {
                     likelihood = 1e-12;
                 }
                 Particles[i].Weight = likelihood;
@@ -135,7 +195,57 @@ namespace RobotAppControl
             }
             doubles.Enqueue(total);
         }
-        public async Task StartTasksToUpdateWeights(double[] observedData, double sigma) // Spread the work on multiple tasks. After all are done then recalc weight so the total is 1
+        public async Task StartTasksToUpdateWeightsGPT(double[] observedData)
+        {
+            double[] tempWeights = new double[Particles.Count];
+
+            // Parallelize likelihood computation with a thread-safe pattern
+            await Task.Run(() =>
+            {
+                Parallel.For(0, Particles.Count, i =>
+                {
+                    double likelihood = CalculateLikelihood(Particles[i], observedData);
+
+                    if (double.IsNaN(likelihood) || likelihood <= 0 || likelihood < 1e-12)
+                    {
+                        likelihood = 1e-12;
+                    }
+
+                    tempWeights[i] = likelihood;
+                });
+            });
+
+            // Normalize weights
+            double totalWeight = tempWeights.Sum();
+            if (totalWeight <= 0)
+            {
+                throw new Exception("Total weight is non-positive after likelihood calculation.");
+            }
+
+            double normalizationFactor = 1.0 / totalWeight;
+
+            for (int i = 0; i < Particles.Count; i++)
+            {
+                Particles[i].Weight = tempWeights[i] * normalizationFactor;
+            }
+
+            // Optionally sanity check normalization
+            double sanitySum = Particles.Sum(p => p.Weight);
+            if (Math.Abs(sanitySum - 1.0) > 1e-3)
+            {
+                throw new Exception($"Normalized weights don't sum to 1.0 (got {sanitySum})");
+            }
+
+            // Update estimated position safely
+            lock (_estimatedPosLock)
+            {
+                lastEstimatedPos = EstimatePosition();
+            }
+
+            totalWeightPublic = totalWeight;
+        }
+
+        public async Task StartTasksToUpdateWeights(double[] observedData) // Spread the work on multiple tasks. After all are done then recalc weight so the total is 1
         {
             ConcurrentQueue<double> weights = new ConcurrentQueue<double>();
             int remainingIndexes = allParticleCount;
@@ -150,7 +260,7 @@ namespace RobotAppControl
                     remainingIndexes -= allParticleCount % numberOfTasksToRunOn;
                 }
                 int starIndex = remainingIndexes;
-                Task task = new Task(() => UpdateWeights(observedData, sigma, starIndex, endIndex, weights));
+                Task task = new Task(() => UpdateWeights(observedData, starIndex, endIndex, weights));
                 tasks.Add(task);
                 task.Start();
             }
@@ -169,7 +279,14 @@ namespace RobotAppControl
             for (int i = 0; i < Particles.Count; i++)
             {
                 Particles[i].Weight *= normalizationFactor;
-
+                if (Particles[i].Weight > 10)
+                {
+                    listOfbigWeights.Enqueue($"Particle with values {Particles[i].X}|{Particles[i].Y}|{Particles[i].Theta} has WEIGHT of {Particles[i].Weight}| with observed data of {observedData[0]}|{observedData[1]}|{observedData[2]} and NormalizationFactor of {normalizationFactor} caused by totalWeight of 1/ {totalWeight}");
+                }
+                if (Particles[i].Weight > 1 && Particles[i].Weight < 10)
+                {
+                    listOfSmallbigWeights.Enqueue($"Particle with values {Particles[i].X}|{Particles[i].Y}|{Particles[i].Theta} has WEIGHT of {Particles[i].Weight}| with observed data of {observedData[0]}|{observedData[1]}|{observedData[2]} and NormalizationFactor of {normalizationFactor} caused by totalWeight of 1/ {totalWeight}");
+                }
 
             }
             lock (_estimatedPosLock)
@@ -204,7 +321,7 @@ namespace RobotAppControl
                 if (angl >= 360)
                     angl -= 360;
 
-                   DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.MediumBlue);
+                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.MediumBlue);
                 // bitmap.SetPixel((int)shiftedX,(int) shiftedY, Color.MediumBlue);
 
                 offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
@@ -220,7 +337,7 @@ namespace RobotAppControl
                     angl -= 360;
 
 
-                 DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.Lavender);
+                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.Lavender);
                 //   bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Lavender);
 
                 offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
@@ -235,19 +352,21 @@ namespace RobotAppControl
                 if (angl >= 360)
                     angl -= 360;
 
-                  DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.OrangeRed);
+                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.OrangeRed);
                 //  bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.OrangeRed);
 
             }
         }
 
-        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.07)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
+        public double GetDynamicSigma(double expectedValue, double baseFactor = 0.15)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
         {
-            return Math.Max(baseFactor * expectedValue, 2);
+            return Math.Clamp(baseFactor * expectedValue, 4, 100);//Math.Max(baseFactor * expectedValue, 4);
+
         }
-        public double CalculateLikelihood(Particle particle, double[] observedData, double sigma)
+        public double CalculateLikelihood(Particle particle, double[] observedData)
         {
             double usedTheta = /*360 -*/particle.Theta;// + 90;  // No idea how exactly it should be here.. likely one of the major errors
+                                                       //   double usedTheta = NormalizeAngleDeg(particle.Theta);
             if (usedTheta < 0)
             {
                 usedTheta += 360;
@@ -262,14 +381,17 @@ namespace RobotAppControl
             double predictedRight = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
 
 
-            comparing.Add($"predicteed: {predictedLeft} | {predictedFront} | {predictedRight}"); // some logging
 
 
-            double frontDiff = observedData[0] - predictedFront;
-            double leftDiff = observedData[1] - predictedLeft;
-            double rightDiff = observedData[2] - predictedRight;
+            double frontDiff = observedData[0] > 0 ? Math.Abs(observedData[0] - predictedFront) : -1;
+            double leftDiff = observedData[1] > 0 ? Math.Abs( observedData[1] - predictedLeft) : -1;
+            double rightDiff = observedData[2] > 0 ? Math.Abs( observedData[2] - predictedRight) : -1;
 
-            double threshold = 320;
+
+
+
+
+            double threshold = 310;
             double minProbability = 1e-5;
 
             double totalLogLikelihood = 0;
@@ -284,33 +406,36 @@ namespace RobotAppControl
             {
                 if (predicted > threshold && actual > threshold)
                 {
-                    // Ignore this sensor
                     continue;
                 }
                 else if (predicted > threshold || actual > threshold)
                 {
-                    // One is above threshold → very unlikely
                     totalLogLikelihood += Math.Log(minProbability);
                 }
                 else
                 {
-                    double diff = actual - predicted;
-                    double sigmaDynamic = GetDynamicSigma(diff);
-                    double likelihood = GaussianProbability(diff, sigmaDynamic);
-                    totalLogLikelihood += Math.Log(likelihood);
+                    if (actual != 0)
+                    {
+                        double diff = Math.Abs(actual - predicted);
+                            double sigmaDynamic = GetDynamicSigma(diff);
+                            double likelihood = GaussianProbability(diff, sigmaDynamic);
+                            totalLogLikelihood += Math.Log(likelihood);
+                        
+                    }
                 }
             }
             double frontSigma = GetDynamicSigma(frontDiff);
             double leftSigma = GetDynamicSigma(leftDiff);
             double rightSigma = GetDynamicSigma(rightDiff);
 
-            double maxLikelihood = GaussianProbability(0, frontSigma)
-                    * GaussianProbability(0, leftSigma)
-                    * GaussianProbability(0, rightSigma);
+            double maxLikelihood = (frontDiff >= 0 ? GaussianProbability(0, frontSigma) : 1)
+                    * (leftDiff >= 0 ? GaussianProbability(0, leftSigma) : 1)
+                    * (rightDiff >= 0 ? GaussianProbability(0, rightSigma) : 1);
 
+            var toReturn =  Math.Exp(totalLogLikelihood) / maxLikelihood;
 
-            return Math.Exp(totalLogLikelihood) / maxLikelihood;
-
+            comparing.Add($"predicteed: {predictedLeft} | {predictedFront} | {predictedRight} with theta {usedTheta} but it has -90 right now. This gives differences of {leftDiff} | {frontDiff} | {rightDiff}  And final likelihood of {toReturn}"); // some logging
+            return toReturn;
         }
         public double GaussianProbability(double difference, double sigma)
         {
@@ -341,8 +466,8 @@ namespace RobotAppControl
             if (angl >= 360)
                 angl -= 360;
 
-           // return Raycast(shiftedX, shiftedY, angl, 335, map);
-            return RaycastCone(shiftedX, shiftedY, angl, 335,GlobalConstants.SensorDispersion, map);
+            // return Raycast(shiftedX, shiftedY, angl, 335, map);
+            return RaycastCone(shiftedX, shiftedY, angl, 335, GlobalConstants.SensorDispersion, map);
         }
 
         public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)  // tried something. not good yet
@@ -353,11 +478,11 @@ namespace RobotAppControl
             double tempAngle;
 
             double radians = 0;
-            int targetX =0;
-            int targetY =0;
+            int targetX = 0;
+            int targetY = 0;
             while (distance < maxRange)
             {
-                for (int i = 0; i <= dispersion; i+=3)
+                for (int i = 0; i <= dispersion; i += 3)
                 {
 
                     tempAngle = angle - dispersion / 2 + i;
@@ -370,8 +495,8 @@ namespace RobotAppControl
                         tempAngle -= 360;
                     }
                     radians = tempAngle * Math.PI / 180.0;
-                     targetX = (int)Math.Round(startX + Math.Abs(distance) * Math.Cos(radians));
-                     targetY = (int)Math.Round(startY + Math.Abs(distance) * Math.Sin(radians));
+                    targetX = (int)Math.Round(startX + Math.Abs(distance) * Math.Cos(radians));
+                    targetY = (int)Math.Round(startY + Math.Abs(distance) * Math.Sin(radians));
 
                     if (!map.IsWalkable(targetX, targetY) == true)
                     {
@@ -383,6 +508,9 @@ namespace RobotAppControl
             }
             return maxRange;
         }
+        
+        public List<(double,double, double, double,double,double)> logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange = new List<(double,double, double, double,double,double)>();
+
         public void Resample(bool forceTheta, double thetaToBeForced)
         {
             List<Particle> newParticles = new List<Particle>();
@@ -395,6 +523,7 @@ namespace RobotAppControl
             double step = weightSum / numberToSample;
             double start = rand.NextDouble() * step;
 
+                double maxWeight = snapshot.Max(p => p.Weight);
             double cumulative = 0.0;
             int index = 0;
 
@@ -412,20 +541,21 @@ namespace RobotAppControl
 
                 Particle resampledParticle = snapshot[selectedIndex].Clone();
 
+                double relativeImportance = snapshot[selectedIndex].Weight / maxWeight;
+                double adaptiveNoise = resampleNoiseFactor * (1.1 - relativeImportance);
 
+                var xChange = (rand.NextDouble() * 2 - 1) * adaptiveNoise;
+                var yChange = (rand.NextDouble() * 2 - 1) * adaptiveNoise;
+                resampledParticle.X += xChange;
+                resampledParticle.Y += yChange;
+                logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange.Add(new (adaptiveNoise,relativeImportance, snapshot[selectedIndex].Weight, maxWeight, xChange, yChange));
 
-                // Used to use another way of making less likely particles change more aggresively but after changing some code the way was not longer usable
-                weightScale = 0.22;
-
-
-                resampledParticle.X += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
-                resampledParticle.Y += (rand.NextDouble() * 2 - 1) * resampleNoiseFactor * weightScale;
                 if (forceTheta)
                 {
                     resampledParticle.Theta = thetaToBeForced;
 
                 }
-                resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * (resampleNoiseFactor / 2) * weightScale;
+                resampledParticle.Theta += (rand.NextDouble() * 2 - 1) * adaptiveNoise * weightScale;
 
                 newParticles.Add(resampledParticle);
             }

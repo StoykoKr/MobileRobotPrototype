@@ -374,37 +374,6 @@ namespace RobotAppControl
 
 
 
-
-
-
-
-
-
-
-
-                            //inputLog.Add($"Mid Arc with:{x}| {y} | {midValue} | {(int)tempMin} | {(int)tempMax}");
-
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //                 y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.MidSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.MidSensorOffsets.Item2, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    midValue, (int)tempMin, (int)tempMax);
-                            //log.Item2 = currentDegrees + currentRotation;
-
-
-                            //      bitmap.SetPixel(
-                            //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Orange);
-
-                            //centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue * Math.Cos((degreeOffsetMid + currentRotation) * Math.PI / 180));
-                            //centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(midValue * Math.Sin((degreeOffsetMid + currentRotation) * Math.PI / 180));
-
-                            //          bitmap.SetPixel(
-                            //             centralPixelX,
-                            //             centralPixelY, newColor);
-
-
-                            //HandleAdjacentPixels(centralPixelX, centralPixelY, 1, AffectedCells);
-
-
                         }
                         inputLog.Add($"mid:{Math.Round(whatWeKnow.midSensor, 2)} {Math.Round(midValue, 2)} {Math.Round(midValuePrevious, 2)} {GlobalConstants.DegreeOffsetMid} {currentRotation}");
                         midValuePrevious = midValue;
@@ -453,28 +422,6 @@ namespace RobotAppControl
                             bitmap.SetPixel(
                                  targetX,
                                 targetY, newColor);
-
-
-
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.LeftSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.LeftSensorOffsets.Item2, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    leftValue, (int)tempMin, (int)tempMax);
-                            //log.Item1 = currentDegrees + currentRotation;
-
-
-
-                            //      bitmap.SetPixel(
-                            //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Cyan);
-
-                            //      centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * Math.Cos((degreeOffsetLeft + currentRotation) * Math.PI / 180));
-                            //          centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(leftValue * Math.Sin((degreeOffsetLeft + currentRotation) * Math.PI / 180));
-                            //          bitmap.SetPixel(
-                            //       centralPixelX,
-                            //       centralPixelY, newColor);
-
-
-                            //   HandleAdjacentPixels(centralPixelX, centralPixelY, 1, AffectedCells);
 
 
 
@@ -527,25 +474,6 @@ namespace RobotAppControl
 
 
 
-
-                            //MarkPossibleArea(x + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //    rightValue, (int)tempMin, (int)tempMax);
-
-                            //log.Item3 = currentDegrees + currentRotation;
-                            //     bitmap.SetPixel(
-                            //x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)),
-                            //         y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)), Color.Gold);
-
-                            //     centralPixelX = x + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Cos((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Cos((degreeOffsetRight + currentRotation) * Math.PI / 180));
-                            //         centralPixelY = y + (int)Math.Round(Math.Sqrt(Math.Pow(offsedX, 2) + Math.Pow(offsedY, 2)) * Math.Sin((currentDegrees + currentRotation) * Math.PI / 180)) + (int)Math.Round(rightValue * Math.Sin((degreeOffsetRight + currentRotation) * Math.PI / 180));
-
-
-
-                            //         bitmap.SetPixel(
-                            //      centralPixelX,
-                            //      centralPixelY, newColor);
-                            //   HandleAdjacentPixels(centralPixelX, centralPixelY, 1, AffectedCells);
                         }
                         inputLog.Add($"right:{Math.Round(whatWeKnow.rightSensor, 2)} {Math.Round(rightValue, 2)} {Math.Round(rightValuePrevious, 2)} {GlobalConstants.DegreeOffsetRight} {currentRotation}");
                         rightValuePrevious = rightValue;
@@ -627,9 +555,7 @@ namespace RobotAppControl
                 formControl.addToTextBox("right is too much" + Environment.NewLine);
             }
 
-            double d = (dL + dR) / 2.0;
-
-            // currentRotation = (450 - whatWeKnow.direction) % 360;
+            double d = (dR + dL) / 2.0;
 
             lock (formControl._lockLeftDistance) lock(formControl._lockRightDistance)
             {
@@ -637,13 +563,13 @@ namespace RobotAppControl
                     formControl.rightDistance = whatWeKnow.rightSensor;
             }
 
+    
 
-
-        currentRotation = whatWeKnow.direction;  // These few lines are almost sure to need changing. The problem is I'm still not sure how the differences between the data from the actual robot reflects on the digital map and the opposite.
+            currentRotation = whatWeKnow.direction;
             double tempValueToCalcNewRotation = 0;
             tempValueToCalcNewRotation = 360 - currentRotation;
             currentRotation = tempValueToCalcNewRotation;
-            //  currentRotation -= 90;
+
             if (currentRotation < 0)
             {
                 currentRotation += 360;
@@ -657,7 +583,11 @@ namespace RobotAppControl
                     midIsRelevant = true;
                 }
                 midValuePrevious = midValue;
-            }  // if the sensors have data in an acceptable range we check with a simple 1D kalman filter if there is a big jump and if we like the data then tag it as relevant.
+            }
+            else
+            {
+                midValue = 0;
+            }
             if (whatWeKnow.leftSensor < 310)
             {
                 leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
@@ -667,6 +597,10 @@ namespace RobotAppControl
                 }
 
                 leftValuePrevious = leftValue;
+            }
+            else
+            {
+                leftValue = 0;
             }
             if (whatWeKnow.rightSensor < 310)
             {
@@ -678,17 +612,24 @@ namespace RobotAppControl
                 }
                 rightValuePrevious = rightValue;
             }
-
-            await formControl.MonteLocalization.StartTasksToMoveParticles((float)d, (float)currentRotation); // move the particles as much as the robot moved. Here direction could be entirely wrong still no idea.
-
-
-            if (midIsRelevant && leftIsRelevant && rightIsRelevant && d != 0) // Wanted to only work if there was some usable data. Not sure if the idea is usable.
+            else
             {
-                await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                       [midValue, leftValue, rightValue], 75);
+                rightValue = 0;
+            }
+            
+            double deltaTheta = (dR - dL) / wheelBase;
+            await formControl.MonteLocalization.StartTasksToMoveParticles(d, /*(deltaTheta * 180 / Math.PI)*/currentRotation, deltaTheta);
+
+            int count = (leftIsRelevant ? 1 : 0) + (midIsRelevant ? 1 : 0) + (rightIsRelevant ? 1 : 0);
+
+
+            if (count > 1 && d != 0) // Wanted to only work if there was some usable data. Not sure if the idea is usable.
+            {
+                await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
+                       [midValue, leftValue, rightValue]);
                 formControl.MonteLocalization.Resample(false, 0);
-                await formControl.MonteLocalization.StartTasksToUpdateWeights(
-                       [midValue, leftValue, rightValue], 75);
+                await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
+                       [midValue, leftValue, rightValue]);
             }
 
 
@@ -760,32 +701,18 @@ namespace RobotAppControl
                 //shiftedX = currentEstimate.X + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Cos((usedTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
                 //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((usedTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
                 //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
-               // formControl.DrawParticles();
+
+                formControl.DrawParticles();
+
                 // formControl.MonteLocalization.DrawStartingPosForSensors(bitmap);
-                //formControl.addToTextBox($"Theta is {formControl.MonteLocalization.Particles[0].Theta} While input is {whatWeKnow.direction} {Environment.NewLine}");
+               // formControl.addToTextBox($"Theta is {currentEstimate.Theta} While input is {whatWeKnow.direction} {Environment.NewLine}");
 
                 // formControl.MonteLocalization.comparing.Add($"Actual: {whatWeKnow.leftSensor} | {whatWeKnow.midSensor} | {whatWeKnow.rightSensor}");
             }
             catch (Exception)
             {
-                throw;
+              //  throw;
             }
-            //var estimatedPos = formControl.MonteLocalization.GetEstimatedPos();
-            //double tempTheta = 0;
-            //if (estimatedPos.Theta > 0)
-            //{
-            //    tempTheta = estimatedPos.Theta;
-            //}
-            //else
-            //{
-            //    tempTheta = 360 + estimatedPos.Theta;
-            //}
-            //// tempTheta = 360 - tempTheta - 90;
-            //// tempTheta += 90;
-            //if (tempTheta > 360)
-            //    tempTheta -= 360;
-            //formControl.addToTextBox(tempTheta + "" + Environment.NewLine);
-
         }
 
         public void StartInterpreting()
