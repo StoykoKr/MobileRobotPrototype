@@ -27,9 +27,15 @@
 #define MM_TO_TICKS(A) ((double)(A)) / MM_PER_TICK
 #define millisecToRecordTicksInterval 100
 
+#define TURN_THRESHOLD 130
+#define MAJOR_CHANGE_THRESHOLD 10  // e.g., entering/exiting a turn
+
+
+
+
 const char* ssid = "TheEvilWithin";       //"Miyagi";// "TheEvilWithin";       //"Miyagi";  TP-Link_74CA
 const char* password = "2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@";//"2PPG6262F3";      //"$;)_eo73,,.5dhWLd*@"; edidani1
-const char* mqtt_server = "192.168.0.3";  //"192.168.167.216";  //"192.168.43.144";
+const char* mqtt_server = "192.168.0.4";  //"192.168.167.216";  //"192.168.43.144";
 const int mqtt_port = 1883;
 
 const char* publishTopicMapData = "DataForMapping";
@@ -144,33 +150,42 @@ double used_soft_iron[3][3] = {
 
 
 const double forward_HardCalib[3] = {
-  450.645814,90.958456, -384.024894
+  34.437787, 8.998085, -16.335160
 };
 
 const double forward_SoftCalib[3][3] = {
-  { 1.237346, -0.055574, 0.005999 },
-  { -0.055574, 1.135259, 0.059303 },
-  { 0.005999, 0.059303, 1.672839 }
+  { 25.153941, -2.690693, -0.376092 },
+  { -2.690693, 25.543358, -0.253319 },
+  { -0.376092, -0.253319, 35.895220 }
 };
 
 const double left_HardCalib[3] = {
-  483.295379, -29.534362, -172.398481
+  34.036854, 1.837639, -12.683437
 };
 
 const double left_SoftCalib[3][3] = {
-  { 1.716694, -0.040556, -0.038640 },
-  { -0.040556,1.713829, 0.047988 },
-  { -0.038640, 0.047988, 2.418407}
+  { 20.416471, -0.671476, 0.809071 },
+  { -0.671476, 20.099656, -0.185779 },
+  { 0.809071, -0.185779, 28.116372 }
 };
 
 const double right_HardCalib[3] = {
- 414.695782, 125.303879, -114.712749
+  32.495563, 12.723117, -16.167897
 };
 
 const double right_SoftCalib[3][3] = {
-  {1.805899, -0.053353,-0.035820 },
-  {-0.053353, 1.775993, 0.021426 },
-  { -0.035820,0.021426, 2.528929}
+  { 19.515643, -0.807360, 1.840986 },
+  { -0.807360, 18.951666, 0.652553 },
+  { 1.840986, 0.652553, 26.859870 }
+};
+const double back_HardCalib[3] = {
+  34.196272, 6.396390, -13.803550
+};
+
+const double back_SoftCalib[3][3] = {
+  { 19.871734, -0.469635, 0.459516 },
+  { -0.469635, 19.551316, 0.262714 },
+  { 0.459516, 0.262714, 27.536694 }
 };
 
 
@@ -512,44 +527,36 @@ void GetUltrasoundData(double dir, bool sendMove, bool useDataForMap, bool sendD
   // if ((((rightDistanceMoved > 0 || rightDistanceMoved < 0) || (leftDistanceMoved > 0 || leftDistanceMoved < 0)) && sendMove) || sendDataRegardlessOfMove) {
   //}
 }
-double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
+double MagneticSensorReading() {
   mag.getEvent(&event);
-
-  // if (movingDirectionLeft == false && movingDirectionRight == true) {
-  //   used_hard_iron = forward_HardCalib;
-  //   used_soft_iron = forward_SoftCalib;
-  // } else if (movingDirectionLeft == false && movingDirectionRight == false) {
-  //   used_hard_iron = left_HardCalib;
-  //   used_soft_iron = left_SoftCalib;
-  // } else if (movingDirectionLeft == true && movingDirectionRight == true) {
-  //   used_hard_iron = right_HardCalib;
-  //   used_soft_iron = right_SoftCalib;
-  // }
-
-
   double hi_cal[3];
-  double mag_data[] = { event.magnetic.x * 10 * 1.3,
-                        event.magnetic.y * 10 * 1.3,
-                        event.magnetic.z * 10 * 1.3 };
+  double mag_data[] = { event.magnetic.x,
+                        event.magnetic.y,
+                        event.magnetic.z };
   for (uint8_t i = 0; i < 3; i++) {
-    // hi_cal[i] = mag_data[i] - used_hard_iron[i];
 
+
+    //hi_cal[i] = mag_data[i] - forward_HardCalib[i];
     if (movingDirectionLeft == false && movingDirectionRight == true) {
       hi_cal[i] = mag_data[i] - forward_HardCalib[i];
     } else if (movingDirectionLeft == false && movingDirectionRight == false) {
       hi_cal[i] = mag_data[i] - left_HardCalib[i];
     } else if (movingDirectionLeft == true && movingDirectionRight == true) {
       hi_cal[i] = mag_data[i] - right_HardCalib[i];
+    } else if (movingDirectionLeft == true && movingDirectionRight == false) {
+      hi_cal[i] = mag_data[i] - back_HardCalib[i];
     }
   }
   for (uint8_t i = 0; i < 3; i++) {
-    // mag_data[i] = (used_soft_iron[i][0] * hi_cal[0]) + (used_soft_iron[i][1] * hi_cal[1]) + (used_soft_iron[i][2] * hi_cal[2]);
+    //mag_data[i] = (forward_SoftCalib[i][0] * hi_cal[0]) + (forward_SoftCalib[i][1] * hi_cal[1]) + (forward_SoftCalib[i][2] * hi_cal[2]);
     if (movingDirectionLeft == false && movingDirectionRight == true) {
       mag_data[i] = (forward_SoftCalib[i][0] * hi_cal[0]) + (forward_SoftCalib[i][1] * hi_cal[1]) + (forward_SoftCalib[i][2] * hi_cal[2]);
     } else if (movingDirectionLeft == false && movingDirectionRight == false) {
       mag_data[i] = (left_SoftCalib[i][0] * hi_cal[0]) + (left_SoftCalib[i][1] * hi_cal[1]) + (left_SoftCalib[i][2] * hi_cal[2]);
     } else if (movingDirectionLeft == true && movingDirectionRight == true) {
       mag_data[i] = (right_SoftCalib[i][0] * hi_cal[0]) + (right_SoftCalib[i][1] * hi_cal[1]) + (right_SoftCalib[i][2] * hi_cal[2]);
+    } else if (movingDirectionLeft == true && movingDirectionRight == false) {
+      mag_data[i] = (back_SoftCalib[i][0] * hi_cal[0]) + (back_SoftCalib[i][1] * hi_cal[1]) + (back_SoftCalib[i][2] * hi_cal[2]);
     }
   }
   double heading = atan2(mag_data[0], mag_data[1]);
@@ -565,9 +572,9 @@ double MagneticSensorReading() {  // NEEDS TO BE REVERTED LATER
 void MagneticSensorReadingFORPROCESSING() {  // NEEDS TO BE REVERTED LATER
   mag.getEvent(&event);
   double hi_cal[3];
-  mag_datat[0] = event.magnetic.x * 10 * 1.3;
-  mag_datat[1] = event.magnetic.y * 10 * 1.3;
-  mag_datat[2] = event.magnetic.z * 10 * 1.3;
+  mag_datat[0] = event.magnetic.x;
+  mag_datat[1] = event.magnetic.y;
+  mag_datat[2] = event.magnetic.z;
 }
 double PidControllerSpeedLeft(double target, double kp, double current) {
   double e = current - target;
@@ -830,11 +837,11 @@ void justForward(bool dir) {
           }
         }
 
-      //  double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
-       // double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
+        //  double speedDifference = GetCurrentSpeedLeft() - GetCurrentSpeedRight();
+        // double headingCorrection = 0.01 * speedDifference;  // Adjust the weight of correction
 
-      //  PWMLeftCoefficient -= headingCorrection;
-      //  PWMRightCoefficient += headingCorrection;
+        //  PWMLeftCoefficient -= headingCorrection;
+        //  PWMRightCoefficient += headingCorrection;
 
         if (millis() - previousTimeThereWasAnObstacle <= 250 && dir) {
           StopMovement();
@@ -880,6 +887,8 @@ int CalcDirectionFrontServoFromSpeeds() {
     return MIDISTHISDEGREE + (leftVelocity - rightVelocity) * 85;
   }
 }
+int lastSentServoAngle = -9999;
+bool wasTurning = false;
 void autoMovement() {
   ResetEncoderValues();
   speedTimer = millis();
@@ -891,6 +900,9 @@ void autoMovement() {
   PWMRightCoefficient = 0.2;
   bool wasTurning = false;
   bool canMove = false;
+  int currentServoAngle = CalcDirectionFrontServoFromSpeeds();
+  bool isTurning = currentServoAngle > TURN_THRESHOLD;  // e.g. 130
+
   if (CalcDirectionFrontServoFromSpeeds() > 130) {
     wasTurning = true;
   }
@@ -939,6 +951,17 @@ void autoMovement() {
       PWMLeftCoefficient = 1;
       PWMRightCoefficient = 1;
       justForwardDirVar = 1;
+    } else if (!alreadySendDirSignal && leftVelo < 0 && rightVelo < 0) {
+      alreadySendDirSignal = true;
+      setPWMRight(0);
+      setPWMLeft(0);
+      SendDirSignal(true, LEFTDIRWHEEL);
+      SendDirSignal(false, RIGHTDIRWHEEL);
+      lastLeftVelo = leftVelo;
+      lastRightVelo = rightVelo;
+      PWMLeftCoefficient = 1;
+      PWMRightCoefficient = 1;
+      justForwardDirVar = -1;
     }
 
     if ((lastLeftVelo > 0 && leftVelo < 0) || (lastLeftVelo < 0 && leftVelo > 0) || (lastRightVelo > 0 && rightVelo < 0) || (lastRightVelo < 0 && rightVelo > 0)) {
@@ -953,9 +976,9 @@ void autoMovement() {
       UpdateTicksLeft();
       timeIntervalIndexCounter++;
       GetUltrasoundData(MagneticSensorReading(), true, true, false);
-     // SendThisDataToCalibForTest(0, leftVelocity, GetCurrentSpeedLeft());
-    //  SendThisDataToCalibForTest(1, rightVelocity, GetCurrentSpeedRight());
-   //   SendThisDataToCalibForTest(2, PWMLeftCoefficient, PWMRightCoefficient);
+      // SendThisDataToCalibForTest(0, leftVelocity, GetCurrentSpeedLeft());
+      //  SendThisDataToCalibForTest(1, rightVelocity, GetCurrentSpeedRight());
+      //   SendThisDataToCalibForTest(2, PWMLeftCoefficient, PWMRightCoefficient);
       int canMoveint = 0;
       int reached = 0;
       if (canMove) {
@@ -964,8 +987,8 @@ void autoMovement() {
       if (startingServoPosReached) {
         reached = 1;
       }
-  //    SendThisDataToCalibForTest(3, canMoveint, reached);
-  //    SendThisDataToCalibForTest(4, CalcDirectionFrontServoFromSpeeds(), 0);
+      //    SendThisDataToCalibForTest(3, canMoveint, reached);
+      //    SendThisDataToCalibForTest(4, CalcDirectionFrontServoFromSpeeds(), 0);
       speedTimer = millis();
     }
 
@@ -975,6 +998,7 @@ void autoMovement() {
       canMove = false;
     }
 
+    /*
     if (CalcDirectionFrontServoFromSpeeds() > 130 && !wasTurning) {
       wasTurning = true;
       if (!servoRequestWasPublished) {
@@ -996,6 +1020,25 @@ void autoMovement() {
       if (millis() - lastTimeFrontWasMovedForForward > 150) {
         lastTimeFrontWasMovedForForward = millis();
         AdjustPosTo(CalcDirectionFrontServoFromSpeeds(), false);
+      }
+    }
+    */
+   currentServoAngle = CalcDirectionFrontServoFromSpeeds();
+   isTurning = currentServoAngle > TURN_THRESHOLD;  // e.g. 130
+
+    if (isTurning != wasTurning || abs(currentServoAngle - lastSentServoAngle) > MAJOR_CHANGE_THRESHOLD) {
+      // We're switching between turning and not, or making a big steering change
+      StopMovement();
+      startingServoPosReached = false;
+      AdjustPosTo(currentServoAngle, true);  // major change → wait for confirmation
+      lastSentServoAngle = currentServoAngle;
+      wasTurning = isTurning;
+    } else if (!isTurning) {
+      // Minor steering correction while moving forward
+      if (millis() - lastTimeFrontWasMovedForForward > 150) {
+        lastTimeFrontWasMovedForForward = millis();
+        AdjustPosTo(currentServoAngle, false);  // do not wait
+        lastSentServoAngle = currentServoAngle;
       }
     }
 

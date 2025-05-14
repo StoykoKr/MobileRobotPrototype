@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Collections;
 using System.Security.Policy;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace RobotAppControl
 {
@@ -220,15 +221,15 @@ namespace RobotAppControl
 
                     if (whatWeKnow.leftSensor > 500)
                     {
-                        formControl.addToTextBox("left is too much" + Environment.NewLine);
+                  //      formControl.addToTextBox("left is too much" + Environment.NewLine);
                     }
                     if (whatWeKnow.midSensor > 500)
                     {
-                        formControl.addToTextBox("mid is too much" + Environment.NewLine);
+                    //    formControl.addToTextBox("mid is too much" + Environment.NewLine);
                     }
                     if (whatWeKnow.rightSensor > 500)
                     {
-                        formControl.addToTextBox("right is too much" + Environment.NewLine);
+                  //      formControl.addToTextBox("right is too much" + Environment.NewLine);
                     }
                     //if (whatWeKnow.handSensor > 500)
                     //{
@@ -531,6 +532,7 @@ namespace RobotAppControl
             stopInterpreting = true;
         }
 
+        private Stopwatch sw = new Stopwatch();
         public async void UpdateMCL(JsonMessageClass whatWeKnow) // This is the problematic area
         {
 
@@ -544,15 +546,15 @@ namespace RobotAppControl
 
             if (whatWeKnow.leftSensor > 500)  //GUI info for a sensor returning VERY bad data
             {
-                formControl.addToTextBox("left is too much" + Environment.NewLine);
+              //  formControl.addToTextBox("left is too much" + Environment.NewLine);
             }
             if (whatWeKnow.midSensor > 500)
             {
-                formControl.addToTextBox("mid is too much" + Environment.NewLine);
+               // formControl.addToTextBox("mid is too much" + Environment.NewLine);
             }
             if (whatWeKnow.rightSensor > 500)
             {
-                formControl.addToTextBox("right is too much" + Environment.NewLine);
+               // formControl.addToTextBox("right is too much" + Environment.NewLine);
             }
 
             double d = (dR + dL) / 2.0;
@@ -569,7 +571,7 @@ namespace RobotAppControl
             double tempValueToCalcNewRotation = 0;
             tempValueToCalcNewRotation = 360 - currentRotation;
             currentRotation = tempValueToCalcNewRotation;
-
+            //currentRotation -= 90;
             if (currentRotation < 0)
             {
                 currentRotation += 360;
@@ -618,16 +620,20 @@ namespace RobotAppControl
             }
             
             double deltaTheta = (dR - dL) / wheelBase;
-            await formControl.MonteLocalization.StartTasksToMoveParticles(d, /*(deltaTheta * 180 / Math.PI)*/currentRotation, deltaTheta);
-
+            await formControl.MonteLocalization.StartTasksToMoveParticles(d, /*(deltaTheta * 180 / Math.PI)*/currentRotation, deltaTheta * 180 / Math.PI);
+            if (formControl.MonteLocalization.firstMove)
+            {
+                formControl.MonteLocalization.firstMove = false;
+            }
             int count = (leftIsRelevant ? 1 : 0) + (midIsRelevant ? 1 : 0) + (rightIsRelevant ? 1 : 0);
 
 
-            if (count > 1 && d != 0) // Wanted to only work if there was some usable data. Not sure if the idea is usable.
+            if (count > 1) /*&& d != 0)*/ // Wanted to only work if there was some usable data. Not sure if the idea is usable.
             {
                 await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
                        [midValue, leftValue, rightValue]);
-                formControl.MonteLocalization.Resample(false, 0);
+                //  formControl.MonteLocalization.Resample(false, 0);
+                formControl.MonteLocalization.ResampleGPT();
                 await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
                        [midValue, leftValue, rightValue]);
             }
@@ -636,7 +642,10 @@ namespace RobotAppControl
             var currentEstimate = formControl.MonteLocalization.GetEstimatedPos();
             formControl.newInfoForAutoMovement_FLAG = true;  // Raise flag for the auto movement that there is new data. And yes this entire class uses this dumb way to communicate with the main class where things happen.
 
-            try  //Here I have been tryin gto debug by drawing things on the screen. If anyone is reading this then I failed.
+
+  
+
+                try  //Here I have been tryin gto debug by drawing things on the screen. If anyone is reading this then I failed.
             {
 
                 bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
@@ -647,37 +656,53 @@ namespace RobotAppControl
                 //    //double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid);
                 //    //double predictedRight = formControl.MonteLocalization.GetPredictedDistance(part.X, part.Y, part.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid);
 
-                //double usedTheta = currentEstimate.Theta;
+
+                formControl.DrawParticles();
+
+                //if(sw.ElapsedMilliseconds > 150)
+                //{
+
+                //double usedTheta = currentEstimate.Theta -90;
                 //if (usedTheta < 0)
                 //    usedTheta += 360;
                 //double headingRadians = usedTheta * Math.PI / 180.0;
 
-                //    double offsetX = GlobalConstants.MidSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.MidSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //    double offsetY = GlobalConstants.MidSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.MidSensorOffsets.Item2 * Math.Cos(headingRadians);
+                //double offsetX = GlobalConstants.MidSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.MidSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //double offsetY = GlobalConstants.MidSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.MidSensorOffsets.Item2 * Math.Cos(headingRadians);
 
-                //    double shiftedX = part.X + offsetX;
-                //    double shiftedY = part.Y + offsetY;
+                //double shiftedX = currentEstimate.X + offsetX;
+                //double shiftedY = currentEstimate.Y + offsetY;
 
-                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
-
-
-                //    offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //    offsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(headingRadians);
-
-                //    shiftedX = part.X + offsetX;
-                //    shiftedY = part.Y + offsetY;
-
-                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Yellow);
 
 
-                //    offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
-                //    offsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(headingRadians);
+                //offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //offsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(headingRadians);
 
-                //    shiftedX = part.X + offsetX;
-                //    shiftedY = part.Y + offsetY;
+                //shiftedX = currentEstimate.X + offsetX;
+                //shiftedY = currentEstimate.Y + offsetY;
 
-                //    bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Purple);
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
 
+
+                //offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
+                //offsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(headingRadians);
+
+                //shiftedX = currentEstimate.X + offsetX;
+                //shiftedY = currentEstimate.Y + offsetY;
+
+                //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Purple);
+
+
+                //    //double predictedFront = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, usedTheta + 90, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid);
+                //    //double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, usedTheta + 90, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid);
+                //    //double predictedRight = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, usedTheta + 90, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid);
+
+
+                //  //   formControl.addToTextBox($"{predictedLeft} | {predictedFront} | {predictedRight} + {Environment.NewLine}");
+
+                //    sw.Restart();
+                //}
 
                 //}
 
@@ -702,10 +727,9 @@ namespace RobotAppControl
                 //shiftedY = currentEstimate.Y + (int)Math.Round(Math.Sqrt(Math.Pow(GlobalConstants.RightSensorOffsets.Item1, 2) + Math.Pow(GlobalConstants.RightSensorOffsets.Item2, 2)) * Math.Sin((usedTheta + GlobalConstants.RightDegrees) * Math.PI / 180));
                 //bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Green);
 
-                formControl.DrawParticles();
 
                 // formControl.MonteLocalization.DrawStartingPosForSensors(bitmap);
-               // formControl.addToTextBox($"Theta is {currentEstimate.Theta} While input is {whatWeKnow.direction} {Environment.NewLine}");
+                //formControl.addToTextBox($"Theta is {currentEstimate.Theta} While input is {whatWeKnow.direction} {Environment.NewLine}");
 
                 // formControl.MonteLocalization.comparing.Add($"Actual: {whatWeKnow.leftSensor} | {whatWeKnow.midSensor} | {whatWeKnow.rightSensor}");
             }
@@ -717,12 +741,13 @@ namespace RobotAppControl
 
         public void StartInterpreting()
         {
+            sw.Restart();
             stopInterpreting = false;
             while (!stopInterpreting)   // A loop where we take the messages from a string queue (stringsToBeInterpreted) and do actions depending on the first keyword of the message.
             {
                 try
                 {
-
+                    
                     if (stringsToBeInterpreted.TryDequeue(out (string key, object value) entry))
                     {
 
@@ -743,6 +768,8 @@ namespace RobotAppControl
                             else if (entry.key == "MCL")
                             {
                                 UpdateMCL((JsonMessageClass)entry.value);
+
+                                // some method to initiate update
 
                                 counter++;
                                 if (counter > 2)
