@@ -556,8 +556,8 @@ namespace RobotAppControl
 
             currentRotation = whatWeKnow.direction;
             double tempValueToCalcNewRotation = 0;
-            tempValueToCalcNewRotation = 360 - currentRotation;
-            currentRotation = tempValueToCalcNewRotation;
+          //  tempValueToCalcNewRotation = 360 - currentRotation;
+          //  currentRotation = tempValueToCalcNewRotation;
             //currentRotation -= 90;
             if (currentRotation < 0)
             {
@@ -567,7 +567,7 @@ namespace RobotAppControl
             if (whatWeKnow.midSensor < 310)
             {
                 midValue = kalmanMid.Output(whatWeKnow.midSensor);
-                if (Math.Abs(midValue - midValuePrevious) < 5)
+                if (Math.Abs(midValue - midValuePrevious) < 10)
                 {
                     midIsRelevant = true;
                 }
@@ -580,7 +580,7 @@ namespace RobotAppControl
             if (whatWeKnow.leftSensor < 310)
             {
                 leftValue = kalmanLeft.Output(whatWeKnow.leftSensor);
-                if (Math.Abs(leftValue - leftValuePrevious) < 5)
+                if (Math.Abs(leftValue - leftValuePrevious) < 10)
                 {
                     leftIsRelevant = true;
                 }
@@ -595,7 +595,7 @@ namespace RobotAppControl
             {
 
                 rightValue = kalmanRight.Output(whatWeKnow.rightSensor);
-                if (Math.Abs(rightValue - rightValuePrevious) < 5)
+                if (Math.Abs(rightValue - rightValuePrevious) < 10)
                 {
                     rightIsRelevant = true;
                 }
@@ -637,7 +637,7 @@ namespace RobotAppControl
 
                 bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
 
-                formControl.DrawParticles();
+              //  formControl.DrawParticles();
 
 
               //  MonteCarloLocal.DrawRaycast(currentEstimate.X, (int)currentEstimate.Y, currentEstimate.Theta, 300, formControl._MCL_grid, bitmap, Color.Brown);
