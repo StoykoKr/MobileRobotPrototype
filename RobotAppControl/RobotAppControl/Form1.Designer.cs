@@ -60,6 +60,7 @@
             btnScanView = new Button();
             btnSingleMotorSpeedTestForward = new Button();
             btnSingleMotorTestBackward = new Button();
+            btnSimMovementManual = new Button();
             ((System.ComponentModel.ISupportInitialize)pBox_Area).BeginInit();
             SuspendLayout();
             // 
@@ -349,7 +350,7 @@
             // 
             // btnScanView
             // 
-            btnScanView.Location = new Point(864, 212);
+            btnScanView.Location = new Point(864, 241);
             btnScanView.Name = "btnScanView";
             btnScanView.Size = new Size(151, 23);
             btnScanView.TabIndex = 40;
@@ -377,11 +378,22 @@
             btnSingleMotorTestBackward.UseVisualStyleBackColor = true;
             btnSingleMotorTestBackward.Click += btnSingleMotorTestBackward_Click;
             // 
+            // btnSimMovementManual
+            // 
+            btnSimMovementManual.Location = new Point(864, 180);
+            btnSimMovementManual.Name = "btnSimMovementManual";
+            btnSimMovementManual.Size = new Size(134, 31);
+            btnSimMovementManual.TabIndex = 43;
+            btnSimMovementManual.Text = "SimMovementInMap";
+            btnSimMovementManual.UseVisualStyleBackColor = true;
+            btnSimMovementManual.Click += btnSimMovementManual_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1223, 638);
+            Controls.Add(btnSimMovementManual);
             Controls.Add(btnSingleMotorTestBackward);
             Controls.Add(btnSingleMotorSpeedTestForward);
             Controls.Add(btnScanView);
@@ -458,5 +470,6 @@
         private Button btnScanView;
         private Button btnSingleMotorSpeedTestForward;
         private Button btnSingleMotorTestBackward;
+        private Button btnSimMovementManual;
     }
 }

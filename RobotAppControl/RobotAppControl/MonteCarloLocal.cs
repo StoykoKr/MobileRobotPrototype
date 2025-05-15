@@ -16,10 +16,8 @@ namespace RobotAppControl
 {
     public class MonteCarloLocal
     {
-
-        public bool isStarted { private set; get; }
         public double currentEstimateWeight;
-        //  public Random rand = new Random();
+
         private readonly Grid MapMap = null;
         public int allParticleCount { private set; get; }
         public int numberOfTasksToRunOn { private set; get; }
@@ -30,11 +28,21 @@ namespace RobotAppControl
         public List<Particle> Particles { private set; get; }
         private readonly object _particlesLock = new object();
         private readonly object _estimatedPosLock = new object();
+
+        public bool firstMove = true;
         public ConcurrentQueue<string> comparing = new ConcurrentQueue<string>();
+        public List<string> logOfTheBS = new List<string>();
+        public List<string> logOfParticleChanges = new List<string>();
+        public ConcurrentQueue<string> listOfbigWeights = new ConcurrentQueue<string>();
+        public ConcurrentQueue<string> listOfSmallbigWeights = new ConcurrentQueue<string>();
+
+        public List<(double, double, double, double, double, double)> logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange = new List<(double, double, double, double, double, double)>();
+        private double baseJitterXY = 2.5;
+        private double baseJitterTheta = 3.5;
+        public List<(double, double)> logOfEss = new List<(double, double)>();
         public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, int tastksCount, Grid map)
         {
             MapMap = map;
-            isStarted = true;
             allParticleCount = particleCount;
             numberOfTasksToRunOn = tastksCount;
             Particles = InitializeParticles(particleCount, CenterX - range, CenterX + range, CenterY - range, CenterY + range);
@@ -81,8 +89,7 @@ namespace RobotAppControl
             }
             return newAngle;
         }
-        public List<string> logOfTheBS = new List<string>();
-        public List<string> logOfParticleChanges = new List<string>();
+
         private void MoveParticles(double forwardMove, double Angle, double theta, int startingIndex, int finalIndex)
         {
 
@@ -110,7 +117,7 @@ namespace RobotAppControl
                 {
                     newTheta = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + theta);
                     thetaMid = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + theta / 2.0);
-                    thetaMidRad = /*(360 -*/ thetaMid * Math.PI / 180.0;
+                    thetaMidRad =  thetaMid * Math.PI / 180.0;
                 }
 
 
@@ -122,7 +129,6 @@ namespace RobotAppControl
             }
         }
       
-        public bool firstMove = true;
         public async Task StartTasksToMoveParticles(double move, double dir, double theta)
         {
             double localsavedTheta = theta;
@@ -148,16 +154,11 @@ namespace RobotAppControl
             }
             await Task.WhenAll(tasks);
         }
-
-        public ConcurrentQueue<string> listOfbigWeights = new ConcurrentQueue<string>();
-
-        public ConcurrentQueue<string> listOfSmallbigWeights = new ConcurrentQueue<string>();
-      
         public async Task StartTasksToUpdateWeightsGPT(double[] observedData)
         {
             double[] tempWeights = new double[Particles.Count];
             var particlesSnapshot = Particles.ToArray();
-            // Parallelize likelihood computation with a thread-safe pattern
+
             await Task.Run(() =>
             {
                 Parallel.For(0, particlesSnapshot.Length, i =>
@@ -173,7 +174,7 @@ namespace RobotAppControl
                 });
             });
 
-            // Normalize weights
+           
             double totalWeight = tempWeights.Sum();
             if (totalWeight <= 0)
             {
@@ -206,68 +207,6 @@ namespace RobotAppControl
             totalWeightPublic = totalWeight;
         }
 
-     
-
-        public void DrawStartingPosForSensors(CustomBitmap bitmap) // The idea here was to visualize the starting points of the particle sensors and their line of sight. Though due to my poor coding we are calculating the line of sight as if it is a laser and not the cone which it is.
-        {
-
-            foreach (var item in Particles)
-            {
-                double thetaused = item.Theta - 90;
-                if (thetaused > 360) { thetaused -= 360; }
-                if (thetaused < 0) { thetaused += 360; }
-                double headingRadians = thetaused * Math.PI / 180.0;
-
-
-                double offsetX = GlobalConstants.MidSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.MidSensorOffsets.Item2 * Math.Sin(headingRadians);
-                double offsetY = GlobalConstants.MidSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.MidSensorOffsets.Item2 * Math.Cos(headingRadians);
-
-                double shiftedX = item.X + offsetX;
-                double shiftedY = item.Y + offsetY;
-                double angl = item.Theta + GlobalConstants.DegreeOffsetMid;
-
-                if (angl < 0)
-                    angl += 360;
-                if (angl >= 360)
-                    angl -= 360;
-
-                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.MediumBlue);
-                // bitmap.SetPixel((int)shiftedX,(int) shiftedY, Color.MediumBlue);
-
-                offsetX = GlobalConstants.LeftSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.LeftSensorOffsets.Item2 * Math.Sin(headingRadians);
-                offsetY = GlobalConstants.LeftSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.LeftSensorOffsets.Item2 * Math.Cos(headingRadians);
-
-                shiftedX = item.X + offsetX;
-                shiftedY = item.Y + offsetY;
-                angl = item.Theta + GlobalConstants.DegreeOffsetLeft;
-
-                if (angl < 0)
-                    angl += 360;
-                if (angl >= 360)
-                    angl -= 360;
-
-
-                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.Lavender);
-                //   bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.Lavender);
-
-                offsetX = GlobalConstants.RightSensorOffsets.Item1 * Math.Cos(headingRadians) - GlobalConstants.RightSensorOffsets.Item2 * Math.Sin(headingRadians);
-                offsetY = GlobalConstants.RightSensorOffsets.Item1 * Math.Sin(headingRadians) + GlobalConstants.RightSensorOffsets.Item2 * Math.Cos(headingRadians);
-
-                shiftedX = item.X + offsetX;
-                shiftedY = item.Y + offsetY;
-                angl = item.Theta + GlobalConstants.DegreeOffsetRight;
-
-                if (angl < 0)
-                    angl += 360;
-                if (angl >= 360)
-                    angl -= 360;
-
-                DrawRaycast(shiftedX, shiftedY, angl, 335, MapMap, bitmap, Color.OrangeRed);
-                //  bitmap.SetPixel((int)shiftedX, (int)shiftedY, Color.OrangeRed);
-
-            }
-        }
-
         public double GetDynamicSigma(double expectedValue, double baseFactor = 0.15)  // Still not sure if this is even helpfull, but likely it isn't. Not sure exactly how important the sigma is for Gaussian
         {
             return Math.Clamp(baseFactor * expectedValue, 4, 100);//Math.Max(baseFactor * expectedValue, 4);
@@ -275,8 +214,8 @@ namespace RobotAppControl
         }
         public double CalculateLikelihood(Particle particle, double[] observedData)
         {
-            double usedTheta = /*360 -*/particle.Theta;// + 90;// + 90;  // No idea how exactly it should be here.. likely one of the major errors
-                                                       //   double usedTheta = NormalizeAngleDeg(particle.Theta);
+            double usedTheta = particle.Theta;
+                                                     
             if (usedTheta < 0)
             {
                 usedTheta += 360;
@@ -286,18 +225,16 @@ namespace RobotAppControl
                 usedTheta -= 360;
             }
 
-            double predictedFront = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap);
-            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap);
-            double predictedRight = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap);
-
-
+            double predictedFront = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, MapMap,false,null);
+            double predictedLeft = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, MapMap, false, null);
+            double predictedRight = GetPredictedDistance(particle.X, particle.Y, usedTheta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, MapMap, false, null);
 
 
             double frontDiff = observedData[0] > 0 ? Math.Abs(observedData[0] - predictedFront) : -1;
             double leftDiff = observedData[1] > 0 ? Math.Abs(observedData[1] - predictedLeft) : -1;
             double rightDiff = observedData[2] > 0 ? Math.Abs(observedData[2] - predictedRight) : -1;
 
-            double threshold = 310;
+            double threshold = 320;
             double minProbability = 1e-5;
 
             double totalLogLikelihood = 0;
@@ -340,7 +277,7 @@ namespace RobotAppControl
 
             var toReturn = Math.Exp(totalLogLikelihood) / maxLikelihood;
 
-            comparing.Enqueue($"predicteed: {predictedLeft} | {predictedFront} | {predictedRight} with theta {usedTheta}. Real distances being {observedData[1]} | {observedData[0]} | {observedData[2]} This gives differences of {leftDiff} | {frontDiff} | {rightDiff}  And final likelihood of {toReturn}"); // some logging
+            //comparing.Enqueue($"predicteed: {predictedLeft} | {predictedFront} | {predictedRight} with theta {usedTheta}. Real distances being {observedData[1]} | {observedData[0]} | {observedData[2]} This gives differences of {leftDiff} | {frontDiff} | {rightDiff}  And final likelihood of {toReturn}"); // some logging
             return toReturn;
         }
         public double GaussianProbability(double difference, double sigma)
@@ -351,13 +288,13 @@ namespace RobotAppControl
 
             return Math.Max(probability, 1e-10);
         }
-        public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt, double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map)
+        public double GetPredictedDistance(double x, double y, double theta, double sensorDirectionLookingAt, double startingPointDegreeOffsets, (double, double) startingPointOffsets, Grid map, bool drawTheDistances, CustomBitmap mappp)
         {
 
-            double thetaused = theta - 90;   // it was somewhat shifted in a bad direction visually so I tried to shift it back
+            double thetaused = theta; 
             if (thetaused > 360) { thetaused -= 360; }
             if (thetaused < 0) { thetaused += 360; }
-            double headingRadians = thetaused * Math.PI / 180.0;
+            double headingRadians = (thetaused-90) * Math.PI / 180.0;
 
             double offsetX = startingPointOffsets.Item1 * Math.Cos(headingRadians) - startingPointOffsets.Item2 * Math.Sin(headingRadians);
             double offsetY = startingPointOffsets.Item1 * Math.Sin(headingRadians) + startingPointOffsets.Item2 * Math.Cos(headingRadians);
@@ -373,10 +310,13 @@ namespace RobotAppControl
                 angl -= 360;
 
             // return Raycast(shiftedX, shiftedY, angl, 335, map);
+            if (drawTheDistances)
+            {
+                DrawRaycast(shiftedX, shiftedY, angl, 335, map, mappp, Color.Blue);
+            }
             return RaycastCone(shiftedX, shiftedY, angl, 335, GlobalConstants.SensorDispersion, map);
         }
-
-        public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)  // tried something. not good yet
+        public static double RaycastCone(double startX, double startY, double angle, double maxRange, double dispersion, Grid map)  
         {
             double stepSize = 7;
             double distance = 0;
@@ -415,69 +355,14 @@ namespace RobotAppControl
             return maxRange;
         }
 
-        public List<(double, double, double, double, double, double)> logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange = new List<(double, double, double, double, double, double)>();
-        private readonly object _resampleLogLock = new object();
-        public void Resample(bool forceTheta, double thetaToBeForced)
-        {
-            List<Particle> newParticles = new List<Particle>();
-            double[] cumulativeWeights = new double[allParticleCount];
-
-            var snapshot = Particles.ToList();
-            double weightSum = snapshot.Sum(p => p.Weight);
-            int numberToSample = snapshot.Count();
-            double step = weightSum / numberToSample;
-            double start = Random.Shared.NextDouble() * step;
-
-            double maxWeight = snapshot.Max(p => p.Weight);
-            double cumulative = 0.0;
-            int index = 0;
-
-            for (int i = 0; i < numberToSample; i++)
-            {
-                double threshold = start + i * step;
-
-                while (cumulative < threshold && index < snapshot.Count)
-                {
-                    cumulative += snapshot[index].Weight;
-                    index++;
-                }
-
-                int selectedIndex = Math.Min(index - 1, snapshot.Count - 1);
-
-                Particle resampledParticle = snapshot[selectedIndex].Clone();
-
-                double relativeImportance = snapshot[selectedIndex].Weight / maxWeight;
-                double adaptiveNoise = resampleNoiseFactor * (1.1 - relativeImportance);
-
-                var xChange = (Random.Shared.NextDouble() * 2 - 1) * adaptiveNoise;
-                var yChange = (Random.Shared.NextDouble() * 2 - 1) * adaptiveNoise;
-                resampledParticle.X += xChange;
-                resampledParticle.Y += yChange;
-                lock (_resampleLogLock)
-                {
-                    logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange.Add(new(adaptiveNoise, relativeImportance, snapshot[selectedIndex].Weight, maxWeight, xChange, yChange));
-                }
-                if (forceTheta)
-                {
-                    resampledParticle.Theta = thetaToBeForced;
-
-                }
-                resampledParticle.Theta += (Random.Shared.NextDouble() * 2 - 1) * adaptiveNoise * weightScale;
-
-                newParticles.Add(resampledParticle);
-            }
-            Particles = newParticles;
-        }
-
-        private double baseJitterXY = 2.5;
-        private double baseJitterTheta = 3.5;
-        public List<(double, double)> logOfEss = new List<(double, double)>();
         public void ResampleGPT()
         {
             int N = Particles.Count;
 
             double ess = 1.0 / Particles.Sum(p => p.Weight * p.Weight);
             logOfEss.Add((ess, totalWeightPublic));
+            
+
 
             var snapshot = Particles.ToList();
             List<Particle> newParticles = new List<Particle>(N);
@@ -508,30 +393,10 @@ namespace RobotAppControl
 
 
 
-                // Adjust based on ESS
-                //double essRatio = ess / N;
-                //double noiseScale = essRatio < 1 ? Math.Sqrt(1.0 / essRatio) : 1.0;
-                ////noiseScale = Math.Clamp(noiseScale, 1.0, 3.0);
-
-
-                //double essRatio = ess / N;
-                //double noiseScale = 3.0 / (1.0 + Math.Exp(5.0 * (essRatio - 0.5)));  // scales from ~3 to ~0.5
-
-                //double essRatio = ess / N;
-                //double noiseScale;//= 0.1;
-                //if (essRatio > 0.6)
-                //    noiseScale = 0.2;  // particles converging — minimal noise
-                //else if (essRatio > 0.3)
-                //    noiseScale = 0.7;  // moderate noise
-                //else
-                //    noiseScale = 1.0;  // high diversity needed
-
                 double weightRatio = selected.Weight / maxWeight; // ∈ [0, 1]
 
-                // Invert: higher weight → less noise
-                // Ensure value is not too small to avoid freezing
                 double noiseScale = 1.0 - weightRatio;
-                noiseScale = 0.1 + noiseScale * 0.9; // ∈ [0.2, 1.0]
+                noiseScale = 0.1 + noiseScale * 1.9; 
 
 
                 p.X += RandomGaussian(0, baseJitterXY * noiseScale);
@@ -541,22 +406,17 @@ namespace RobotAppControl
                 p.Theta = NormalizeAngleDeg(p.Theta);
 
 
-
-
-
-
                 newParticles.Add(p);
             }
-            int numRandom = (int)(N * 0.05);
-            for (int j = 0; j < numRandom; j++)
-            {
-              //  newParticles[j].Theta = RecalcDegree(newParticles[j].Theta, 45);
-            }
+            //int numRandom = (int)(N * 0.05);
+            //for (int j = 0; j < numRandom; j++)
+            //{
+            //    newParticles[j].Theta = RecalcDegree(newParticles[j].Theta, 45);
+            //}
             Particles = newParticles;
         }
         private double RandomGaussian(double mean, double stddev)
         {
-            // Box-Muller transform
             double u1 = 1.0 - Random.Shared.NextDouble();
             double u2 = 1.0 - Random.Shared.NextDouble();
             double randStdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) *
@@ -622,7 +482,6 @@ namespace RobotAppControl
 
         public static double Raycast(double startX, double startY, double angle, double maxRange, Grid map) // This is a simple but stupid way but it was working so far so it was not replaced.
         {
-
             double stepSize = 2;
             double distance = 0;
 
