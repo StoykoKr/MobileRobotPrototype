@@ -38,7 +38,7 @@ namespace RobotAppControl
 
         public List<(double, double, double, double, double, double)> logOfResamplingNoiseAndImportanceAndCurrentWeightAndMaxWeightForThisCalcAndParticleXChangeAsWellAsYChange = new List<(double, double, double, double, double, double)>();
         private double baseJitterXY = 2.5;
-        private double baseJitterTheta = 3.5;
+        private double baseJitterTheta = 5;
         public List<(double, double)> logOfEss = new List<(double, double)>();
         public MonteCarloLocal(int particleCount, int CenterX, int CenterY, int range, int tastksCount, Grid map)
         {
@@ -106,19 +106,19 @@ namespace RobotAppControl
                 double newTheta;
                 double thetaMid;
                 double thetaMidRad;
-                if (firstMove)
-                {
-                    newTheta = RecalcDegree(Angle, 2);
-                    thetaMid = RecalcDegree(Angle, 2);
-                    thetaMidRad = thetaMid * Math.PI / 180.0;
+                //if (firstMove)
+                //{
+                //    newTheta = RecalcDegree(Angle, 2);
+                //    thetaMid = RecalcDegree(Angle, 2);
+                //    thetaMidRad = thetaMid * Math.PI / 180.0;
 
-                }
-                else
-                {
+                //}
+                //else
+                //{
                     newTheta = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + theta);
                     thetaMid = NormalizeAngleDeg(NormalizeAngleDeg(Particles[i].Theta) + theta / 2.0);
-                    thetaMidRad =  thetaMid * Math.PI / 180.0;
-                }
+                    thetaMidRad = thetaMid * Math.PI / 180.0;
+                //}
 
 
                 Particles[i].X += forwardMove * Math.Cos(thetaMidRad);
@@ -275,8 +275,8 @@ namespace RobotAppControl
                     * (leftDiff >= 0 ? GaussianProbability(0, leftSigma) : 1)
                     * (rightDiff >= 0 ? GaussianProbability(0, rightSigma) : 1);
 
-            var toReturn = Math.Exp(totalLogLikelihood) / maxLikelihood;
-
+            var toReturn =  Math.Exp(totalLogLikelihood) / maxLikelihood;
+   //0.01 + 0.99 * Math.Exp(totalLogLikelihood) / maxLikelihood;
             //comparing.Enqueue($"predicteed: {predictedLeft} | {predictedFront} | {predictedRight} with theta {usedTheta}. Real distances being {observedData[1]} | {observedData[0]} | {observedData[2]} This gives differences of {leftDiff} | {frontDiff} | {rightDiff}  And final likelihood of {toReturn}"); // some logging
             return toReturn;
         }
@@ -355,65 +355,75 @@ namespace RobotAppControl
             return maxRange;
         }
 
+        private ConcurrentQueue<double> lastThreeWeight = new ConcurrentQueue<double>(); 
+        public List<int> queueWatcher = new List<int>();
+      
+
         public void ResampleGPT()
         {
-            int N = Particles.Count;
-
-            double ess = 1.0 / Particles.Sum(p => p.Weight * p.Weight);
-            logOfEss.Add((ess, totalWeightPublic));
-            
-
-
             var snapshot = Particles.ToList();
-            List<Particle> newParticles = new List<Particle>(N);
-            double step = 1.0 / N;
-            double start = Random.Shared.NextDouble() * step;
 
-            double[] cumulative = new double[N];
-            cumulative[0] = snapshot[0].Weight;
-            for (int i = 1; i < N; i++)
-            {
-                cumulative[i] = cumulative[i - 1] + snapshot[i].Weight;
-            }
+            int N = snapshot.Count;
 
-            int index = 0;
-            double maxWeight = snapshot.Max(p => p.Weight);
-            for (int i = 0; i < N; i++)
+            double ess = 1.0 / snapshot.Sum(p => p.Weight * p.Weight);
+            logOfEss.Add((ess, totalWeightPublic));
+            if (totalWeightPublic < 0.01)
             {
-                double u = start + i * step;
-                while (index < N - 1 && u > cumulative[index])
+                lock (_particlesLock)
                 {
-                    index++;
+                    Particles = InitializeParticles(snapshot.Count, (int)GetEstimatedPos().X - 15, (int)GetEstimatedPos().X + 15, (int)GetEstimatedPos().Y - 15, (int)GetEstimatedPos().Y + 15);
                 }
 
-                Particle selected = snapshot[index];
-                Particle p = new Particle(selected.X, selected.Y, selected.Theta);
-                p.Weight = 1.0 / N;
-
-
-
-
-                double weightRatio = selected.Weight / maxWeight; // ∈ [0, 1]
-
-                double noiseScale = 1.0 - weightRatio;
-                noiseScale = 0.1 + noiseScale * 1.9; 
-
-
-                p.X += RandomGaussian(0, baseJitterXY * noiseScale);
-                p.Y += RandomGaussian(0, baseJitterXY * noiseScale);
-                p.Theta += RandomGaussian(0, baseJitterTheta * noiseScale);
-
-                p.Theta = NormalizeAngleDeg(p.Theta);
-
-
-                newParticles.Add(p);
             }
-            //int numRandom = (int)(N * 0.05);
-            //for (int j = 0; j < numRandom; j++)
-            //{
-            //    newParticles[j].Theta = RecalcDegree(newParticles[j].Theta, 45);
-            //}
-            Particles = newParticles;
+            else
+            {
+
+                List<Particle> newParticles = new List<Particle>(N);
+                double step = 1.0 / N;
+                double start = Random.Shared.NextDouble() * step;
+
+                double[] cumulative = new double[N];
+                cumulative[0] = snapshot[0].Weight;
+                for (int i = 1; i < N; i++)
+                {
+                    cumulative[i] = cumulative[i - 1] + snapshot[i].Weight;
+                }
+
+                int index = 0;
+                double maxWeight = snapshot.Max(p => p.Weight);
+                for (int i = 0; i < N; i++)
+                {
+                    double u = start + i * step;
+                    while (index < N - 1 && u > cumulative[index])
+                    {
+                        index++;
+                    }
+
+                    Particle selected = snapshot[index];
+                    Particle p = new Particle(selected.X, selected.Y, selected.Theta);
+                    p.Weight = 1.0 / N;
+
+
+
+
+                    double weightRatio = selected.Weight / maxWeight; // ∈ [0, 1]
+
+                    double noiseScale = 1.0 - weightRatio;
+                    noiseScale = 0.1 + noiseScale * 1.8;
+
+
+                    p.X += RandomGaussian(0, baseJitterXY * noiseScale);
+                    p.Y += RandomGaussian(0, baseJitterXY * noiseScale);
+                    p.Theta += RandomGaussian(0, baseJitterTheta * noiseScale);
+
+                    p.Theta = NormalizeAngleDeg(p.Theta);
+
+
+                    newParticles.Add(p);
+                }
+
+                Particles = newParticles;
+            }
         }
         private double RandomGaussian(double mean, double stddev)
         {
@@ -424,6 +434,26 @@ namespace RobotAppControl
             return mean + stddev * randStdNormal;
         }
 
+        private int GetRandomIntInRange(int start, int range)
+        {
+            int chosenRand = Random.Shared.Next(range);
+            if (Random.Shared.NextDouble() < 0.5)
+            {
+                if(start - chosenRand < 0)
+                {
+                    return start;
+                }
+                return start-chosenRand;
+            }
+            else
+            {
+                if (start + chosenRand > MapMap.Width || start + chosenRand > MapMap.Height)
+                {
+                    return start;
+                }
+                return start + chosenRand;
+            }
+        }
         private double NormalizeAngleDeg(double angle)
         {
             angle %= 360;

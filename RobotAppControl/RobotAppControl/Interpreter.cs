@@ -607,7 +607,7 @@ namespace RobotAppControl
             }
 
             double deltaTheta = (dL - dR) / wheelBase;
-            await formControl.MonteLocalization.StartTasksToMoveParticles(d, /*(deltaTheta * 180 / Math.PI)*/currentRotation, deltaTheta * 180 / Math.PI);
+            await formControl.MonteLocalization.StartTasksToMoveParticles(d, 360 -currentRotation, deltaTheta * 180 / Math.PI);
             if (formControl.MonteLocalization.firstMove)
             {
                 formControl.MonteLocalization.firstMove = false;
@@ -617,12 +617,10 @@ namespace RobotAppControl
 
             if (count > 1) /*&& d != 0)*/ // Wanted to only work if there was some usable data. Not sure if the idea is usable.
             {
-                await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
-                       [midValue, leftValue, rightValue]);
+               await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT([midValue, leftValue, rightValue]);
                 formControl.MonteLocalization.ResampleGPT();
-                formControl.addToTextBox(formControl.MonteLocalization.logOfEss.Last() + "" + Environment.NewLine);
-                await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT(
-                       [midValue, leftValue, rightValue]);
+               // formControl.addToTextBox(formControl.MonteLocalization.logOfEss.Last() + "" + Environment.NewLine);
+                await formControl.MonteLocalization.StartTasksToUpdateWeightsGPT([midValue, leftValue, rightValue]);
             }
 
 
@@ -637,17 +635,17 @@ namespace RobotAppControl
 
                 bitmap.SetPixel((int)currentEstimate.X, (int)currentEstimate.Y, Color.Red);
 
-              //  formControl.DrawParticles();
+                //formControl.DrawParticles();
 
 
-              //  MonteCarloLocal.DrawRaycast(currentEstimate.X, (int)currentEstimate.Y, currentEstimate.Theta, 300, formControl._MCL_grid, bitmap, Color.Brown);
+                //MonteCarloLocal.DrawRaycast(currentEstimate.X, (int)currentEstimate.Y, currentEstimate.Theta, 300, formControl._MCL_grid, bitmap, Color.Brown);
 
 
-            //    double predictedFront = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid, false, bitmap);
-            //    double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid, false, bitmap);
-            //    double predictedRight = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid, false, bitmap);
-            ////    logOfPredictedAndReal.Add($"{predictedLeft}|{predictedFront}|{predictedRight} while the real are {whatWeKnow.leftSensor}|{whatWeKnow.midSensor}|{whatWeKnow.rightSensor}");
-             
+                //    double predictedFront = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetMid, GlobalConstants.MidDegrees, GlobalConstants.MidSensorOffsets, formControl._MCL_grid, false, bitmap);
+                //    double predictedLeft = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetLeft, GlobalConstants.LeftDegrees, GlobalConstants.LeftSensorOffsets, formControl._MCL_grid, false, bitmap);
+                //    double predictedRight = formControl.MonteLocalization.GetPredictedDistance(currentEstimate.X, currentEstimate.Y, currentEstimate.Theta, GlobalConstants.DegreeOffsetRight, GlobalConstants.RightDegrees, GlobalConstants.RightSensorOffsets, formControl._MCL_grid, false, bitmap);
+                ////    logOfPredictedAndReal.Add($"{predictedLeft}|{predictedFront}|{predictedRight} while the real are {whatWeKnow.leftSensor}|{whatWeKnow.midSensor}|{whatWeKnow.rightSensor}");
+
 
             }
             catch (Exception)
